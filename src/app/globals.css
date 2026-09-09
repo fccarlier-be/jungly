@@ -1,0 +1,241 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design system — voir le brief de refonte UI/UX.
+ * Roles : primaire = vert foret (actions, etats actifs), secondaire = sauge
+ * (touches douces), accent = terracotta (rare, reserve aux moments qui
+ * meritent d'etre remarques : statut "a faire aujourd'hui", petits accents).
+ */
+:root {
+  --bg: #f6f2e8;
+  --surface: #ffffff;
+  --surface-alt: #efe9db;
+  --ink: #23281f;
+  --ink-muted: #6f7566;
+  --border: #e3ddcc;
+
+  --primary: #2f4a34;
+  --primary-strong: #22361a;
+  --primary-ink: #f5f2e6;
+  --primary-soft: #e3e9dc;
+
+  --secondary: #7c9473;
+  --accent: #b3684a;
+  --accent-ink: #ffffff;
+  --warning: #c98a3e;
+  --danger: #b3392f;
+
+  --care-watering: #3a7ca8;
+  --care-fertilizing: #4d8a3f;
+  --care-repotting: #8a5a34;
+  --care-pruning: #c9702f;
+  --care-inspection: #6b7066;
+
+  --shadow-soft: 0 1px 2px rgba(35, 40, 31, 0.04), 0 6px 16px -8px rgba(35, 40, 31, 0.12);
+  --shadow-lift: 0 4px 8px rgba(35, 40, 31, 0.06), 0 16px 32px -12px rgba(35, 40, 31, 0.18);
+}
+
+/* Systeme (par defaut) : suit les reglages de l'appareil, sauf si l'utilisateur a force un choix dans Parametres (data-theme sur <html>). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12150f;
+    --surface: #23281e;
+    --surface-alt: #2f3526;
+    --ink: #f1ede2;
+    --ink-muted: #a9ad9d;
+    --border: #454c3a;
+
+    --primary: #86ac7a;
+    --primary-strong: #a3c797;
+    --primary-ink: #17201a;
+    --primary-soft: #2c3629;
+
+    --secondary: #9db692;
+    --accent: #d98a68;
+    --accent-ink: #12150f;
+    --warning: #e3a962;
+    --danger: #e08277;
+
+    --care-watering: #7db8e0;
+    --care-fertilizing: #8fc47a;
+    --care-repotting: #c69a6c;
+    --care-pruning: #e3a260;
+    --care-inspection: #a9ad9d;
+
+    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.2), 0 6px 16px -8px rgba(0, 0, 0, 0.35);
+    --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.25), 0 16px 32px -12px rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* Force sombre, meme si l'appareil est en mode clair. */
+:root[data-theme="dark"] {
+  --bg: #12150f;
+  --surface: #23281e;
+  --surface-alt: #2f3526;
+  --ink: #f1ede2;
+  --ink-muted: #a9ad9d;
+  --border: #454c3a;
+
+  --primary: #86ac7a;
+  --primary-strong: #a3c797;
+  --primary-ink: #17201a;
+  --primary-soft: #2c3629;
+
+  --secondary: #9db692;
+  --accent: #d98a68;
+  --accent-ink: #12150f;
+  --warning: #e3a962;
+  --danger: #e08277;
+
+  --care-watering: #7db8e0;
+  --care-fertilizing: #8fc47a;
+  --care-repotting: #c69a6c;
+  --care-pruning: #e3a260;
+  --care-inspection: #a9ad9d;
+
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.2), 0 6px 16px -8px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.25), 0 16px 32px -12px rgba(0, 0, 0, 0.45);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+h1, h2 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  box-shadow: var(--shadow-soft);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+a.card:hover,
+button.card:hover {
+  box-shadow: var(--shadow-lift);
+  transform: translateY(-1px);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-ink);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+.btn-secondary:hover {
+  filter: brightness(0.97);
+}
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+.btn-ghost {
+  color: var(--ink-muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.btn-ghost:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--ink);
+}
+
+.chip {
+  border: 1px solid var(--border);
+  color: var(--ink-muted);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.chip:hover {
+  border-color: var(--primary);
+  color: var(--ink);
+}
+.chip-active {
+  background: var(--primary);
+  border-color: transparent;
+  color: var(--primary-ink);
+}
+
+.input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 0.75rem;
+  /* 16px minimum : en dessous, Safari iOS zoome automatiquement la page au focus. */
+  font-size: 16px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.text-muted {
+  color: var(--ink-muted);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+.status-healthy { background: var(--secondary); }
+.status-watch { background: var(--warning); }
+.status-today { background: var(--accent); }
+.status-attention { background: var(--danger); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+}
+.badge-healthy { background: color-mix(in srgb, var(--secondary) 18%, transparent); color: var(--primary-strong); }
+.badge-watch { background: color-mix(in srgb, var(--warning) 18%, transparent); color: var(--warning); }
+.badge-today { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+.badge-attention { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-rise-in {
+  animation: rise-in 0.35s ease-out both;
+}
+
+@keyframes pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+.animate-pop {
+  animation: pop 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise-in, .animate-pop, .card, .btn-primary, .btn-secondary, .btn-ghost, .chip, .input {
+    animation: none !important;
+    transition: none !important;
+  }
+}

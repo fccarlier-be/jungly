@@ -1,0 +1,10 @@
+node_modules
+.next
+data
+data.smoke
+.env
+.env.*
+!.env.example
+.git
+*.db
+*.db-journal

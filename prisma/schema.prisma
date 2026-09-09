@@ -1,0 +1,352 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Utilisateur
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  locations             Location[]
+  plants                Plant[]
+  fertilizers           Fertilizer[]
+  notificationPreference NotificationPreference?
+  pushSubscriptions     PushSubscription[]
+}
+
+// ---------------------------------------------------------------------------
+// Emplacements
+// ---------------------------------------------------------------------------
+
+model Location {
+  id     String @id @default(cuid())
+  userId String
+  name   String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plants Plant[]
+
+  @@unique([userId, name])
+}
+
+// ---------------------------------------------------------------------------
+// Plante
+// ---------------------------------------------------------------------------
+
+model Plant {
+  id              String    @id @default(cuid())
+  userId          String
+  libraryEntryId  String?
+  name            String
+  scientificName  String?
+  photoUrl        String?
+  locationId      String?
+  acquiredAt      DateTime?
+  potDiameterMm   Int?
+  potHeightMm     Int?
+  potMaterial     String?
+  substrate       String?
+  exposure        String?
+  temperatureNote String?
+  humidityNote    String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location      Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  libraryEntry  PlantLibraryEntry? @relation(fields: [libraryEntryId], references: [id], onDelete: SetNull)
+  careRules     PlantCareRule[]
+  tasks         Task[]
+  careEvents    CareEvent[]
+  plantNotes    Note[]
+  sensors       Sensor[]
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Regles d'entretien
+// ---------------------------------------------------------------------------
+
+enum CareRuleType {
+  WATERING
+  FERTILIZING
+  REPOTTING
+}
+
+enum RecurrenceType {
+  FIXED_INTERVAL_DAYS
+  INTERVAL_WEEKS
+  INTERVAL_MONTHS
+  EXACT_DATE
+  YEARLY
+  MANUAL
+  MOISTURE_THRESHOLD
+}
+
+model PlantCareRule {
+  id             String         @id @default(cuid())
+  plantId        String
+  type           CareRuleType
+  enabled        Boolean        @default(true)
+  recurrenceType RecurrenceType
+  interval       Int? // en jours / semaines / mois selon recurrenceType
+  nextDueAt      DateTime?
+  // Configuration libre par type de regle : quantite d'eau par defaut,
+  // engrais/dosage, seuil d'humidite, saisonnalite (activeFromMonth/
+  // activeUntilMonth, 1-12), etc. Voir src/server/validation pour la forme
+  // attendue par type.
+  configuration  Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  plant Plant  @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  tasks Task[]
+
+  @@index([plantId])
+}
+
+// ---------------------------------------------------------------------------
+// Taches
+// ---------------------------------------------------------------------------
+
+enum TaskType {
+  WATERING
+  FERTILIZING
+  REPOTTING
+  PRUNING
+  INSPECTION
+  OTHER
+}
+
+enum TaskStatus {
+  PENDING
+  COMPLETED
+  SNOOZED
+  SKIPPED
+}
+
+model Task {
+  id            String     @id @default(cuid())
+  plantId       String
+  careRuleId    String?
+  type          TaskType
+  title         String
+  description   String?
+  dueAt         DateTime
+  completedAt   DateTime?
+  status        TaskStatus @default(PENDING)
+  snoozedUntil  DateTime?
+  metadata      Json?
+  createdAt     DateTime   @default(now())
+
+  plant     Plant          @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  careRule  PlantCareRule? @relation(fields: [careRuleId], references: [id], onDelete: SetNull)
+  careEvent CareEvent?
+
+  @@index([plantId, status])
+  @@index([dueAt])
+}
+
+// ---------------------------------------------------------------------------
+// Evenements de soin (historique)
+// ---------------------------------------------------------------------------
+
+enum CareEventType {
+  WATERING
+  FERTILIZING
+  REPOTTING
+  PRUNING
+  INSPECTION
+  OTHER
+}
+
+model CareEvent {
+  id          String        @id @default(cuid())
+  plantId     String
+  taskId      String?       @unique
+  type        CareEventType
+  performedAt DateTime      @default(now())
+  quantity    Float?
+  unit        String?
+  metadata    Json?
+  note        String?
+  createdAt   DateTime      @default(now())
+
+  plant Plant @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  task  Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([plantId, performedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Engrais
+// ---------------------------------------------------------------------------
+
+model Fertilizer {
+  id             String   @id @default(cuid())
+  userId         String
+  name           String
+  manufacturer   String?
+  type           String?
+  nitrogen       Float?
+  phosphorus     Float?
+  potassium      Float?
+  defaultDosage  Float?
+  dosageUnit     String?
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Notes libres
+// ---------------------------------------------------------------------------
+
+enum NoteCategory {
+  OBSERVATION
+  MALADIE
+  PARASITE
+  CROISSANCE
+  FLORAISON
+  AUTRE
+}
+
+model Note {
+  id        String       @id @default(cuid())
+  plantId   String
+  content   String
+  category  NoteCategory @default(OBSERVATION)
+  photoUrl  String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  plant Plant @relation(fields: [plantId], references: [id], onDelete: Cascade)
+
+  @@index([plantId])
+}
+
+// ---------------------------------------------------------------------------
+// Bibliotheque de plantes (phase 6, non exposee en MVP)
+// ---------------------------------------------------------------------------
+
+// Joue le role de "plant_species" : bibliotheque botanique generique, separee
+// des plantes reellement possedees par l'utilisateur (voir `Plant`, qui la
+// reference via `libraryEntryId`). `source` distingue une fiche saisie a la
+// main ("LOCAL", les ~120 profils initiaux) d'une fiche importee depuis une
+// source externe ("PERENUAL", "GBIF", "POWO" en preparation pour une
+// verification taxonomique future) -- `sourceId` + `@@unique` empechent de
+// reimporter deux fois la meme espece externe.
+model PlantLibraryEntry {
+  id             String   @id @default(cuid())
+  commonName     String
+  scientificName String?
+  family         String?
+  careProfile    Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  source          String    @default("LOCAL")
+  sourceId        String?
+  importedAt      DateTime?
+  lastSyncedAt    DateTime?
+  // D'ou vient specifiquement LA PHOTO -- distinct de `source` (d'ou vient
+  // la FICHE) : une fiche PLANTFOLIO n'a par exemple aucune photo propre,
+  // la sienne vient forcement d'un rattrapage (OPENPLANTBOOK/INATURALIST/GBIF).
+  imageSource     String?
+  imageSourceUrl  String?
+  imageLicense    String?
+  imageLicenseUrl String?
+
+  plants Plant[]
+
+  @@unique([source, sourceId])
+}
+
+// ---------------------------------------------------------------------------
+// Preferences de notification (phase 5)
+// ---------------------------------------------------------------------------
+
+model NotificationPreference {
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  enabled             Boolean   @default(false)
+  notificationTime    String    @default("08:00")
+  overdueEnabled      Boolean   @default(true)
+  advanceReminderDays Int       @default(0)
+  lastDigestSentAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/** Abonnement Web Push d'un appareil/navigateur (phase 5). */
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Capteurs IoT (phase 8, non exposes en MVP)
+// ---------------------------------------------------------------------------
+
+enum SensorType {
+  SOIL_MOISTURE
+  TEMPERATURE
+  HUMIDITY
+  LIGHT
+  CONDUCTIVITY
+}
+
+model Sensor {
+  id         String   @id @default(cuid())
+  plantId    String
+  type       SensorType
+  name       String
+  externalId String?
+  // Jeton d'ingestion (distinct de externalId, qui identifie le
+  // peripherique physique) : permet a un appareil IoT de poster des
+  // mesures sans session utilisateur (voir POST /api/sensors/[id]/readings).
+  apiKey     String   @unique @default(cuid())
+  createdAt  DateTime @default(now())
+
+  plant    Plant           @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  readings SensorReading[]
+
+  @@index([plantId])
+}
+
+model SensorReading {
+  id         String   @id @default(cuid())
+  sensorId   String
+  value      Float
+  unit       String
+  recordedAt DateTime @default(now())
+
+  sensor Sensor @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+
+  @@index([sensorId, recordedAt])
+}
