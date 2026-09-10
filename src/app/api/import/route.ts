@@ -193,6 +193,29 @@ export async function POST(request: NextRequest) {
             },
           });
 
+          // Evenements restaures AVANT les regles/taches : ensurePendingTaskForRule
+          // a besoin de connaitre le dernier soin reel (pas la date d'import)
+          // pour calculer la bonne prochaine echeance -- sinon une restauration
+          // decale silencieusement le calendrier de chaque regle a "aujourd'hui".
+          const latestEventDateByType = new Map<string, Date>();
+          for (const event of p.careEvents) {
+            await tx.careEvent.create({
+              data: {
+                plantId: plant.id,
+                type: event.type,
+                performedAt: event.performedAt,
+                quantity: event.quantity ?? undefined,
+                unit: event.unit ?? undefined,
+                metadata: (event.metadata as Prisma.InputJsonValue | null) ?? undefined,
+                note: event.note ?? undefined,
+              },
+            });
+            const current = latestEventDateByType.get(event.type);
+            if (!current || event.performedAt > current) {
+              latestEventDateByType.set(event.type, event.performedAt);
+            }
+          }
+
           for (const rule of p.careRules) {
             const configuration: Record<string, unknown> = { ...(rule.configuration ?? {}) };
             if (rule.fertilizerName) {
@@ -212,22 +235,12 @@ export async function POST(request: NextRequest) {
             });
 
             if (createdRule.enabled) {
-              await ensurePendingTaskForRule(createdRule, new Date(), tx);
+              // Le dernier evenement du meme type de soin que la regle sert
+              // de point de depart -- repli sur la date d'import si aucun
+              // evenement de ce type n'a ete restaure (regle jamais honoree).
+              const fromDate = latestEventDateByType.get(rule.type) ?? new Date();
+              await ensurePendingTaskForRule(createdRule, fromDate, tx);
             }
-          }
-
-          for (const event of p.careEvents) {
-            await tx.careEvent.create({
-              data: {
-                plantId: plant.id,
-                type: event.type,
-                performedAt: event.performedAt,
-                quantity: event.quantity ?? undefined,
-                unit: event.unit ?? undefined,
-                metadata: (event.metadata as Prisma.InputJsonValue | null) ?? undefined,
-                note: event.note ?? undefined,
-              },
-            });
           }
 
           for (const note of p.plantNotes) {
