@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
@@ -57,10 +57,18 @@ export async function POST(request: NextRequest) {
       .jpeg({ quality: JPEG_QUALITY })
       .toBuffer();
     await writeFile(path.join(UPLOAD_DIR, filename), processed);
-    // Trace qui a televerse ce fichier -- necessaire pour verifier
-    // l'ownership de l'URL quand elle est fournie ensuite sur une autre
-    // route (voir assertOwnedUpload() dans src/server/uploads.ts).
-    await db.upload.create({ data: { filename, userId } });
+    try {
+      // Trace qui a televerse ce fichier -- necessaire pour verifier
+      // l'ownership de l'URL quand elle est fournie ensuite sur une autre
+      // route (voir assertOwnedUpload() dans src/server/uploads.ts).
+      await db.upload.create({ data: { filename, userId } });
+    } catch (error) {
+      // Sans ce nettoyage, un echec ici (ex. panne DB) laissait un fichier
+      // physique orphelin -- jamais reference par aucun Upload, jamais
+      // rattachable a une plante/note valide.
+      await unlink(path.join(UPLOAD_DIR, filename)).catch(() => {});
+      throw error;
+    }
 
     return NextResponse.json({ url: `/uploads/${filename}` }, { status: 201 });
   } catch (error) {

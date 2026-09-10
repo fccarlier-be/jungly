@@ -22,14 +22,21 @@ export async function deleteUploadedFile(url: string | null | undefined): Promis
   if (!url || !url.startsWith("/uploads/")) {
     return;
   }
-  const filePath = resolveUploadedFilePath(url);
+  const filename = path.basename(url);
+  const filePath = resolveUploadedFilePath(filename);
   try {
     await unlink(filePath);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
       console.error("Echec de suppression du fichier uploade", filePath, error);
+      return;
     }
   }
+  // Le fichier physique n'existe plus (supprime a l'instant, ou deja
+  // absent) : la ligne Upload correspondante n'a plus lieu d'etre.
+  // deleteMany plutot que delete : silencieux si absente (fichier importe
+  // via ZIP, ou televerse avant l'introduction de cette table).
+  await db.upload.deleteMany({ where: { filename } }).catch(() => {});
 }
 
 /**
