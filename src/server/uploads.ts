@@ -3,6 +3,11 @@ import path from "node:path";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
+/** Chemin disque d'un fichier uploade a partir de son seul nom -- path.basename() empeche toute traversee de repertoire. */
+export function resolveUploadedFilePath(filename: string): string {
+  return path.join(UPLOAD_DIR, path.basename(filename));
+}
+
 /**
  * Supprime physiquement un fichier televerse via /api/uploads, a partir de
  * son url stockee en base (`/uploads/<nom>`). N'agit que sur ce dossier
@@ -15,7 +20,7 @@ export async function deleteUploadedFile(url: string | null | undefined): Promis
   if (!url || !url.startsWith("/uploads/")) {
     return;
   }
-  const filePath = path.join(UPLOAD_DIR, path.basename(url));
+  const filePath = resolveUploadedFilePath(url);
   try {
     await unlink(filePath);
   } catch (error) {
