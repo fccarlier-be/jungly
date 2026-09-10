@@ -4,7 +4,7 @@ import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { getOwnedCareRule } from "@/server/ownership";
-import { recurrenceComboCheckSchema, updateCareRuleSchema } from "@/server/validation/careRule";
+import { recurrenceComboCheckSchema, updateCareRuleSchema, configSchemaByType } from "@/server/validation/careRule";
 import { ensurePendingTaskForRule } from "@/server/careEngine/service";
 
 type Params = { params: Promise<{ id: string }> };
@@ -18,6 +18,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const body = await request.json();
     const input = updateCareRuleSchema.parse(body);
 
+    // updateCareRuleSchema accepte configuration comme un record non type
+    // (chaque champ etant independamment optionnel sur un PATCH) : sans ce
+    // controle, une valeur incoherente pour le type de la regle (ex.
+    // dosagePerLiter negatif, cle arbitraire) passait sans jamais etre
+    // verifiee contre la forme attendue -- CREATE la valide deja via le
+    // discriminated union, PATCH ne le faisait pas.
+    let validatedConfiguration = input.configuration;
+    if (input.configuration !== undefined) {
+      validatedConfiguration = configSchemaByType[existing.type].parse(input.configuration);
+    }
+
     // updateCareRuleSchema ne peut pas, a lui seul, verifier la coherence
     // recurrenceType/interval/exactDate puisque chaque champ est optionnel
     // independamment : on revalide donc l'etat FUSIONNE avec la regle
@@ -27,7 +38,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       type: existing.type,
       recurrenceType: input.recurrenceType ?? existing.recurrenceType,
       interval: input.interval ?? existing.interval,
-      configuration: (input.configuration ?? existing.configuration) as Record<string, unknown> | null,
+      configuration: (validatedConfiguration ?? existing.configuration) as Record<string, unknown> | null,
     });
 
     // Desactiver une regle ne faisait jusqu'ici qu'empecher la GENERATION de
@@ -39,7 +50,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const rule = await db.$transaction(async (tx) => {
       const updated = await tx.plantCareRule.update({
         where: { id },
-        data: { ...input, configuration: input.configuration as Prisma.InputJsonValue | undefined },
+        data: {
+          ...input,
+          // validatedConfiguration peut contenir un Date reel (exactDate
+          // coerce par configSchemaByType) -- meme traitement qu'a la
+          // creation (POST /api/care-rules) avant d'ecrire dans la colonne
+          // Json de Prisma.
+          configuration: validatedConfiguration
+            ? (JSON.parse(
+                JSON.stringify(validatedConfiguration, (_key, value) => (value instanceof Date ? value.toISOString() : value)),
+              ) as Prisma.InputJsonValue)
+            : undefined,
+        },
       });
 
       if (!updated.enabled) {

@@ -15,22 +15,32 @@ const seasonalConfigSchema = z.object({
   activeUntilMonth: z.number().int().min(1).max(12).optional(),
 });
 
-const wateringConfigSchema = seasonalConfigSchema.extend({
-  waterAmount: z.number().positive().optional(),
-  waterUnit: z.enum(["ml", "L"]).optional(),
-  moistureThresholdPercent: z.number().min(0).max(100).optional(),
-});
+// .strict() : rejette toute cle non prevue (pas seulement stripped
+// silencieusement, comportement par defaut de zod) -- important pour
+// configSchemaByType plus bas, qui revalide un PATCH ou un client pourrait
+// sinon glisser des champs arbitraires dans `configuration`.
+const wateringConfigSchema = seasonalConfigSchema
+  .extend({
+    waterAmount: z.number().positive().optional(),
+    waterUnit: z.enum(["ml", "L"]).optional(),
+    moistureThresholdPercent: z.number().min(0).max(100).optional(),
+  })
+  .strict();
 
-const fertilizingConfigSchema = seasonalConfigSchema.extend({
-  fertilizerId: z.string().min(1).optional(),
-  dosagePerLiter: z.number().positive().optional(),
-  dosageUnit: z.enum(["ml", "g"]).optional(),
-  dilutionVolumeLiters: z.number().positive().optional(),
-});
+const fertilizingConfigSchema = seasonalConfigSchema
+  .extend({
+    fertilizerId: z.string().min(1).optional(),
+    dosagePerLiter: z.number().positive().optional(),
+    dosageUnit: z.enum(["ml", "g"]).optional(),
+    dilutionVolumeLiters: z.number().positive().optional(),
+  })
+  .strict();
 
-const repottingConfigSchema = seasonalConfigSchema.extend({
-  exactDate: z.coerce.date().optional(),
-});
+const repottingConfigSchema = seasonalConfigSchema
+  .extend({
+    exactDate: z.coerce.date().optional(),
+  })
+  .strict();
 
 const baseCareRuleSchema = z.object({
   plantId: z.string().min(1),
@@ -53,6 +63,21 @@ export const createRepottingRuleSchema = baseCareRuleSchema.extend({
   type: z.literal("REPOTTING"),
   configuration: repottingConfigSchema.optional(),
 });
+
+/**
+ * Schema de `configuration` par type de regle -- reutilise pour revalider
+ * un PATCH apres fusion avec la regle existante (voir configSchemaByType
+ * plus bas) : CREATE valide deja ces formes via le discriminated union,
+ * mais updateCareRuleSchema accepte un `configuration` non type (chaque
+ * champ etant independamment optionnel sur un PATCH), donc sans ce
+ * re-controle une valeur incoherente (ex. dosagePerLiter negatif, cle
+ * arbitraire) passait sans jamais etre verifiee contre la forme attendue.
+ */
+export const configSchemaByType = {
+  WATERING: wateringConfigSchema,
+  FERTILIZING: fertilizingConfigSchema,
+  REPOTTING: repottingConfigSchema,
+} as const;
 
 const INTERVAL_RECURRENCE_TYPES = new Set(["FIXED_INTERVAL_DAYS", "INTERVAL_WEEKS", "INTERVAL_MONTHS"]);
 

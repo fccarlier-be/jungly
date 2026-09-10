@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createCareRuleSchema, recurrenceComboCheckSchema } from "@/server/validation/careRule";
+import { createCareRuleSchema, recurrenceComboCheckSchema, configSchemaByType } from "@/server/validation/careRule";
 
 describe("createCareRuleSchema -- combinaisons recurrenceType/interval/exactDate", () => {
   it("accepte FIXED_INTERVAL_DAYS avec interval", () => {
@@ -125,6 +125,23 @@ describe("recurrenceComboCheckSchema -- revalidation apres fusion PATCH", () => 
       interval: null,
       configuration: null,
     });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("configSchemaByType -- validation de configuration sur PATCH (audit5)", () => {
+  it("rejette un dosagePerLiter negatif pour une regle de fertilisation", () => {
+    const result = configSchemaByType.FERTILIZING.safeParse({ dosagePerLiter: -500 });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejette une cle arbitraire non prevue par le schema", () => {
+    const result = configSchemaByType.FERTILIZING.safeParse({ whatever: "garbage" });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepte une configuration de fertilisation valide", () => {
+    const result = configSchemaByType.FERTILIZING.safeParse({ dosagePerLiter: 2, dosageUnit: "ml" });
     expect(result.success).toBe(true);
   });
 });
