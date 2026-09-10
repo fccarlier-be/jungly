@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/server/db";
 import { handleApiError } from "@/lib/apiError";
 import { createReadingSchema } from "@/server/validation/sensor";
-import { evaluateSensorReadingForTasks } from "@/server/careEngine/service";
+import { evaluateSensorReadingForTasks, evaluateSensorBatteryStatus } from "@/server/careEngine/service";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rateLimit";
 
 type Params = { params: Promise<{ id: string }> };
@@ -39,16 +39,35 @@ export async function POST(request: NextRequest, { params }: Params) {
     const body = await request.json();
     const input = createReadingSchema.parse(body);
 
-    const reading = await db.sensorReading.create({
-      data: {
-        sensorId: sensor.id,
-        value: input.value,
-        unit: input.unit,
-        recordedAt: input.recordedAt ?? new Date(),
-      },
-    });
+    // value/unit absents : l'appareil est en charge (voir firmware/) et ne
+    // remonte que sa telemetrie, pas de lecture d'humidite ce cycle-la.
+    if (input.value !== undefined && input.unit !== undefined) {
+      const reading = await db.sensorReading.create({
+        data: {
+          sensorId: sensor.id,
+          value: input.value,
+          unit: input.unit,
+          recordedAt: input.recordedAt ?? new Date(),
+        },
+      });
+      await evaluateSensorReadingForTasks(sensor, reading);
+    }
 
-    await evaluateSensorReadingForTasks(sensor, reading);
+    if (input.batteryPercent !== undefined || input.charging !== undefined) {
+      const updated = await db.sensor.update({
+        where: { id: sensor.id },
+        data: {
+          ...(input.batteryPercent !== undefined ? { batteryPercent: input.batteryPercent } : {}),
+          ...(input.charging !== undefined ? { charging: input.charging } : {}),
+          lastSeenAt: new Date(),
+        },
+      });
+      if (input.batteryPercent !== undefined) {
+        await evaluateSensorBatteryStatus(updated, input.batteryPercent);
+      }
+    } else {
+      await db.sensor.update({ where: { id: sensor.id }, data: { lastSeenAt: new Date() } });
+    }
 
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {

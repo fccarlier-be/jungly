@@ -365,6 +365,20 @@ model Sensor {
   apiKeyHash String   @unique
   createdAt  DateTime @default(now())
 
+  // Telemetrie de l'appareil physique (pas une lecture de soin -- distinct
+  // de SensorReading) : derniere valeur connue, mise a jour a chaque appel
+  // de POST /api/sensors/:id/readings qui en fournit. `charging` indique
+  // qu'aucune lecture d'humidite fiable n'a ete prise ce cycle-la (capteur
+  // pose sur son socle de charge).
+  batteryPercent Int?
+  charging       Boolean   @default(false)
+  lastSeenAt     DateTime?
+  // Horodatage du dernier push "batterie faible" envoye -- evite de
+  // renotifier a chaque reveil tant que le niveau reste bas (voir
+  // evaluateSensorBatteryStatus() dans careEngine/service.ts). Remis a null
+  // quand le niveau repasse au-dessus du seuil de reprise.
+  lowBatteryNotifiedAt DateTime?
+
   plant    Plant           @relation(fields: [plantId], references: [id], onDelete: Cascade)
   readings SensorReading[]
 

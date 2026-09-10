@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { ConflictError } from "@/lib/apiError";
 import { buildTaskTitle, computeRuleNextDueDate, mapRuleTypeToTaskType, type RuleConfiguration } from "./taskGenerator";
 import { shouldTriggerFromMoistureReading } from "./sensorTrigger";
+import { sendPushToUser } from "@/server/notifications/webPush";
 
 const COMPLETABLE_STATUSES: TaskStatus[] = ["PENDING", "SNOOZED"];
 
@@ -274,4 +275,40 @@ export async function evaluateSensorReadingForTasks(sensor: Sensor, reading: Sen
       await tx.plantCareRule.update({ where: { id: rule.id }, data: { nextDueAt: dueAt } });
     });
   }
+}
+
+// Sous ce seuil, une notification "batterie faible" est envoyée -- une
+// seule fois par episode (voir lowBatteryNotifiedAt), jusqu'a ce que le
+// niveau remonte au-dessus de LOW_BATTERY_RECOVERY_PERCENT (hysteresis :
+// evite de renotifier a chaque reveil tant que la batterie oscille autour
+// d'une seule valeur de seuil).
+const LOW_BATTERY_THRESHOLD_PERCENT = 20;
+const LOW_BATTERY_RECOVERY_PERCENT = 50;
+
+/**
+ * A appeler apres chaque mise a jour de `Sensor.batteryPercent` (voir POST
+ * /api/sensors/[id]/readings). Ne fait rien si le niveau est confortable ou
+ * si l'utilisateur a deja ete prevenu pour cet episode de batterie basse.
+ */
+export async function evaluateSensorBatteryStatus(
+  sensor: Pick<Sensor, "id" | "plantId" | "name" | "lowBatteryNotifiedAt">,
+  batteryPercent: number,
+): Promise<void> {
+  if (batteryPercent > LOW_BATTERY_RECOVERY_PERCENT) {
+    if (sensor.lowBatteryNotifiedAt) {
+      await db.sensor.update({ where: { id: sensor.id }, data: { lowBatteryNotifiedAt: null } });
+    }
+    return;
+  }
+  if (batteryPercent > LOW_BATTERY_THRESHOLD_PERCENT || sensor.lowBatteryNotifiedAt) {
+    return;
+  }
+
+  const plant = await db.plant.findUniqueOrThrow({ where: { id: sensor.plantId }, select: { userId: true, name: true } });
+  await sendPushToUser(plant.userId, {
+    title: "Batterie de capteur faible",
+    body: `"${sensor.name}" (${plant.name}) est à ${batteryPercent}% -- pense à le recharger.`,
+    url: `/plantes/${sensor.plantId}`,
+  });
+  await db.sensor.update({ where: { id: sensor.id }, data: { lowBatteryNotifiedAt: new Date() } });
 }
