@@ -3,6 +3,17 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-10 — Tests E2E Playwright
+
+### Ajouté
+
+- **Tests E2E (Playwright)** couvrant deux parcours réels dans un vrai navigateur, contre l'application déployée en HTTPS (jamais contre une instance simulée) : inscription → déconnexion → reconnexion → mot de passe incorrect refusé ; création d'une plante (règle d'arrosage générée automatiquement) → tâche visible et complétable sur `/taches` → événement enregistré dans l'historique → suppression de la plante. Voir `e2e/README.md` pour la commande d'exécution complète (conteneur Playwright officiel, réseau Docker partagé, `node_modules` isolé dans un volume dédié).
+- `@playwright/test` en devDependency, version **fixée sans `^`** (`1.63.0`) : doit toujours correspondre exactement au tag de l'image Docker utilisée (`vX.Y.Z-noble`), les binaires JS et les navigateurs embarqués évoluant indépendamment. `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` ajouté au `Dockerfile` pour que les builds de l'image de production (qui n'exécutent jamais ces tests) ne téléchargent jamais les ~300 Mo de navigateurs.
+
+### Corrigé (découvert en écrivant les tests E2E)
+
+- Aucun bug applicatif direct, mais deux pièges méthodologiques bons à noter : (1) les cookies de session sont préfixés `__Secure-` dès que `NEXTAUTH_URL` est en https -- un vrai navigateur les refuse silencieusement s'ils sont reçus en HTTP simple (contrairement à un `fetch()` Node, qui n'applique pas cette règle et masquait le problème pendant toute la session de durcissement précédente) ; les tests E2E doivent donc cibler l'URL HTTPS publique, jamais l'adresse interne du conteneur. (2) Exécuter `npm ci`/`prisma generate` dans un conteneur Playwright (Ubuntu) en réutilisant le `node_modules` du dépôt (bind-mount) écrase le moteur Prisma par un binaire incompatible avec les images Debian/Alpine utilisées pour `vitest`/la construction de l'image -- corrigé en isolant ce `node_modules` dans un volume Docker dédié à l'exécution E2E.
+
 ## [Post-MVP] - 2026-09-10 — Durcissement post-audit
 
 Suite à deux revues de code indépendantes du dépôt GitHub (générées par GPT, vérifiées ligne par ligne contre le code réel avant toute correction -- plusieurs affirmations se sont révélées inexactes ou déjà non pertinentes et n'ont pas été appliquées), 18 corrections traitées une par une : implémentation, tests, déploiement puis vérification en direct contre l'application réelle (souvent avec deux comptes utilisateurs distincts) avant de passer au point suivant.

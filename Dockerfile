@@ -4,6 +4,10 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
+# @playwright/test (devDependency, tests E2E sous e2e/) telecharge sinon des
+# navigateurs (~300 Mo) au moindre `npm ci` -- inutile pour construire
+# l'image de prod, qui n'execute jamais ces tests.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm ci 2>/dev/null || npm install
 
 FROM node:22-alpine AS build
