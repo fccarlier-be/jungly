@@ -3,6 +3,12 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-10 — CI GitHub Actions
+
+### Ajouté
+
+- **Workflow CI** (`.github/workflows/ci.yml`), déclenché sur chaque push vers `main` et chaque pull request : installation, génération du client Prisma, application des migrations sur une base SQLite jetable (valide qu'aucune migration n'est cassée -- deux ont été écrites à la main aujourd'hui, hors du flux `prisma migrate dev`), suite `vitest` (68 tests), puis `next build` complet (type-check TypeScript + compilation). Ne lance jamais les tests E2E Playwright (`e2e/`) : ils ciblent l'application réellement déployée en HTTPS avec les identifiants du compte seed, pas une instance jetable -- aucun secret de production n'est fourni à ce workflow. Les 4 étapes ont été rejouées manuellement dans un environnement isolé (copie du dépôt via `git archive`, jamais le `node_modules` de travail) avant d'être poussées, pour la même raison que la mésaventure Playwright de tout à l'heure : générer le client Prisma dans un environnement différent de celui utilisé localement écrase le moteur natif par une version incompatible.
+
 ## [Post-MVP] - 2026-09-10 — Tests E2E Playwright
 
 ### Ajouté
