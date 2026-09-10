@@ -54,8 +54,12 @@ ensemble.
 
 ## Limites connues
 
-- Pas encore branché en CI (voir tâche associée) : exécution manuelle
-  uniquement pour l'instant.
+- Branché en CI (`.github/workflows/ci.yml`, job `e2e`) contre une instance
+  `next start` éphémère -- la commande ci-dessus reste utile pour un run
+  manuel contre la prod réelle en HTTPS (piège `__Secure-` inclus), que la
+  CI ne peut pas reproduire (elle tourne en HTTP simple, voir le commentaire
+  du workflow).
 - Le rate limiting (login 10/5min, inscription 5/15min, par IP) s'applique
   aussi aux tests -- éviter de relancer la suite en boucle rapprochée
-  pendant le développement.
+  pendant le développement (le réel motif de la plupart des échecs
+  intermittents de connexion en cours de session, pas une régression).

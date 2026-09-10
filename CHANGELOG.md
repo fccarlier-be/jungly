@@ -5,7 +5,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ## [Post-MVP] - 2026-09-10 — Durcissement post-audit3
 
-Suite à une 3e revue de code indépendante (GPT, sur l'état post-audit2), vérifiée ligne par ligne contre le code réel avant correction -- aucune affirmation vérifiable ne s'est révélée fausse, sauf une sous-estimée (Next.js : RCE non-authentifiées critiques CVSS 9.0/9.5 confirmées par recherche web, pas juste "des advisories") et une surestimée (le plancher `^15.1.4` de `package.json` était périmé, mais `package-lock.json`/le conteneur en prod tournaient déjà en `next@15.5.25`, patché, depuis la régénération du lockfile de la phase 5 d'audit2 -- même type de faux positif que celui trouvé dans audit2 lui-même).
+Suite à une 3e revue de code indépendante (GPT, sur l'état post-audit2), vérifiée ligne par ligne contre le code réel avant correction. Trois écarts par rapport aux affirmations de l'audit : une sous-estimée (Next.js : RCE non-authentifiées critiques CVSS 9.0/9.5 confirmées par recherche web, pas juste "des advisories"), une surestimée (le plancher `^15.1.4` de `package.json` était périmé, mais `package-lock.json`/le conteneur en prod tournaient déjà en `next@15.5.25`, patché, depuis la régénération du lockfile de la phase 5 d'audit2 -- même type de faux positif que dans audit2 lui-même), et une fausse (le README documentait déjà explicitement "1000 dernières lectures" par capteur, pas d'"export complet" -- rien à corriger sur ce point précis).
 
 ### Sécurité
 
