@@ -13,6 +13,8 @@ import {
   MAX_ZIP_ENTRIES,
   MAX_UPLOAD_FILE_SIZE,
   MAX_TOTAL_DECOMPRESSED_SIZE,
+  MAX_ZIP_FILE_SIZE,
+  MAX_DATA_JSON_SIZE,
   type BackupData,
 } from "@/server/validation/backup";
 import { ensurePendingTaskForRule } from "@/server/careEngine/service";
@@ -46,13 +48,29 @@ export async function POST(request: NextRequest) {
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Aucun fichier envoyé." }, { status: 400 });
     }
+    // Ne pas dependre uniquement de nginx (client_max_body_size) : verifie
+    // aussi cote application.
+    if (file.size > MAX_ZIP_FILE_SIZE) {
+      return NextResponse.json({ error: "Archive trop volumineuse." }, { status: 400 });
+    }
 
     const zip = await JSZip.loadAsync(await file.arrayBuffer());
     const dataEntry = zip.file("data.json");
     if (!dataEntry) {
       return NextResponse.json({ error: "Archive invalide : data.json introuvable." }, { status: 400 });
     }
-    const rawData = JSON.parse(await dataEntry.async("string"));
+    // Premier controle avant decompression, a partir des metadonnees du zip
+    // (taille annoncee) -- second controle sur la taille reelle apres coup,
+    // au cas ou l'en-tete mentirait sur la taille declaree.
+    const declaredSize = (dataEntry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize;
+    if (typeof declaredSize === "number" && declaredSize > MAX_DATA_JSON_SIZE) {
+      return NextResponse.json({ error: "data.json trop volumineux." }, { status: 400 });
+    }
+    const dataJsonString = await dataEntry.async("string");
+    if (dataJsonString.length > MAX_DATA_JSON_SIZE) {
+      return NextResponse.json({ error: "data.json trop volumineux." }, { status: 400 });
+    }
+    const rawData = JSON.parse(dataJsonString);
     const data: BackupData = backupSchema.parse(rawData);
 
     // Nouveaux noms de fichiers (UUID frais) : evite toute collision avec

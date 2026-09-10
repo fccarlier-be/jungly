@@ -3,6 +3,14 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-10 — Durcissement post-audit4
+
+Suite à une 4e revue de code indépendante (GPT, sur l'état post-audit3, CI verte). Audit le plus précis jusqu'ici -- une seule affirmation fausse (Prisma "6.2.1, P1 immédiat" : déjà `6.19.3` dans `package-lock.json`/le conteneur en prod, même faux-positif récurrent que Next.js dans audit2 et audit3 -- fermé définitivement en épinglant les versions exactes des dépendances sensibles, voir plus bas).
+
+### Sécurité
+
+- **`data.json` non borné à l'import** : le fix ZIP bomb précédent (audit3) plafonnait les fichiers `uploads/*` mais pas `data.json` lui-même, décompressé (`entry.async("string")`) sans aucune limite -- un fichier de 25 Ko compressés pouvait produire 25 Mo décompressés sans être inquiété. Ajout d'un contrôle en deux temps (taille annoncée par les métadonnées du zip avant décompression, puis taille réelle après) via `MAX_DATA_JSON_SIZE` (20 Mo). Ajout aussi de `MAX_ZIP_FILE_SIZE` (10 Mo) vérifié côté application -- ne plus dépendre uniquement de `client_max_body_size` de nginx. Vérifié en direct : archive de 25 Ko avec `data.json` gonflé à 25 Mo → 400 propre.
+
 ## [Post-MVP] - 2026-09-10 — Durcissement post-audit3
 
 Suite à une 3e revue de code indépendante (GPT, sur l'état post-audit2), vérifiée ligne par ligne contre le code réel avant correction. Trois écarts par rapport aux affirmations de l'audit : une sous-estimée (Next.js : RCE non-authentifiées critiques CVSS 9.0/9.5 confirmées par recherche web, pas juste "des advisories"), une surestimée (le plancher `^15.1.4` de `package.json` était périmé, mais `package-lock.json`/le conteneur en prod tournaient déjà en `next@15.5.25`, patché, depuis la régénération du lockfile de la phase 5 d'audit2 -- même type de faux positif que dans audit2 lui-même), et une fausse (le README documentait déjà explicitement "1000 dernières lectures" par capteur, pas d'"export complet" -- rien à corriger sur ce point précis).

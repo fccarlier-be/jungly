@@ -33,6 +33,18 @@ export const MAX_ZIP_ENTRIES = 2000;
 export const MAX_UPLOAD_FILE_SIZE = 8 * 1024 * 1024;
 export const MAX_TOTAL_DECOMPRESSED_SIZE = 50 * 1024 * 1024;
 
+// L'archive elle-meme (compressee) : ne pas dependre uniquement de
+// `client_max_body_size` de nginx (defense en profondeur -- un changement
+// de config nginx, ou un appel qui contournerait le reverse proxy, ne
+// doit pas laisser passer un fichier arbitrairement gros).
+export const MAX_ZIP_FILE_SIZE = 10 * 1024 * 1024;
+
+// data.json lui-meme n'etait borne par rien avant ce controle : JSZip le
+// decompresse entierement en memoire (entry.async()) et JSON.parse() sur
+// une chaine de plusieurs Go serait deja couteux avant meme que backupSchema
+// n'ait la moindre chance de rejeter une structure invalide.
+export const MAX_DATA_JSON_SIZE = 20 * 1024 * 1024;
+
 /** Limite la taille serialisee d'un objet libre (configuration/metadata) plutot qu'un schema recursif strict. */
 const boundedJsonRecord = z
   .record(z.string(), z.unknown())
