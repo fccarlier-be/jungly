@@ -102,6 +102,19 @@
 body {
   background: var(--bg);
   color: var(--ink);
+  /* Sensation d'app native (surtout dans le TWA Android) plutot que de page
+     web -- une selection de texte accidentelle au doigt est plus genante
+     qu'utile ici. Reactive explicitement sur les champs de saisie : le
+     contenu qu'on y tape doit rester copiable/editable normalement. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 h1, h2 {
