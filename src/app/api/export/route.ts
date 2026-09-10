@@ -1,21 +1,29 @@
 import { NextResponse } from "next/server";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import JSZip from "jszip";
 import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
+import { resolveUploadedFilePath } from "@/server/uploads";
 import type { BackupData } from "@/server/validation/backup";
 
 /**
- * Export complet des données de l'utilisateur. Les références (emplacement,
- * engrais) sont résolues par nom plutôt que par id interne, pour qu'un
- * import reste possible sur une autre installation. Les abonnements push
- * (spécifiques à un appareil) et les tâches (état dérivé, régénéré par le
- * CareEngine) ne sont volontairement pas exportés.
+ * Export complet des données de l'utilisateur, sous forme d'archive .zip
+ * (data.json + les fichiers photo eux-mêmes sous uploads/) : un simple JSON
+ * référençant des chemins `/uploads/...` ne donnait qu'un backup de
+ * données, pas une vraie sauvegarde restaurable -- les photos étaient
+ * cassées une fois importées sur un autre serveur. Les références
+ * (emplacement, engrais) restent résolues par nom plutôt que par id
+ * interne. Les abonnements push (spécifiques à un appareil) et les tâches
+ * (état dérivé, régénéré par le CareEngine) ne sont volontairement pas
+ * exportés.
  */
 export async function GET() {
   try {
     const userId = await requireUserId();
 
-    const [locations, fertilizers, plants, preference] = await Promise.all([
+    const [locations, fertilizers, plants, preference, weatherProfile] = await Promise.all([
       db.location.findMany({ where: { userId } }),
       db.fertilizer.findMany({ where: { userId } }),
       db.plant.findMany({
@@ -26,9 +34,11 @@ export async function GET() {
           careEvents: { orderBy: { performedAt: "asc" } },
           plantNotes: { orderBy: { createdAt: "asc" } },
           photos: { orderBy: { createdAt: "asc" } },
+          sensors: { include: { readings: { orderBy: { recordedAt: "desc" }, take: 1000 } } },
         },
       }),
       db.notificationPreference.findUnique({ where: { userId } }),
+      db.weatherProfile.findUnique({ where: { userId } }),
     ]);
 
     const fertilizerNameById = new Map(fertilizers.map((f) => [f.id, f.name]));
@@ -86,8 +96,22 @@ export async function GET() {
           })),
           plantNotes: p.plantNotes.map((n) => ({ content: n.content, category: n.category, photoUrl: n.photoUrl })),
           photos: p.photos.map((ph) => ph.url),
+          sensors: p.sensors.map((s) => ({
+            type: s.type,
+            name: s.name,
+            externalId: s.externalId,
+            readings: s.readings.map((r) => ({ value: r.value, unit: r.unit, recordedAt: r.recordedAt })),
+          })),
         };
       }),
+      weatherProfile: weatherProfile
+        ? {
+            city: weatherProfile.city,
+            latitude: weatherProfile.latitude,
+            longitude: weatherProfile.longitude,
+            wateringIntervalMultiplier: weatherProfile.wateringIntervalMultiplier,
+          }
+        : null,
       notificationPreference: preference
         ? {
             enabled: preference.enabled,
@@ -98,9 +122,37 @@ export async function GET() {
         : null,
     };
 
-    return NextResponse.json(data, {
+    // Fichiers physiques : uniquement ceux reellement references (couverture,
+    // galerie, photos de note), jamais tout le dossier uploads (partage entre
+    // utilisateurs). Un fichier deja absent du disque est ignore -- le JSON
+    // reste complet, seule la photo correspondante manquera a la restauration.
+    const referencedUrls = new Set<string>();
+    for (const p of data.plants) {
+      if (p.photoUrl) referencedUrls.add(p.photoUrl);
+      for (const url of p.photos) referencedUrls.add(url);
+      for (const note of p.plantNotes) if (note.photoUrl) referencedUrls.add(note.photoUrl);
+    }
+
+    const zip = new JSZip();
+    zip.file("data.json", JSON.stringify(data, null, 2));
+    const uploadsFolder = zip.folder("uploads");
+    for (const url of referencedUrls) {
+      if (!url.startsWith("/uploads/")) continue;
+      const filename = path.basename(url);
+      try {
+        const buffer = await readFile(resolveUploadedFilePath(filename));
+        uploadsFolder?.file(filename, buffer);
+      } catch {
+        // Fichier deja supprime du disque : on exporte quand meme le reste.
+      }
+    }
+
+    const zipBuffer = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
+
+    return new NextResponse(new Uint8Array(zipBuffer), {
       headers: {
-        "Content-Disposition": `attachment; filename="plant-manager-export-${new Date().toISOString().slice(0, 10)}.json"`,
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="jungly-backup-${new Date().toISOString().slice(0, 10)}.zip"`,
       },
     });
   } catch (error) {

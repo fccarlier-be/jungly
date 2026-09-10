@@ -11,6 +11,8 @@ const MAX_CARE_RULES_PER_PLANT = 50;
 const MAX_CARE_EVENTS_PER_PLANT = 10000;
 const MAX_NOTES_PER_PLANT = 500;
 const MAX_PHOTOS_PER_PLANT = 100;
+const MAX_SENSORS_PER_PLANT = 20;
+const MAX_READINGS_PER_SENSOR = 1000;
 const MAX_SHORT_STRING = 200;
 const MAX_LONG_STRING = 5000;
 const MAX_URL_STRING = 500;
@@ -59,6 +61,23 @@ const noteBackupSchema = z.object({
   photoUrl: z.string().max(MAX_URL_STRING).nullable().optional(),
 });
 
+const sensorReadingBackupSchema = z.object({
+  value: z.number(),
+  unit: z.string().max(MAX_SHORT_STRING),
+  recordedAt: z.coerce.date(),
+});
+
+const sensorBackupSchema = z.object({
+  type: z.enum(["SOIL_MOISTURE", "TEMPERATURE", "HUMIDITY", "LIGHT", "CONDUCTIVITY"]),
+  name: z.string().max(MAX_SHORT_STRING),
+  externalId: z.string().max(MAX_SHORT_STRING).nullable().optional(),
+  // Pas de cle API exportee : un capteur importe recoit une cle fraiche
+  // (POST /api/plants/:id/sensors la genere), l'ancienne devrait de toute
+  // facon etre reconfiguree sur l'appareil physique lors d'un changement
+  // de serveur.
+  readings: z.array(sensorReadingBackupSchema).max(MAX_READINGS_PER_SENSOR).default([]),
+});
+
 const plantBackupSchema = z.object({
   name: z.string().max(MAX_SHORT_STRING),
   scientificName: z.string().max(MAX_SHORT_STRING).nullable().optional(),
@@ -77,6 +96,7 @@ const plantBackupSchema = z.object({
   careEvents: z.array(careEventBackupSchema).max(MAX_CARE_EVENTS_PER_PLANT).default([]),
   plantNotes: z.array(noteBackupSchema).max(MAX_NOTES_PER_PLANT).default([]),
   photos: z.array(z.string().max(MAX_URL_STRING)).max(MAX_PHOTOS_PER_PLANT).default([]),
+  sensors: z.array(sensorBackupSchema).max(MAX_SENSORS_PER_PLANT).default([]),
 });
 
 const fertilizerBackupSchema = z.object({
@@ -97,6 +117,15 @@ export const backupSchema = z.object({
   locations: z.array(z.object({ name: z.string().max(MAX_SHORT_STRING) })).max(MAX_LOCATIONS).default([]),
   fertilizers: z.array(fertilizerBackupSchema).max(MAX_FERTILIZERS).default([]),
   plants: z.array(plantBackupSchema).max(MAX_PLANTS).default([]),
+  weatherProfile: z
+    .object({
+      city: z.string().max(MAX_SHORT_STRING),
+      latitude: z.number(),
+      longitude: z.number(),
+      wateringIntervalMultiplier: z.number().optional(),
+    })
+    .nullable()
+    .optional(),
   notificationPreference: z
     .object({
       enabled: z.boolean(),

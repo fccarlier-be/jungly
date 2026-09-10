@@ -16,20 +16,20 @@ export default function ExportImport() {
     setImporting(true);
     setMessage(null);
     try {
-      const text = await file.text();
-      const json = JSON.parse(text);
+      const formData = new FormData();
+      formData.append("file", file);
 
-      const res = await fetch("/api/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(json),
-      });
+      const res = await fetch("/api/import", { method: "POST", body: formData });
       const body = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         throw new Error(body.error ?? "Import impossible.");
       }
-      setMessage(`${body.importedPlants} plante(s) importée(s).`);
+      const sensorNote =
+        body.sensorApiKeys?.length > 0
+          ? ` ${body.sensorApiKeys.length} capteur(s) importé(s) avec une nouvelle clé -- voir la fiche de chaque plante pour la reconfigurer sur l'appareil.`
+          : "";
+      setMessage(`${body.importedPlants} plante(s) importée(s).${sensorNote}`);
       router.refresh();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Fichier invalide.");
@@ -42,16 +42,16 @@ export default function ExportImport() {
   return (
     <div className="space-y-3">
       <a href="/api/export" className="chip block w-full rounded-xl py-2.5 text-center text-sm font-medium">
-        Télécharger mes données (JSON)
+        Télécharger mes données (.zip)
       </a>
 
       <div>
         <label className="btn-primary block cursor-pointer rounded-xl py-2.5 text-center text-sm font-semibold">
           {importing ? "Import en cours..." : "Importer une sauvegarde"}
-          <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleImport} disabled={importing} />
+          <input ref={fileInputRef} type="file" accept=".zip,application/zip" className="hidden" onChange={handleImport} disabled={importing} />
         </label>
         <p className="text-xs text-muted mt-1">
-          Les plantes importées sont toujours ajoutées (jamais fusionnées avec une plante existante).
+          Les plantes importées sont toujours ajoutées (jamais fusionnées avec une plante existante). Les photos sont restaurées avec l'archive.
         </p>
       </div>
 
