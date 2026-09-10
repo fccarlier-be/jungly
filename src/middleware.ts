@@ -14,7 +14,11 @@ export const config = {
   // qu'une redirection HTML vers /login -- indispensable pour un vrai
   // consommateur d'API (section 31), et pour un futur capteur IoT qui
   // s'authentifie par jeton plutot que par session (section 22).
-  matcher: ["/((?!api|login|_next/static|_next/image|favicon.ico|icons|uploads|manifest.json|sw.js).*)"],
+  matcher: [
+    // .well-known : verification de domaine pour le TWA (empaquetage
+    // Android), doit rester joignable sans session.
+    "/((?!api|login|inscription|_next/static|_next/image|favicon.ico|icons|uploads|manifest.json|sw.js|\\.well-known).*)",
+  ],
   // Le runtime Node.js (stable depuis Next.js 15.2) evite d'embarquer
   // bcrypt/Prisma dans un bundle Edge : on deploie sur un conteneur Node
   // classique (Docker), pas sur un edge runtime type Vercel/Cloudflare.

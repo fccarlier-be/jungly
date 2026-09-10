@@ -16,7 +16,11 @@ ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npx prisma generate
-RUN npm run build
+# Cache de build Next.js (compilation incrementale SWC) persiste entre les
+# `docker compose build` successifs sur cette machine -- sans lui, chaque
+# build repart de zero meme pour un changement d'une ligne, ce qui est lent
+# sur un serveur qui partage ses ressources avec beaucoup d'autres services.
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 # Retire les devDependencies (typescript, tailwind, vitest...) : prisma et
 # tsx restent (deplaces en dependencies, voir package.json) car necessaires
 # a l'entrypoint en production (migrations + seed).

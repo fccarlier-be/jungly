@@ -7,16 +7,16 @@ import NotificationSettings from "@/components/NotificationSettings";
 import ExportImport from "@/components/ExportImport";
 import ThemeToggle from "@/components/ThemeToggle";
 import AccountSettings from "@/components/AccountSettings";
+import WeatherSettings from "@/components/WeatherSettings";
 
 export default async function SettingsPage() {
   const userId = await requireSessionUserId();
   const session = await auth();
 
-  const preference = await db.notificationPreference.upsert({
-    where: { userId },
-    update: {},
-    create: { userId },
-  });
+  const [preference, weatherProfile] = await Promise.all([
+    db.notificationPreference.upsert({ where: { userId }, update: {}, create: { userId } }),
+    db.weatherProfile.findUnique({ where: { userId }, select: { city: true, wateringIntervalMultiplier: true } }),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -42,6 +42,11 @@ export default async function SettingsPage() {
       <section className="card p-4 space-y-2 text-sm">
         <h2 className="font-semibold">Apparence</h2>
         <ThemeToggle />
+      </section>
+
+      <section className="card p-4 space-y-2 text-sm">
+        <h2 className="font-semibold">Ajustement météo de l&apos;arrosage</h2>
+        <WeatherSettings initial={weatherProfile} />
       </section>
 
       <section className="card p-4 space-y-2 text-sm">

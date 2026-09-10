@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
+import { Leaf } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -34,10 +36,10 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center px-4" style={{ background: "var(--bg)" }}>
       <div className="mb-6 flex flex-col items-center gap-3 text-center">
         <div
-          className="flex h-14 w-14 items-center justify-center rounded-full text-2xl"
-          style={{ background: "var(--primary-soft)" }}
+          className="flex h-14 w-14 items-center justify-center rounded-full"
+          style={{ background: "var(--primary-soft)", color: "var(--primary-strong)" }}
         >
-          🌿
+          <Leaf size={26} strokeWidth={1.75} />
         </div>
         <h1 className="font-display text-2xl font-semibold" style={{ color: "var(--primary-strong)" }}>
           Jungly
@@ -85,6 +87,13 @@ export default function LoginPage() {
         <button type="submit" disabled={loading} className="btn-primary w-full rounded-xl py-2.5 font-semibold">
           {loading ? "Connexion..." : "Se connecter"}
         </button>
+
+        <p className="text-muted text-center text-sm">
+          Pas encore de compte ?{" "}
+          <Link href="/inscription" className="font-medium" style={{ color: "var(--primary-strong)" }}>
+            Créer un compte
+          </Link>
+        </p>
       </form>
     </div>
   );

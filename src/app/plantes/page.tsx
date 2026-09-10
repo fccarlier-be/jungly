@@ -4,6 +4,7 @@ import { requireSessionUserId } from "@/lib/session";
 import { db } from "@/server/db";
 import PlantCard from "@/components/PlantCard";
 import { computePlantStatus } from "@/lib/plantStatus";
+import { effectiveDueDate } from "@/server/careEngine/dueTasks";
 
 const PRIMARY_FILTERS = [
   { value: "all", label: "Toutes" },
@@ -37,7 +38,11 @@ export default async function PlantsPage({
     where: { userId },
     include: {
       location: true,
-      tasks: { where: { status: "PENDING" }, orderBy: { dueAt: "asc" } },
+      // SNOOZED inclus : une tache reportee redevient due a snoozedUntil,
+      // pas a son ancien dueAt (voir effectiveDueDate). L'ordre est
+      // recalcule cote JS ci-dessous puisque Prisma ne peut pas trier par
+      // "dueAt ou snoozedUntil selon le statut" directement en base.
+      tasks: { where: { status: { in: ["PENDING", "SNOOZED"] } } },
     },
     orderBy: sort === "location" ? { location: { name: "asc" } } : sort === "createdAt" ? { createdAt: "desc" } : { name: "asc" },
   });
@@ -52,11 +57,18 @@ export default async function PlantsPage({
 
   const now = new Date();
   let items = plants.map((plant) => {
-    const nextTask = plant.tasks[0] ?? null;
+    // dueAt est remplace par sa date effective (voir effectiveDueDate) : une
+    // tache SNOOZED s'ordonne et s'affiche a sa date de report, pas a son
+    // ancienne echeance.
+    const tasks = plant.tasks
+      .map((t) => ({ ...t, dueAt: effectiveDueDate(t) }))
+      .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+    const nextTask = tasks[0] ?? null;
     return {
       ...plant,
+      tasks,
       nextTask,
-      overdue: plant.tasks.some((t) => t.dueAt < now),
+      overdue: tasks.some((t) => t.dueAt < now),
       status: computePlantStatus(nextTask?.dueAt ?? null),
       fallbackImageUrl: plant.scientificName ? (fallbackImageByName.get(plant.scientificName) ?? null) : null,
     };

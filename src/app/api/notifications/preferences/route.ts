@@ -24,9 +24,15 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const input = updateNotificationPreferenceSchema.parse(body);
 
+    // Changer l'heure d'envoi est une intention explicite de recevoir le
+    // digest a ce nouveau moment : on reinitialise le verrou "deja envoye
+    // aujourd'hui" pour que le prochain tick puisse renvoyer, meme si un
+    // digest est deja parti plus tot dans la journee a l'ancienne heure.
+    const update = "notificationTime" in input ? { ...input, lastDigestSentAt: null } : input;
+
     const preference = await db.notificationPreference.upsert({
       where: { userId },
-      update: input,
+      update,
       create: { userId, ...input },
     });
 

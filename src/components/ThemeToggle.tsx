@@ -13,16 +13,19 @@ function applyTheme(theme: Theme) {
 }
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("system");
+  // "light" par defaut (coherent avec le script d'initialisation dans
+  // layout.tsx) : sans choix enregistre, l'appli demarre en clair, pas en
+  // suivant le systeme.
+  const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem("theme");
-      if (stored === "light" || stored === "dark") {
+      if (stored === "light" || stored === "dark" || stored === "system") {
         setTheme(stored);
       }
     } catch {
-      // localStorage indisponible (navigation privee, etc.) : reste sur "system".
+      // localStorage indisponible (navigation privee, etc.) : reste sur "light".
     }
   }, []);
 
@@ -30,11 +33,9 @@ export default function ThemeToggle() {
     setTheme(next);
     applyTheme(next);
     try {
-      if (next === "system") {
-        localStorage.removeItem("theme");
-      } else {
-        localStorage.setItem("theme", next);
-      }
+      // "system" est persiste tel quel (pas supprime) pour rester
+      // distinguable d'une absence de choix, qui doit demarrer en clair.
+      localStorage.setItem("theme", next);
     } catch {
       // Pas grave si non persiste : le choix reste actif pour cette page.
     }

@@ -35,3 +35,14 @@ export function dueTasksWhere(asOf: Date = new Date()): Prisma.TaskWhereInput {
     ],
   };
 }
+
+/**
+ * Date a laquelle une tache doit reellement etre consideree (echeance pour
+ * une tache PENDING, date de report pour une tache SNOOZED). Sans ca, trier
+ * ou choisir "la prochaine tache" par `dueAt` brut ignore les reports : une
+ * tache reportee a demain peut se retrouver masquee derriere une autre
+ * tache PENDING bien plus lointaine.
+ */
+export function effectiveDueDate(task: DueCheckable): Date {
+  return task.status === "SNOOZED" && task.snoozedUntil ? task.snoozedUntil : task.dueAt;
+}

@@ -52,3 +52,11 @@ export async function getOwnedLocation(userId: string, locationId: string) {
   }
   return location;
 }
+
+export async function getOwnedPlantPhoto(userId: string, photoId: string) {
+  const photo = await db.plantPhoto.findFirst({ where: { id: photoId, plant: { userId } } });
+  if (!photo) {
+    throw new NotFoundError("Cette photo n'existe plus.");
+  }
+  return photo;
+}

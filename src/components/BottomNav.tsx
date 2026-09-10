@@ -41,6 +41,7 @@ export default function BottomNav({ variant }: { variant: "bottom" | "sidebar" }
 
   return (
     <nav
+      data-bottom-nav
       className="fixed bottom-0 left-0 right-0 z-20 flex justify-around border-t py-1.5"
       style={{ borderColor: "var(--border)", background: "var(--surface)" }}
       aria-label="Navigation principale"

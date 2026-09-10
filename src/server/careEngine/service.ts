@@ -20,6 +20,17 @@ export async function ensurePendingTaskForRule(rule: PlantCareRule, fromDate: Da
     return existing;
   }
 
+  // L'ajustement meteo ne concerne que l'arrosage -- pas de requete
+  // supplementaire pour les autres types de regle.
+  let wateringIntervalMultiplier = 1;
+  if (rule.type === "WATERING") {
+    const weatherProfile = await db.weatherProfile.findFirst({
+      where: { user: { plants: { some: { id: rule.plantId } } } },
+      select: { wateringIntervalMultiplier: true },
+    });
+    wateringIntervalMultiplier = weatherProfile?.wateringIntervalMultiplier ?? 1;
+  }
+
   const dueAt = computeRuleNextDueDate(
     {
       enabled: rule.enabled,
@@ -29,6 +40,7 @@ export async function ensurePendingTaskForRule(rule: PlantCareRule, fromDate: Da
       configuration: (rule.configuration as RuleConfiguration | null) ?? undefined,
     },
     fromDate,
+    wateringIntervalMultiplier,
   );
   if (dueAt == null) {
     return null;

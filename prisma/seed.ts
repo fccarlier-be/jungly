@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Prisma, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { LIBRARY_SEED_ENTRIES } from "./librarySeed";
@@ -12,6 +13,30 @@ function daysFromNow(days: number): Date {
   return date;
 }
 
+function fingerprint(data: unknown): string {
+  return createHash("sha256").update(JSON.stringify(data)).digest("hex");
+}
+
+/**
+ * Si l'empreinte des donnees sources n'a pas change depuis le dernier
+ * deploiement, on saute entierement le reparcours (des centaines de
+ * requetes SQLite sequentielles pour plantfolio) -- sinon chaque
+ * redemarrage de conteneur repayait ce cout meme pour un changement de code
+ * sans rapport avec la bibliotheque. `run` n'est appele que si l'empreinte a
+ * change, et son retour (comptes/mots crees-mis a jour) sert au log.
+ */
+async function seedIfChanged(key: string, sourceData: unknown, run: () => Promise<string>): Promise<void> {
+  const hash = fingerprint(sourceData);
+  const previous = await db.seedFingerprint.findUnique({ where: { key } });
+  if (previous?.hash === hash) {
+    console.log(`Bibliothèque (${key}) : inchangée depuis le dernier déploiement, seed ignoré.`);
+    return;
+  }
+  const summary = await run();
+  console.log(summary);
+  await db.seedFingerprint.upsert({ where: { key }, update: { hash }, create: { key, hash } });
+}
+
 /**
  * Seed la bibliothèque de plantes. Toujours exécuté, même si l'utilisateur a
  * déjà des plantes -- contrairement au seed de démo ci-dessous, la
@@ -22,27 +47,27 @@ function daysFromNow(days: number): Date {
  * installations existantes à chaque déploiement.
  */
 async function seedLibrary() {
-  let created = 0;
-  let updated = 0;
-  for (const entry of LIBRARY_SEED_ENTRIES) {
-    const data = {
-      commonName: entry.commonName,
-      scientificName: entry.scientificName,
-      family: entry.family,
-      careProfile: entry.careProfile as unknown as Prisma.InputJsonValue,
-    };
-    const existing = await db.plantLibraryEntry.findFirst({ where: { scientificName: entry.scientificName } });
-    if (existing) {
-      await db.plantLibraryEntry.update({ where: { id: existing.id }, data });
-      updated += 1;
-    } else {
-      await db.plantLibraryEntry.create({ data });
-      created += 1;
+  await seedIfChanged("library", LIBRARY_SEED_ENTRIES, async () => {
+    let created = 0;
+    let updated = 0;
+    for (const entry of LIBRARY_SEED_ENTRIES) {
+      const data = {
+        commonName: entry.commonName,
+        scientificName: entry.scientificName,
+        family: entry.family,
+        careProfile: entry.careProfile as unknown as Prisma.InputJsonValue,
+      };
+      const existing = await db.plantLibraryEntry.findFirst({ where: { scientificName: entry.scientificName } });
+      if (existing) {
+        await db.plantLibraryEntry.update({ where: { id: existing.id }, data });
+        updated += 1;
+      } else {
+        await db.plantLibraryEntry.create({ data });
+        created += 1;
+      }
     }
-  }
-  console.log(
-    `Bibliothèque de plantes : ${created} créée(s), ${updated} mise(s) à jour (${LIBRARY_SEED_ENTRIES.length} au total).`,
-  );
+    return `Bibliothèque de plantes : ${created} créée(s), ${updated} mise(s) à jour (${LIBRARY_SEED_ENTRIES.length} au total).`;
+  });
 }
 
 /**
@@ -61,6 +86,12 @@ async function seedLibrary() {
 // scientifique invente.
 const PLANTFOLIO_EXCLUDE_IDS = new Set(["lichen", "mosses", "sprouts-microgreens"]);
 
+// A incrementer manuellement si `mapPlantfolioEntry`, `PLANTFOLIO_EXCLUDE_IDS`
+// ou la logique de dedoublonnage ci-dessous change : ces changements de code
+// ne se reflètent dans aucune donnee source, donc l'empreinte ne les
+// detecterait pas sans ce marqueur explicite.
+const PLANTFOLIO_SEED_LOGIC_VERSION = "v1";
+
 async function seedPlantfolio() {
   // Le premier element du fichier distribue est un objet `_metadata`
   // (version, liste des categories), pas une plante -- on le filtre.
@@ -68,6 +99,16 @@ async function seedPlantfolio() {
     (e) => e.id && e.typeName && !PLANTFOLIO_EXCLUDE_IDS.has(e.id),
   );
 
+  // La logique ci-dessous depend aussi des entrees LOCAL en base (issues de
+  // seedLibrary) pour eviter les doublons -- un changement de
+  // LIBRARY_SEED_ENTRIES doit donc invalider ce cache autant qu'un
+  // changement de plantfolioData.json lui-meme.
+  const fingerprintInput = { version: PLANTFOLIO_SEED_LOGIC_VERSION, plantfolioData, LIBRARY_SEED_ENTRIES };
+
+  await seedIfChanged("plantfolio", fingerprintInput, () => runSeedPlantfolio(entries));
+}
+
+async function runSeedPlantfolio(entries: PlantfolioRawEntry[]): Promise<string> {
   // `commonExamples` est un texte libre : l'extraction du nom scientifique
   // (voir `extractScientificName`) produit parfois le meme nom pour deux
   // fiches distinctes -- une fiche LOCAL et son equivalent plantfolio (ex.
@@ -156,9 +197,7 @@ async function seedPlantfolio() {
       created += 1;
     }
   }
-  console.log(
-    `Bibliothèque (plantfolio) : ${created} créée(s), ${updated} mise(s) à jour, ${skipped} ignorée(s) (déjà couvertes par une fiche locale) sur ${entries.length} au total.`,
-  );
+  return `Bibliothèque (plantfolio) : ${created} créée(s), ${updated} mise(s) à jour, ${skipped} ignorée(s) (déjà couvertes par une fiche locale) sur ${entries.length} au total.`;
 }
 
 async function main() {

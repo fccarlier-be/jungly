@@ -14,6 +14,16 @@ const inputClass = "input w-full px-3 py-2 text-sm";
 
 type SupportState = "checking" | "unsupported" | "unsupported-ios-not-installed" | "supported";
 
+/** Arrondit au quart d'heure le plus proche (le scheduler ne verifie qu'a ces instants, voir scheduler.ts). */
+function roundToQuarterHour(time: string): string {
+  const [hours, minutes] = time.split(":").map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return time;
+  const totalMinutes = (Math.round((hours * 60 + minutes) / 15) * 15) % (24 * 60);
+  const roundedHours = Math.floor(totalMinutes / 60);
+  const roundedMinutes = totalMinutes % 60;
+  return `${String(roundedHours).padStart(2, "0")}:${String(roundedMinutes).padStart(2, "0")}`;
+}
+
 function isIosDevice(): boolean {
   // iPadOS se declare "MacIntel" mais garde le multi-touch d'un iPad.
   return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -28,6 +38,12 @@ export default function NotificationSettings({ initial }: { initial: Preference 
   const [preference, setPreference] = useState<Preference>(initial);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Brouillons locaux pour l'heure et le nombre de jours : la saisie met a
+  // jour ces champs a chaque frappe sans jamais desactiver l'input (ce qui
+  // coupait le focus/clavier mobile en plein milieu), et la sauvegarde reelle
+  // ne part qu'au blur -- pas a chaque tick de la roulette ou chaque chiffre.
+  const [timeDraft, setTimeDraft] = useState(initial.notificationTime);
+  const [daysDraft, setDaysDraft] = useState(String(initial.advanceReminderDays));
 
   const [support, setSupport] = useState<SupportState>("checking");
   const [subscribed, setSubscribed] = useState(false);
@@ -200,11 +216,22 @@ export default function NotificationSettings({ initial }: { initial: Preference 
               <label className="text-sm font-medium block mb-1">Heure d&apos;envoi</label>
               <input
                 type="time"
-                value={preference.notificationTime}
-                onChange={(e) => savePreference({ notificationTime: e.target.value })}
+                step={900}
+                value={timeDraft}
+                onChange={(e) => setTimeDraft(e.target.value)}
+                onBlur={() => {
+                  if (!timeDraft) return;
+                  const rounded = roundToQuarterHour(timeDraft);
+                  setTimeDraft(rounded);
+                  if (rounded !== preference.notificationTime) {
+                    savePreference({ notificationTime: rounded });
+                  }
+                }}
                 className="input w-32 px-3 py-2 text-sm"
-                disabled={saving}
               />
+              <p className="text-muted mt-1 text-xs">
+                Le digest est envoyé pile à cette heure (arrondie au quart d&apos;heure le plus proche).
+              </p>
             </div>
 
             <label className="flex items-center justify-between text-sm">
@@ -221,12 +248,24 @@ export default function NotificationSettings({ initial }: { initial: Preference 
               <label className="text-sm font-medium block mb-1">Rappel anticipé (jours avant l&apos;échéance, 0 = désactivé)</label>
               <input
                 type="number"
+                inputMode="numeric"
                 min={0}
                 max={30}
-                value={preference.advanceReminderDays}
-                onChange={(e) => savePreference({ advanceReminderDays: Number(e.target.value) })}
+                value={daysDraft}
+                onChange={(e) => setDaysDraft(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
+                onBlur={() => {
+                  const parsed = Math.min(30, Math.max(0, Number(daysDraft)));
+                  const value = Number.isFinite(parsed) ? parsed : preference.advanceReminderDays;
+                  setDaysDraft(String(value));
+                  if (value !== preference.advanceReminderDays) {
+                    savePreference({ advanceReminderDays: value });
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
                 className={inputClass}
-                disabled={saving}
               />
             </div>
           </>

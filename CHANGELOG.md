@@ -3,6 +3,44 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-10
+
+Renommage du projet en **Jungly** (ex-Plant Manager) en tout début de session -- toutes les entrées ci-dessous et dans les sections suivantes utilisent le nouveau nom. Premier backup Git du projet sur `github.com/fccarlier-be/jungly` (dépôt privé, deploy key dédiée).
+
+### Ajouté
+
+- **Multi-utilisateur en libre-service** : page `/inscription` (email, prénom optionnel, mot de passe -- 8 caractères minimum), connexion automatique après création. Le modèle de données isolait déjà chaque utilisateur (`userId` sur `Plant` et consorts) ; il manquait uniquement un moyen de créer un compte hors du seed initial.
+- **Galerie multi-photos par plante** : nouveau modèle `PlantPhoto`, upload multiple depuis la fiche plante, choix de la photo de couverture (`Plant.photoUrl`, inchangé -- déjà utilisé partout dans l'app), suppression avec promotion automatique d'une autre photo si celle supprimée était la couverture. Backfill automatique de l'ancienne photo unique dans la galerie au premier affichage d'une fiche.
+- **Visionneuse plein écran** (`PlantPhotoLightbox` + `PhotoViewerProvider`) : cliquer sur la couverture ou une vignette de galerie ouvre un carrousel (flèches, swipe tactile, clavier ← →/Échap, compteur x/y) partagé entre les deux points d'entrée via un contexte React.
+- **Compression automatique des photos** à l'envoi (`sharp`) : redimensionnement à 1600px de large maximum, qualité JPEG 82%, réorientation EXIF puis suppression -- une photo de téléphone de 3-4 Mo devient ~300-400 Ko sans perte visible. Les 5 photos déjà envoyées avant ce correctif ont été retraitées manuellement avec la même pipeline (~90% de réduction chacune).
+- **`/uploads` servi directement par nginx**, plus par le process Next.js : en mode `standalone`, le serveur Next ne détecte jamais les fichiers ajoutés à `public/` après son démarrage (il ne liste `public/` qu'au lancement) -- une photo tout juste envoyée restait donc invisible (404) jusqu'au prochain redéploiement. nginx lit le dossier à chaque requête, plus de ce problème.
+- **Ajustement météo automatique de la fréquence d'arrosage** : chaque utilisateur peut renseigner sa ville (`WeatherProfile`, géocodage [Open-Meteo](https://open-meteo.com/), gratuit et sans clé API). Une vérification quotidienne calcule la température max moyenne des 3 derniers jours + 2 jours de prévision et en déduit un multiplicateur d'intervalle d'arrosage (canicule ×0,7, chaleur ×0,85, normal ×1, frais ×1,3) : les futures tâches générées en tiennent compte, et les tâches déjà en attente sont avancées (jamais reculées) si la météo du jour le justifie. Badge discret sur l'accueil ("Ville · Normal/Chaleur/Canicule/Frais").
+- **Swipe sur les cartes de tâches de l'accueil** (`SwipeableCard`) : glisser à gauche valide la tâche, à droite la reporte d'un jour **à partir de sa propre échéance** (pas "demain depuis aujourd'hui" -- une tâche déjà prévue dans 3 jours passe à 4 jours, pas à demain). S'applique aux tâches du jour et à "Prochaines échéances", qui reste maintenant affichée en permanence (avant : seulement quand rien n'était dû aujourd'hui).
+- **Accueil non scrollable sur mobile** (`NoScrollDashboard`) : la page ne bouge/rebondit plus jamais dans son ensemble ; si le contenu variable (tâches + prochaines échéances) dépasse l'espace disponible, il défile dans sa propre zone contenue, dont la hauteur est mesurée en direct par rapport à la position réelle de la barre "Ma collection" (ou de la nav du bas à défaut), pas une valeur fixe devinée.
+- **Notifications à l'heure pile** : le sélecteur d'heure du digest est restreint aux quarts d'heure (00/15/30/45), et le scheduler se recale sur ces instants exacts au lieu de vérifier toutes les 15 minutes depuis le démarrage du conteneur (écart pouvant aller jusqu'à 14 minutes avant). Changer l'heure réinitialise le verrou "déjà envoyé aujourd'hui" pour permettre un nouvel envoi le jour même.
+- **Seed conditionnel** (`SeedFingerprint`) : la bibliothèque locale et Plantfolio calculent une empreinte de leurs données sources et sautent tout le reparcours (des centaines de requêtes SQLite) si rien n'a changé depuis le dernier déploiement -- fait passer un redémarrage de plusieurs minutes à quelques secondes quand seul du code applicatif change.
+- **Cache de build Docker** (BuildKit, `.next/cache`) : les redéploiements pour un simple changement de code sont ~2x plus rapides qu'avant (le cache Next.js persiste désormais entre les `docker compose build` successifs).
+- Thème **clair par défaut** (au lieu de suivre le système) ; "Système" reste un choix explicite distinct et fonctionnel dans Paramètres.
+- Seuil de bascule mobile/desktop remonté de 768px à 1024px : une tablette garde la navigation tactile (barre du bas) au lieu de basculer vers la barre latérale pensée pour souris/clavier.
+- Nouvelle icône de l'app (fournie par l'utilisateur), déclinée en 192px/512px.
+- Derniers emojis de l'interface remplacés par des icônes lucide-react (page de connexion, d'inscription, accueil, barre latérale desktop), pour une cohérence visuelle complète.
+- **Empaquetage Android natif (TWA via Bubblewrap)** pour sideload sur une tablette Android 7.0 : projet généré et APK compilé (`minSdkVersion 21`, compatible), vérification de domaine publiée (`/.well-known/assetlinks.json`) pour un lancement plein écran sans barre d'adresse. Seuil de bascule mobile/desktop (ci-dessus) corrigé au passage suite à un premier essai d'affichage sur la tablette. Installation validée sur l'appareil cible après un aller-retour sur un plantage ponctuel de Google Play Store (Play Protect scannant l'APK au premier essai) -- résolu par un nouveau téléchargement et une nouvelle tentative, sans changement côté app. Keystore de signature conservé précieusement pour les futures mises à jour.
+
+### Corrigé
+
+- Le conteneur `plantes-app` n'avait pas de fuseau horaire défini (UTC par défaut) alors que le scheduler comparait l'heure de notification à l'horloge du conteneur : le digest partait systématiquement 2h en retard (heure d'été) par rapport à l'heure choisie. `TZ=Europe/Brussels` ajouté.
+- Le rappel anticipé ("Prochaines échéances", digest) ignorait les tâches reportées (`SNOOZED`), ne comptant que les tâches `PENDING` -- une tâche reportée à demain pouvait rester invisible derrière une échéance `PENDING` bien plus lointaine. Nouveau helper partagé `effectiveDueDate()` (date de report si reportée, échéance sinon), réutilisé sur l'accueil, `/plantes` et le service de notifications.
+- Même bug sur `/plantes` : la "prochaine action" affichée sur chaque carte ne regardait que les tâches `PENDING`, une tâche d'arrosage reportée à demain pouvait être masquée par une fertilisation `PENDING` prévue dans 6 mois.
+- Champs heure/nombre de jours (Paramètres → Notifications) qui se sauvegardaient à chaque frappe/cran de molette au lieu du blur, et se désactivaient pendant la sauvegarde -- coupait le focus et fermait le clavier/la roulette en plein milieu de la saisie sur mobile.
+- Bug Safari/WebKit connu : le `padding-inline-start` d'un conteneur flex qui défile horizontalement est ignoré -- corrigé par un vrai élément espaceur plutôt qu'un padding pour l'espace avant le premier élément de "Ma collection".
+- Avec `scroll-snap-type: mandatory`, Safari corrigeait de force la position de repos sur le premier point d'ancrage au chargement, annulant visuellement l'espaceur ci-dessus -- l'espaceur porte désormais lui-même `snap-start`.
+- Émoticône `?` affichée à la place d'une photo tout juste envoyée dans la galerie (voir "`/uploads` servi par nginx" ci-dessus).
+
+### Infrastructure
+
+- Nettoyage ponctuel : `tsconfig.tsbuildinfo` (artefact de build) exclu du suivi Git.
+- Incident sans lien avec ce projet au cours de la session (processus de nettoyage système qui a saturé la mémoire du serveur, redémarrant `dockerd` et l'ensemble des conteneurs du homelab) -- constaté, pas causé par un déploiement de Jungly, résolu de lui-même.
+
 ## [Post-MVP] - 2026-09-09
 
 ### Ajouté

@@ -48,15 +48,29 @@ export function shouldGenerateTask(rule: CareRuleLike): boolean {
  * Calcule la prochaine échéance d'une règle, en tenant compte de la
  * récurrence ET de la fenêtre saisonnière éventuelle. Renvoie null si la
  * règle est désactivée, manuelle, ou pilotée par capteur (MOISTURE_THRESHOLD).
+ *
+ * `wateringIntervalMultiplier` (defaut 1) n'est applique qu'aux règles
+ * d'arrosage avec un intervalle exprimé en jours/semaines/mois -- ni a
+ * EXACT_DATE (date fixe, pas un intervalle a ajuster), ni aux autres types
+ * de soin (voir src/server/weather/).
  */
-export function computeRuleNextDueDate(rule: CareRuleLike, fromDate: Date): Date | null {
+export function computeRuleNextDueDate(rule: CareRuleLike, fromDate: Date, wateringIntervalMultiplier = 1): Date | null {
   if (!shouldGenerateTask(rule)) {
     return null;
   }
 
   const config = rule.configuration ?? {};
+  const scalableRecurrence =
+    rule.recurrenceType === "FIXED_INTERVAL_DAYS" ||
+    rule.recurrenceType === "INTERVAL_WEEKS" ||
+    rule.recurrenceType === "INTERVAL_MONTHS";
+  const effectiveInterval =
+    rule.type === "WATERING" && scalableRecurrence && rule.interval != null && wateringIntervalMultiplier !== 1
+      ? Math.max(1, Math.round(rule.interval * wateringIntervalMultiplier))
+      : rule.interval;
+
   const due = computeNextDueDate(
-    { recurrenceType: rule.recurrenceType, interval: rule.interval, exactDate: config.exactDate },
+    { recurrenceType: rule.recurrenceType, interval: effectiveInterval, exactDate: config.exactDate },
     fromDate,
   );
   if (due == null) {

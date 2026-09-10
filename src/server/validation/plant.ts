@@ -19,5 +19,10 @@ export const createPlantSchema = z.object({
 
 export const updatePlantSchema = createPlantSchema.partial();
 
+export const addPlantPhotosSchema = z.object({
+  urls: z.array(z.string().trim().min(1).max(500)).min(1).max(20),
+});
+
 export type CreatePlantInput = z.infer<typeof createPlantSchema>;
 export type UpdatePlantInput = z.infer<typeof updatePlantSchema>;
+export type AddPlantPhotosInput = z.infer<typeof addPlantPhotosSchema>;

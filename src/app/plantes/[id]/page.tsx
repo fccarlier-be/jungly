@@ -1,9 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Sprout, Pencil } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { requireSessionUserId } from "@/lib/session";
 import { db } from "@/server/db";
 import QuickActions from "@/components/QuickActions";
+import PlantPhotoGallery from "@/components/PlantPhotoGallery";
+import PlantCoverPhoto from "@/components/PlantCoverPhoto";
+import PhotoViewerProvider from "@/components/PhotoViewerProvider";
 import StatusBadge from "@/components/StatusBadge";
 import { CareTypeIcon, careSoftBackground } from "@/components/careIcons";
 import { computePlantStatus } from "@/lib/plantStatus";
@@ -30,9 +33,19 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ id
       careRules: { orderBy: { createdAt: "asc" } },
       tasks: { where: { status: "PENDING" }, orderBy: { dueAt: "asc" } },
       sensors: { include: { readings: { orderBy: { recordedAt: "desc" }, take: 1 } } },
+      photos: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!plant) notFound();
+
+  // Backfill : une photo de couverture choisie avant l'introduction de la
+  // galerie n'existe pas encore comme PlantPhoto -- on l'y ajoute au premier
+  // affichage pour qu'elle apparaisse dans la liste (et reste choisissable
+  // si l'utilisateur change puis revient dessus).
+  if (plant.photoUrl && !plant.photos.some((p) => p.url === plant.photoUrl)) {
+    const backfilled = await db.plantPhoto.create({ data: { plantId: plant.id, url: plant.photoUrl } });
+    plant.photos.push(backfilled);
+  }
 
   const [recentEvents, notes, libraryEntry] = await Promise.all([
     db.careEvent.findMany({ where: { plantId: id }, orderBy: { performedAt: "desc" }, take: 5 }),
@@ -53,17 +66,14 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ id
     { label: "Acquisition", value: plant.acquiredAt ? formatDate(plant.acquiredAt) : null },
   ].filter((row) => row.value);
 
+  const photoUrls = plant.photos.map((p) => p.url);
+
   return (
+    <PhotoViewerProvider>
     <div className="space-y-7">
       <div className="animate-rise-in overflow-hidden rounded-2xl" style={{ background: "var(--surface-alt)" }}>
         <div className="relative aspect-[16/10] w-full sm:aspect-[21/9]">
-          {plant.photoUrl || fallbackImageUrl ? (
-            <img src={plant.photoUrl || fallbackImageUrl!} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center" style={{ color: "var(--secondary)" }}>
-              <Sprout size={56} strokeWidth={1.5} />
-            </div>
-          )}
+          <PlantCoverPhoto photos={photoUrls} coverUrl={plant.photoUrl} fallbackImageUrl={fallbackImageUrl} />
           <Link
             href={`/plantes/${plant.id}/modifier`}
             className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium backdrop-blur-sm"
@@ -115,6 +125,8 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ id
           })}
         </div>
       </section>
+
+      <PlantPhotoGallery plantId={plant.id} photos={plant.photos} coverUrl={plant.photoUrl} />
 
       {infoRows.length > 0 && (
         <section className="animate-rise-in space-y-3">
@@ -198,5 +210,6 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ id
         </section>
       )}
     </div>
+    </PhotoViewerProvider>
   );
 }

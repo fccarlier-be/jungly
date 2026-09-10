@@ -24,6 +24,7 @@ model User {
   fertilizers           Fertilizer[]
   notificationPreference NotificationPreference?
   pushSubscriptions     PushSubscription[]
+  weatherProfile        WeatherProfile?
 }
 
 // ---------------------------------------------------------------------------
@@ -72,8 +73,28 @@ model Plant {
   careEvents    CareEvent[]
   plantNotes    Note[]
   sensors       Sensor[]
+  photos        PlantPhoto[]
 
   @@index([userId])
+}
+
+/**
+ * Galerie de photos d'une plante. `photoUrl` sur Plant reste la photo de
+ * couverture (deja utilisee partout dans l'app -- cartes, dashboard, etc.),
+ * cette table stocke juste les photos additionnelles parmi lesquelles
+ * choisir. Une couverture peut donc exister sans etre "dans" cette table
+ * (photo choisie avant l'introduction de la galerie) -- voir le backfill
+ * dans la page de detail.
+ */
+model PlantPhoto {
+  id        String   @id @default(cuid())
+  plantId   String
+  url       String
+  createdAt DateTime @default(now())
+
+  plant Plant @relation(fields: [plantId], references: [id], onDelete: Cascade)
+
+  @@index([plantId])
 }
 
 // ---------------------------------------------------------------------------
@@ -349,4 +370,37 @@ model SensorReading {
   sensor Sensor @relation(fields: [sensorId], references: [id], onDelete: Cascade)
 
   @@index([sensorId, recordedAt])
+}
+
+/**
+ * Empreinte des donnees sources du seed (bibliotheque locale + plantfolio).
+ * Permet a `prisma/seed.ts` de sauter le reparcours complet (des centaines
+ * de requetes SQLite sequentielles) quand rien n'a change depuis le dernier
+ * deploiement -- sans elle, chaque redemarrage de conteneur repayait ce cout
+ * meme pour un changement de code sans rapport avec la bibliotheque.
+ */
+model SeedFingerprint {
+  key       String   @id
+  hash      String
+  updatedAt DateTime @updatedAt
+}
+
+/**
+ * Ajustement automatique de l'intervalle d'arrosage selon la meteo de la
+ * ville de l'utilisateur (Open-Meteo, pas de cle API). Un ajustement par
+ * utilisateur, pas global : chacun sa ville. `wateringIntervalMultiplier`
+ * est applique a l'intervalle des regles d'arrosage (< 1 = plus frequent,
+ * > 1 = moins frequent) ; sa presence (une ligne existe) signifie que la
+ * fonctionnalite est active pour cet utilisateur.
+ */
+model WeatherProfile {
+  id                         String   @id @default(cuid())
+  userId                     String   @unique
+  city                       String
+  latitude                   Float
+  longitude                  Float
+  wateringIntervalMultiplier Float    @default(1)
+  updatedAt                  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

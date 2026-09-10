@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "org.fcold.plantes.twa",
+      "sha256_cert_fingerprints": [
+        "0C:21:7D:62:00:34:A7:66:98:F9:C7:A7:79:6A:36:02:35:5E:9A:C9:87:05:20:C3:A4:F7:66:C5:9D:14:7C:44"
+      ]
+    }
+  }
+]

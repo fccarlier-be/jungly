@@ -75,8 +75,13 @@ export async function sendDailyDigest(userId: string): Promise<void> {
     upcomingCount = await db.task.count({
       where: {
         plant: { userId },
-        status: "PENDING",
-        dueAt: { gt: endOfToday, lte: upcomingUntil },
+        // Une tache reportee (SNOOZED) redevenant due demain est tout autant
+        // "a venir" qu'une tache PENDING -- l'ignorer faisait manquer le
+        // rappel anticipe des lors qu'une tache avait ete snoozee.
+        OR: [
+          { status: "PENDING", dueAt: { gt: endOfToday, lte: upcomingUntil } },
+          { status: "SNOOZED", snoozedUntil: { gt: endOfToday, lte: upcomingUntil } },
+        ],
       },
     });
   }

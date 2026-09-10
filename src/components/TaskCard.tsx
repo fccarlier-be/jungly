@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Check, Sprout } from "lucide-react";
 import { formatRelativeDueDate } from "@/lib/units";
 import { CareTypeIcon, careSoftBackground } from "@/components/careIcons";
+import SwipeableCard from "@/components/SwipeableCard";
 
 export interface TaskCardData {
   id: string;
@@ -70,7 +71,18 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
     void snooze(until);
   }
 
+  // Depuis la date actuelle de la tache, pas "demain depuis aujourd'hui" :
+  // pour une echeance deja a quelques jours (vue "Prochaines echeances"),
+  // swiper devait la repousser d'un jour supplementaire, pas la ramener a
+  // demain (ce qui l'aurait rapprochee au lieu de l'eloigner).
+  function swipeSnooze() {
+    const until = new Date(task.dueAt);
+    until.setDate(until.getDate() + 1);
+    void snooze(until);
+  }
+
   return (
+    <SwipeableCard onSwipeLeft={complete} onSwipeRight={swipeSnooze} disabled={pending}>
     <div
       className="card p-4 transition-all duration-300"
       style={done ? { opacity: 0.4, transform: "scale(0.98)" } : undefined}
@@ -142,5 +154,6 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
         </div>
       </div>
     </div>
+    </SwipeableCard>
   );
 }

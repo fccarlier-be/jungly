@@ -15,7 +15,7 @@ export default function EmptyState({
   actionLabel?: string;
 }) {
   return (
-    <div className="animate-rise-in flex flex-col items-center gap-3 rounded-2xl border border-dashed py-14 px-6 text-center" style={{ borderColor: "var(--border)" }}>
+    <div className="animate-rise-in flex flex-col items-center gap-3 rounded-2xl border border-dashed py-6 px-6 text-center" style={{ borderColor: "var(--border)" }}>
       <div style={{ color: "var(--secondary)" }}>{icon}</div>
       <p className="font-display text-xl font-semibold">{title}</p>
       <p className="text-muted max-w-xs text-sm">{description}</p>
