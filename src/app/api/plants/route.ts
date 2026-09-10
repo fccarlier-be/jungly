@@ -6,6 +6,7 @@ import { createPlantSchema } from "@/server/validation/plant";
 import { getOwnedLocation } from "@/server/ownership";
 import { effectiveDueDate } from "@/server/careEngine/dueTasks";
 import { assertOwnedUpload } from "@/server/uploads";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,6 +78,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const userId = await requireUserId();
+
+    // Meme si aucune ressource individuelle n'est "sensible" (contrairement
+    // aux uploads/capteurs), un compte compromis ou un inscription publique
+    // detournee pourrait sinon creer des milliers de plantes en boucle et
+    // faire travailler SQLite pour rien.
+    const { allowed, retryAfterSeconds } = checkRateLimit(`plant-create:${userId}`, 50, 60 * 60 * 1000);
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
+
     const body = await request.json();
     const input = createPlantSchema.parse(body);
 

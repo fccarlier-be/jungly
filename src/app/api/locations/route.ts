@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { createLocationSchema } from "@/server/validation/location";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 export async function GET() {
   try {
@@ -17,6 +18,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const userId = await requireUserId();
+
+    const { allowed, retryAfterSeconds } = checkRateLimit(`location-create:${userId}`, 50, 60 * 60 * 1000);
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
+
     const body = await request.json();
     const input = createLocationSchema.parse(body);
 
