@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
-import { handleApiError } from "@/lib/apiError";
+import { handleApiError, BadRequestError } from "@/lib/apiError";
 import { getOwnedPlant } from "@/server/ownership";
 import { createSensorSchema } from "@/server/validation/sensor";
 import { generateSensorApiKey } from "@/server/sensorAuth";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 type Params = { params: Promise<{ id: string }> };
+
+// Meme valeur que la limite d'import (src/server/validation/backup.ts) --
+// pas de dependance croisee entre un module de validation d'import et une
+// route API live, juste la meme borne raisonnable pour un usage homelab.
+const MAX_SENSORS_PER_PLANT = 20;
 
 // apiKeyHash n'est jamais renvoye : le jeton en clair n'est visible qu'une
 // fois, dans la reponse de creation/rotation.
@@ -35,6 +41,16 @@ export async function POST(request: NextRequest, { params }: Params) {
     const userId = await requireUserId();
     const { id } = await params;
     await getOwnedPlant(userId, id);
+
+    const { allowed, retryAfterSeconds } = checkRateLimit(`sensor-create:${userId}`, 10, 5 * 60 * 1000);
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
+
+    const existingCount = await db.sensor.count({ where: { plantId: id } });
+    if (existingCount >= MAX_SENSORS_PER_PLANT) {
+      throw new BadRequestError(`Trop de capteurs sur cette plante (max ${MAX_SENSORS_PER_PLANT}).`);
+    }
 
     const body = await request.json();
     const input = createSensorSchema.omit({ plantId: true }).parse(body);
