@@ -40,19 +40,34 @@ ENV PATH="/app/node_modules/.bin:${PATH}"
 # pour les migrations/seed) a des dependances transitives (ex. "effect")
 # que le tracage de Next.js ne suit pas puisqu'elles ne sont jamais
 # importees par le code applicatif lui-meme.
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/public ./public
-COPY --from=build /app/.next/standalone ./
-COPY --from=build /app/.next/static ./.next/static
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/tsconfig.json ./tsconfig.json
-COPY --from=build /app/prisma ./prisma
+#
+# Ne pas tourner en root : l'image accepte des fichiers uploades par
+# l'utilisateur, des images traitees par sharp et des ZIP d'import -- un
+# gain defensif reel meme derriere Cloudflare. "node" est l'utilisateur
+# non-root deja fourni par l'image officielle (uid/gid 1000).
+# --chown sur chaque COPY (proprietaire pose pendant la copie, une seule
+# passe) plutot qu'un `RUN chown -R` separe apres coup (parcours recursif
+# de tout node_modules en plus de la copie elle-meme -- deux fois le
+# travail, deux fois le pic memoire sur un hote deja charge). Les
+# repertoires bind-montes (/app/data, /app/public/uploads, voir
+# docker-compose.yml) doivent etre prealablement chownes cote hote au meme
+# uid : un COPY --chown ne les couvre pas, un bind mount remplace le
+# contenu de l'image a cet endroit au demarrage.
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/public ./public
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
+COPY --from=build --chown=node:node /app/package.json ./package.json
+COPY --from=build --chown=node:node /app/tsconfig.json ./tsconfig.json
+COPY --from=build --chown=node:node /app/prisma ./prisma
 # Scripts de maintenance ponctuels sous prisma/ (ex. backfillImages.ts)
 # reutilisent des utilitaires de src/server/ -- pas necessaire au serveur
 # Next.js lui-meme (deja bundle dans .next/standalone), juste a `tsx`.
-COPY --from=build /app/src ./src
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
+COPY --from=build --chown=node:node /app/src ./src
+COPY --chown=node:node docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
+
+USER node
 
 EXPOSE 3000
 ENTRYPOINT ["./docker-entrypoint.sh"]
