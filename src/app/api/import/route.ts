@@ -55,6 +55,15 @@ export async function POST(request: NextRequest) {
     }
 
     const zip = await JSZip.loadAsync(await file.arrayBuffer());
+    // MAX_ZIP_ENTRIES ci-dessous ne compte que les entrees uploads/* -- une
+    // archive peut contenir des milliers d'entrees hors de ce prefixe
+    // (repertoires vides, fichiers jamais decompresses par ce code) tout en
+    // restant sous MAX_ZIP_FILE_SIZE : JSZip les charge neanmoins toutes en
+    // memoire des le loadAsync() ci-dessus. Controle sur la totalite de
+    // zip.files, avant tout traitement du contenu.
+    if (Object.values(zip.files).length > MAX_ZIP_ENTRIES) {
+      return NextResponse.json({ error: `Trop d'entrées dans l'archive (max ${MAX_ZIP_ENTRIES}).` }, { status: 400 });
+    }
     const dataEntry = zip.file("data.json");
     if (!dataEntry) {
       return NextResponse.json({ error: "Archive invalide : data.json introuvable." }, { status: 400 });
@@ -83,10 +92,9 @@ export async function POST(request: NextRequest) {
       // le prefixe de chemin, sinon data.json lui-meme se retrouve traite
       // comme une image a importer (et rejete par la validation sharp
       // ci-dessous, cassant tout import legitime).
+      // entries est un sous-ensemble de zip.files, deja borne par
+      // MAX_ZIP_ENTRIES plus haut -- pas besoin d'un second controle ici.
       const entries = Object.values(zip.files).filter((entry) => !entry.dir && entry.name.startsWith("uploads/"));
-      if (entries.length > MAX_ZIP_ENTRIES) {
-        throw new BadRequestError(`Trop de fichiers dans l'archive (max ${MAX_ZIP_ENTRIES}).`);
-      }
 
       let totalDecompressedSize = 0;
       for (const entry of entries) {
