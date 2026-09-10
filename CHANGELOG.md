@@ -3,6 +3,14 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-10 — Durcissement post-audit7
+
+Suite à une 7e revue de code indépendante (GPT), synthèse de clôture plutôt que nouvelles trouvailles -- le seul point concret concernait le build Docker.
+
+### Corrigé
+
+- **`Dockerfile` : suppression du fallback `npm install`** (`RUN npm ci 2>/dev/null || npm install` → `RUN npm ci`) : ce fallback masquait silencieusement toute désynchronisation entre `package.json` et `package-lock.json` en régénérant le lockfile à la volée au lieu d'échouer bruyamment -- exactement le genre de dérive silencieuse chassée sur plusieurs audits précédents (versions déclarées périmées par rapport au lockfile réel), à contre-courant de l'épinglage exact des versions sensibles déjà en place (audit4). Build vérifié : `npm ci` seul réussit, confirmant que le lockfile est parfaitement synchronisé.
+
 ## [Post-MVP] - 2026-09-10 — Durcissement post-audit6
 
 Suite à une 6e revue de code indépendante (GPT) : aucun nouveau P0/P1/P2, confirmation que les 9 points d'audit5 sont bien présents. Seul point actionnable côté code : épingler les actions GitHub par SHA (protection de branche `main` activée manuellement par l'utilisateur côté GitHub, hors du dépôt).
