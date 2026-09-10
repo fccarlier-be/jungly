@@ -5,9 +5,12 @@ on:
     branches: [main]
   pull_request:
 
-# N'exécute jamais les tests E2E Playwright (e2e/) ici : ils ciblent
-# l'application réellement déployée en HTTPS (voir e2e/README.md), pas une
-# instance jetable -- aucun secret de production n'est fourni à ce workflow.
+# Le job `test` ne touche jamais a la prod (aucun secret reel fourni ici).
+# Le job `e2e` rejoue la meme suite Playwright que e2e/README.md, mais
+# contre une instance NEXT START EPHEMERE demarree dans ce workflow (base
+# SQLite et compte seed jetables, jamais la vraie prod) -- ferme le trou que
+# laissait un simple `npm run build` : la CI pouvait etre verte alors qu'un
+# changement cassait le parcours navigateur reel.
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -37,3 +40,59 @@ jobs:
 
       - name: Build (type-check + compilation Next.js)
         run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      DATABASE_URL: file:./e2e-ci.db
+      AUTH_SECRET: ci-placeholder-secret-not-used-in-production
+      # http, pas https : NEXTAUTH_URL en http => pas de prefixe __Secure-
+      # sur les cookies de session, qu'un vrai navigateur (Playwright)
+      # refuserait sinon en HTTP simple -- voir e2e/README.md, ce piege
+      # n'existe qu'en ciblant la prod en HTTPS depuis une adresse interne.
+      NEXTAUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: BCiFmzUvBhIhOHZ_ci_placeholder_not_used_in_production
+      SEED_USER_EMAIL: e2e-ci-seed@example.com
+      SEED_USER_PASSWORD: CiSeedPassword123!
+      E2E_BASE_URL: http://localhost:3000
+      E2E_SEED_EMAIL: e2e-ci-seed@example.com
+      E2E_SEED_PASSWORD: CiSeedPassword123!
+      # photos.spec.ts : pas de volume Docker ici, les fichiers uploades
+      # vivent directement sous public/uploads du checkout.
+      E2E_UPLOADS_DIR: ${{ github.workspace }}/public/uploads
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npx prisma db seed
+      - run: npm run build
+
+      - name: Démarre le serveur (instance éphémère)
+        run: npm start &
+
+      - name: Attend que le serveur réponde
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/login > /dev/null; then
+              echo "Serveur prêt."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Le serveur n'a pas démarré à temps." >&2
+          exit 1
+
+      - name: Installe les navigateurs Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Tests E2E (instance éphémère)
+        run: npx playwright test

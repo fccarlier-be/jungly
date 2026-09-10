@@ -5,9 +5,12 @@ import { cleanupDb, cleanupE2eData, E2E_MARKER } from "./dbCleanup";
 
 // Compte seed reutilise (comme plant-journey.spec.ts) : une seule plante
 // creee et supprimee par le test lui-meme, pas de risque d'ecraser les
-// donnees reelles. /data/uploads : meme volume que le conteneur teste (voir
-// e2e/README.md), permet de verifier la presence/absence reelle des
-// fichiers sur disque, pas seulement les URLs en base.
+// donnees reelles. E2E_UPLOADS_DIR : dossier reellement utilise par le
+// serveur teste, pour verifier la presence/absence reelle des fichiers sur
+// disque (pas seulement les URLs en base) -- /data/uploads par defaut (voir
+// e2e/README.md, volume monte identique au conteneur), remplace par la CI
+// (serveur ephemere sans Docker, uploads sous <repo>/public/uploads).
+const UPLOADS_DIR = process.env.E2E_UPLOADS_DIR ?? "/data/uploads";
 const email = process.env.E2E_SEED_EMAIL;
 const password = process.env.E2E_SEED_PASSWORD;
 const plantName = `${E2E_MARKER} Photos ${Date.now()}`;
@@ -49,8 +52,8 @@ test("upload, galerie, couverture, suppression avec promotion, suppression de la
   const [photoOne] = await addPhotosRes.json();
   await page.request.patch(`/api/plants/${plant.id}`, { data: { photoUrl: urlOne } });
 
-  const filePathOne = `/data/uploads/${path.basename(urlOne)}`;
-  const filePathTwo = `/data/uploads/${path.basename(urlTwo)}`;
+  const filePathOne = `${UPLOADS_DIR}/${path.basename(urlOne)}`;
+  const filePathTwo = `${UPLOADS_DIR}/${path.basename(urlTwo)}`;
   expect(existsSync(filePathOne)).toBe(true);
   expect(existsSync(filePathTwo)).toBe(true);
 
