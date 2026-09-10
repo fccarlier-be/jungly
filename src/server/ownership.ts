@@ -53,8 +53,15 @@ export async function getOwnedLocation(userId: string, locationId: string) {
   return location;
 }
 
-export async function getOwnedPlantPhoto(userId: string, photoId: string) {
-  const photo = await db.plantPhoto.findFirst({ where: { id: photoId, plant: { userId } } });
+/**
+ * plantId est verifie en plus de l'ownership utilisateur : sans lui, un
+ * utilisateur pouvait supprimer une photo d'une de ses AUTRES plantes en
+ * appelant DELETE /plants/A/photos/photo-de-B (photo-de-B passe la
+ * verification userId puisque B lui appartient aussi, mais n'a rien a voir
+ * avec la plante A de l'URL).
+ */
+export async function getOwnedPlantPhoto(userId: string, plantId: string, photoId: string) {
+  const photo = await db.plantPhoto.findFirst({ where: { id: photoId, plantId, plant: { userId } } });
   if (!photo) {
     throw new NotFoundError("Cette photo n'existe plus.");
   }

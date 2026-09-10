@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
-import { getOwnedPlant } from "@/server/ownership";
+import { getOwnedPlant, getOwnedLocation } from "@/server/ownership";
 import { updatePlantSchema } from "@/server/validation/plant";
+import { deleteUploadedFile } from "@/server/uploads";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -37,6 +38,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const body = await request.json();
     const input = updatePlantSchema.parse(body);
 
+    // Meme verification qu'a la creation : locationId est fourni par le
+    // client, ne jamais faire confiance a l'id seul.
+    if (input.locationId) {
+      await getOwnedLocation(userId, input.locationId);
+    }
+
     const plant = await db.plant.update({ where: { id }, data: input });
     return NextResponse.json(plant);
   } catch (error) {
@@ -48,9 +55,23 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
     const userId = await requireUserId();
     const { id } = await params;
-    await getOwnedPlant(userId, id);
+    const plant = await getOwnedPlant(userId, id);
+
+    // Recuperees avant la suppression (cascade) : le seul moment ou ces
+    // urls sont encore lisibles depuis les lignes qui les referencent.
+    const [photos, notes] = await Promise.all([
+      db.plantPhoto.findMany({ where: { plantId: id }, select: { url: true } }),
+      db.note.findMany({ where: { plantId: id }, select: { photoUrl: true } }),
+    ]);
+    const urlsToDelete = new Set(
+      [plant.photoUrl, ...photos.map((p) => p.url), ...notes.map((n) => n.photoUrl)].filter(
+        (url): url is string => Boolean(url),
+      ),
+    );
 
     await db.plant.delete({ where: { id } });
+    await Promise.all([...urlsToDelete].map((url) => deleteUploadedFile(url)));
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     return handleApiError(error);

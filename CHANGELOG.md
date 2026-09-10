@@ -3,6 +3,37 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-10 — Durcissement post-audit
+
+Suite à deux revues de code indépendantes du dépôt GitHub (générées par GPT, vérifiées ligne par ligne contre le code réel avant toute correction -- plusieurs affirmations se sont révélées inexactes ou déjà non pertinentes et n'ont pas été appliquées), 18 corrections traitées une par une : implémentation, tests, déploiement puis vérification en direct contre l'application réelle (souvent avec deux comptes utilisateurs distincts) avant de passer au point suivant.
+
+### Sécurité
+
+- **IDOR sur les emplacements** : `POST`/`PATCH /api/plants` n'importe quel `locationId` fourni par le client sans vérifier qu'il appartenait bien à l'utilisateur -- un attaquant pouvait rattacher sa plante à l'emplacement d'un autre compte (et donc en apprendre le nom).
+- **IDOR sur les règles d'entretien** : arroser/fertiliser une plante en fournissant le `careRuleId` d'une règle appartenant à une **autre** plante (y compris d'un autre utilisateur) en complétait/régénérait la tâche depuis sa propre plante.
+- **IDOR sur les photos de galerie** : `DELETE /api/plants/:id/photos/:photoId` vérifiait l'existence de la photo indépendamment du `plantId` de l'URL -- un utilisateur connaissant l'id d'une photo pouvait supprimer celle d'une plante qui n'était pas la sienne.
+- **`/api/library/[id]/resync` réservé à l'administrateur** : cette route modifiait une fiche de bibliothèque **globale**, partagée par tous les comptes -- n'importe quel utilisateur connecté pouvait donc altérer ce que voient tous les autres. Nouveau champ `User.isAdmin` (le compte `SEED_USER_EMAIL` l'est automatiquement à chaque déploiement).
+- **Rate limiting** ajouté (limiteur en mémoire, un seul conteneur donc pas de Redis nécessaire) : connexion (10/5min/IP), inscription (5/15min/IP), envoi de photo (30/5min/utilisateur), lectures de capteur (60/min/IP, protège aussi contre le brute-force de `X-Sensor-Key`), recherche/import de bibliothèque externe (20/5min/utilisateur, protège le quota gratuit Perenual). Un échec de connexion pour cause de limite atteinte renvoie la même réponse générique qu'un mot de passe incorrect, pour ne jamais révéler qu'une limite existe.
+
+### Fiabilité / cohérence des données
+
+- **`addMonths()`** ne bornait pas la date résultante à la longueur réelle du mois cible (`Date.setMonth()` ne le fait pas nativement) : "31 janvier + 1 mois" débordait sur le 3 mars au lieu de se limiter au 28/29 février.
+- **Import JSON (`/api/import`) rendu transactionnel** : un échec en cours de restauration (ex. 17e plante sur 25 invalide) laissait une restauration partielle et silencieuse en base. Tout l'import tourne désormais dans une seule transaction Prisma (timeout relevé à 30s pour les grosses sauvegardes) -- vérifié en direct avec un échec forcé à mi-import : zéro plante restait persistée.
+- **États de tâche invalides** : compléter deux fois la même tâche (double-clic, requête rejouée) créait un second `CareEvent` en conflit avec la contrainte unique `taskId`, remontant un 500 générique. `complete`/`snooze` refusent désormais explicitement une tâche déjà traitée (409 clair), et `snooze` refuse une date de report passée (400). Complétion transformée en transaction atomique (événement + statut ensemble).
+- **Désactiver une règle d'entretien** n'empêchait que la génération de *futures* tâches -- une tâche déjà en attente ou reportée continuait d'apparaître indéfiniment. Elle est désormais annulée (`SKIPPED`) dès que la règle passe à désactivé.
+- **Validation stricte des combinaisons `recurrenceType`/`interval`/`exactDate`** : créer une règle `FIXED_INTERVAL_DAYS` sans `interval`, ou `EXACT_DATE` sans date, passait la validation Zod puis faisait planter la génération de tâche (500 générique) *après* que la règle ait déjà été enregistrée en base, orpheline et jamais réparée. Rejeté désormais en 400 avant toute écriture ; `POST /api/care-rules` rendu transactionnel par la même occasion (règle + première tâche ensemble).
+- **Tâches reportées (`SNOOZED`) ignorées** à plusieurs endroits : `GET /api/plants` (prochaine tâche, filtre "Aucune tâche", indicateur de retard), la fiche détail d'une plante (`/plantes/[id]`, ligne de règle affichée comme "Manuel" alors qu'une tâche existait bien, juste repoussée), et le tri de `/taches` (une tâche reportée à demain restait classée "En retard" sur son ancienne échéance au lieu d'utiliser sa date de report effective). Les trois utilisent désormais `effectiveDueDate()`, comme le reste de l'application depuis la session précédente.
+- **Fichiers uploadés jamais supprimés physiquement** : effacer une photo de galerie ou une plante entière ne libérait jamais l'espace disque correspondant (`data/uploads`, monté en volume persistant). Supprimés désormais au moment de la suppression de la ressource qui les référence.
+- **Erreurs silencieuses côté frontend** : une dizaine d'appels `fetch` (arroser/fertiliser/rempoter, compléter/reporter une tâche, gérer les règles d'entretien et les engrais, préférences de notification, navigation de la bibliothèque) ne vérifiaient jamais `response.ok` -- une action refusée par le serveur (ex. les 409 ci-dessus) semblait avoir réussi côté interface. Chacun affiche désormais l'erreur reçue et annule le changement optimiste le cas échéant.
+- **Export/import de la galerie photo** : `/api/export` n'incluait jamais `PlantPhoto` (uniquement la photo de couverture) -- une sauvegarde/restauration perdait silencieusement toutes les photos additionnelles. Incluses désormais dans les deux sens.
+- **Champs de licence image incohérents** : le script de rattrapage `prisma/backfillImages.ts` stockait l'attribution complète (ex. *"(c) Jane Doe, some rights reserved (CC BY-NC)"*) dans le champ `imageLicense`, qui devrait contenir le nom de la licence elle-même (ex. *"CC BY-NC 4.0"*). Nouveau champ `imageAuthor` pour séparer les deux ; **les 662 entrées de bibliothèque déjà affectées ont été corrigées rétroactivement** (49 OpenPlantbook nettoyées, 613 iNaturalist/GBIF reclassées avec une vraie licence dérivée de leur URL).
+- Script `npm run lint` cassé (eslint jamais installé dans les dépendances) retiré de `package.json`.
+
+### Infrastructure
+
+- 2 nouvelles migrations Prisma (`imageAuthor`, `User.isAdmin`) appliquées automatiquement au déploiement (`prisma migrate deploy`, déjà en place dans `docker-entrypoint.sh`).
+- 20 tests unitaires ajoutés (`addMonths()`, combinaisons `recurrenceType`/`interval`/`exactDate`, limiteur de débit) -- suite complète passée de 48 à 68 tests, tous verts avant chaque déploiement.
+
 ## [Post-MVP] - 2026-09-10
 
 Renommage du projet en **Jungly** (ex-Plant Manager) en tout début de session -- toutes les entrées ci-dessous et dans les sections suivantes utilisent le nouveau nom. Premier backup Git du projet sur `github.com/fccarlier-be/jungly` (dépôt privé, deploy key dédiée).

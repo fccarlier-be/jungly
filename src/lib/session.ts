@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
+import { db } from "@/server/db";
+import { ForbiddenError } from "@/lib/apiError";
 
 export class UnauthorizedError extends Error {
   constructor() {
@@ -14,6 +16,20 @@ export async function requireUserId(): Promise<string> {
     throw new UnauthorizedError();
   }
   return session.user.id;
+}
+
+/**
+ * Comme requireUserId, mais leve en plus ForbiddenError si le compte n'est
+ * pas administrateur -- reserve les actions affectant des donnees globales
+ * partagees entre tous les utilisateurs (ex. resync de bibliotheque).
+ */
+export async function requireAdminUserId(): Promise<string> {
+  const userId = await requireUserId();
+  const user = await db.user.findUnique({ where: { id: userId }, select: { isAdmin: true } });
+  if (!user?.isAdmin) {
+    throw new ForbiddenError("Action réservée à l'administrateur.");
+  }
+  return userId;
 }
 
 /**

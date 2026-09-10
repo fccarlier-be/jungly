@@ -61,9 +61,19 @@ export function addDays(date: Date, days: number): Date {
   return result;
 }
 
+/**
+ * `Date.setMonth()` seul ne clampe pas : un 31 janvier + 1 mois deborde sur
+ * le 3 mars (fevrier n'a que 28/29 jours) au lieu du 28/29 fevrier attendu.
+ * On repasse au jour 1 avant de changer de mois (evite le debordement le
+ * temps du changement), puis on clampe au dernier jour valide du mois
+ * cible.
+ */
 export function addMonths(date: Date, months: number): Date {
   const result = new Date(date);
-  const targetMonth = result.getMonth() + months;
-  result.setMonth(targetMonth);
+  const day = result.getDate();
+  result.setDate(1);
+  result.setMonth(result.getMonth() + months);
+  const daysInTargetMonth = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+  result.setDate(Math.min(day, daysInTargetMonth));
   return result;
 }

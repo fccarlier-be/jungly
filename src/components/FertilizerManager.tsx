@@ -130,12 +130,23 @@ export default function FertilizerManager({ fertilizers }: { fertilizers: Fertil
     if (!window.confirm("Supprimer cet engrais ? Les règles de fertilisation qui l'utilisent perdront cette référence.")) {
       return;
     }
-    await fetch(`/api/fertilizers/${id}`, { method: "DELETE" });
+    setError(null);
+    const res = await fetch(`/api/fertilizers/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? "Suppression impossible.");
+      return;
+    }
     router.refresh();
   }
 
   return (
     <div className="space-y-3">
+      {error && !adding && (
+        <p role="alert" className="text-sm" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
       {fertilizers.length === 0 && !adding && <p className="text-muted text-sm">Aucun engrais enregistré pour l&apos;instant.</p>}
 
       {fertilizers.map((fert) => (

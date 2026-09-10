@@ -26,13 +26,32 @@ interface FoundImage {
   imageUrl: string;
   imageSource: string;
   imageSourceUrl: string | null;
+  // Qui crediter (ex. "(c) Jane Doe, some rights reserved") -- distinct de
+  // la licence elle-meme (ex. "CC BY-NC 4.0"). Ces deux informations
+  // etaient auparavant confondues dans imageLicense pour iNaturalist/GBIF.
+  imageAuthor: string | null;
   imageLicense: string | null;
   imageLicenseUrl: string | null;
+}
+
+/** "cc-by-nc" -> "CC BY-NC 4.0", "cc0" -> "CC0 1.0". */
+function formatINaturalistLicense(licenseCode: string): string {
+  if (licenseCode === "cc0") return "CC0 1.0";
+  return `CC ${licenseCode.replace(/^cc-/, "").toUpperCase()} 4.0`;
 }
 
 function inaturalistLicenseUrl(licenseCode: string): string {
   if (licenseCode === "cc0") return "https://creativecommons.org/publicdomain/zero/1.0/";
   return `https://creativecommons.org/licenses/${licenseCode.replace(/^cc-/, "")}/4.0/`;
+}
+
+/** GBIF ne fournit qu'une url de licence (ex. ".../licenses/by-nc/4.0/legalcode") -- on en derive un libelle lisible. */
+function formatGbifLicense(licenseUrl: string): string {
+  const publicDomain = licenseUrl.match(/publicdomain\/zero\/([\d.]+)/i);
+  if (publicDomain) return `CC0 ${publicDomain[1]}`;
+  const cc = licenseUrl.match(/licenses\/([a-z-]+)\/([\d.]+)/i);
+  if (cc) return `CC ${cc[1].toUpperCase()} ${cc[2]}`;
+  return "Licence ouverte";
 }
 
 type Source = { name: string; find: (scientificName: string) => Promise<FoundImage | null> };
@@ -43,7 +62,12 @@ const SOURCES: Source[] = [
     find: async (name) => {
       if (!isOpenPlantbookConfigured()) return null;
       const url = await findPlantbookImage(name);
-      return url ? { imageUrl: url, imageSource: "OPENPLANTBOOK", imageSourceUrl: null, imageLicense: "OpenPlantbook", imageLicenseUrl: "https://open.plantbook.io" } : null;
+      // Ni licence ni auteur fournis par OpenPlantbook pour cette photo --
+      // on ne fabrique pas une fausse licence (voir #13 dans le suivi) ;
+      // imageSource identifie deja la provenance sans ambiguite.
+      return url
+        ? { imageUrl: url, imageSource: "OPENPLANTBOOK", imageSourceUrl: "https://open.plantbook.io", imageAuthor: null, imageLicense: null, imageLicenseUrl: null }
+        : null;
     },
   },
   {
@@ -51,7 +75,14 @@ const SOURCES: Source[] = [
     find: async (name) => {
       const photo = await findINaturalistPhoto(name);
       return photo
-        ? { imageUrl: photo.url, imageSource: "INATURALIST", imageSourceUrl: photo.observationUrl, imageLicense: photo.attribution, imageLicenseUrl: inaturalistLicenseUrl(photo.licenseCode) }
+        ? {
+            imageUrl: photo.url,
+            imageSource: "INATURALIST",
+            imageSourceUrl: photo.observationUrl,
+            imageAuthor: photo.attribution,
+            imageLicense: formatINaturalistLicense(photo.licenseCode),
+            imageLicenseUrl: inaturalistLicenseUrl(photo.licenseCode),
+          }
         : null;
     },
   },
@@ -60,7 +91,14 @@ const SOURCES: Source[] = [
     find: async (name) => {
       const photo = await findGbifPhoto(name);
       return photo
-        ? { imageUrl: photo.url, imageSource: "GBIF", imageSourceUrl: photo.observationUrl, imageLicense: photo.attribution, imageLicenseUrl: photo.licenseUrl }
+        ? {
+            imageUrl: photo.url,
+            imageSource: "GBIF",
+            imageSourceUrl: photo.observationUrl,
+            imageAuthor: photo.attribution,
+            imageLicense: formatGbifLicense(photo.licenseUrl),
+            imageLicenseUrl: photo.licenseUrl,
+          }
         : null;
     },
   },
@@ -95,6 +133,7 @@ async function main() {
             careProfile: careProfile as unknown as Prisma.InputJsonValue,
             imageSource: found.imageSource,
             imageSourceUrl: found.imageSourceUrl,
+            imageAuthor: found.imageAuthor,
             imageLicense: found.imageLicense,
             imageLicenseUrl: found.imageLicenseUrl,
           },

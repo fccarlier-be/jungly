@@ -4,10 +4,19 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/server/db";
 import { handleApiError } from "@/lib/apiError";
 import { registerSchema } from "@/server/validation/auth";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rateLimit";
 
 /** Inscription en libre-service : cree un compte, ouvert a quiconque connait l'URL (pas de verification email pour l'instant). */
 export async function POST(request: NextRequest) {
   try {
+    // Sans limite ici, un script pourrait tester des dizaines d'emails par
+    // seconde -- la reponse 409 revele deja si un compte existe (impossible
+    // a eviter pour une inscription, contrairement au login).
+    const { allowed, retryAfterSeconds } = checkRateLimit(`register:${getClientIp(request)}`, 5, 15 * 60 * 1000);
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
+
     const body = await request.json();
     const { email, password, name } = registerSchema.parse(body);
 

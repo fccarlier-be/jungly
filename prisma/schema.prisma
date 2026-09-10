@@ -18,6 +18,10 @@ model User {
   passwordHash String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  // Seul l'utilisateur seed (SEED_USER_EMAIL) l'est, voir prisma/seed.ts --
+  // reserve les actions affectant les donnees GLOBALES partagees entre tous
+  // les comptes (ex. resynchroniser une fiche de bibliotheque commune).
+  isAdmin      Boolean  @default(false)
 
   locations             Location[]
   plants                Plant[]
@@ -292,6 +296,10 @@ model PlantLibraryEntry {
   // la sienne vient forcement d'un rattrapage (OPENPLANTBOOK/INATURALIST/GBIF).
   imageSource     String?
   imageSourceUrl  String?
+  // Qui crediter (ex. "(c) John Doe, via GBIF") -- distinct de la licence
+  // elle-meme (ex. "CC BY-NC 4.0"), auparavant confondues dans imageLicense
+  // pour iNaturalist/GBIF (voir prisma/backfillImages.ts).
+  imageAuthor     String?
   imageLicense    String?
   imageLicenseUrl String?
 

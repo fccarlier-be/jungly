@@ -49,19 +49,25 @@ export default function LibraryBrowser() {
   const [page, setPage] = useState(1);
   const [browsing, setBrowsing] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
+  const [browseError, setBrowseError] = useState<string | null>(null);
 
   const isSearchMode = query.trim().length >= 2;
 
   useEffect(() => {
     if (isSearchMode) return;
     setBrowsing(true);
+    setBrowseError(null);
     setOpenId(null);
     fetch(`/api/library/browse?page=${page}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("browse-failed");
+        return res.json();
+      })
       .then((body) => {
         setResults(body.entries ?? []);
         setTotalPages(body.totalPages ?? 1);
       })
+      .catch(() => setBrowseError("Impossible de charger la bibliothèque."))
       .finally(() => setBrowsing(false));
   }, [page, isSearchMode]);
 
@@ -91,6 +97,12 @@ export default function LibraryBrowser() {
         }}
         className="input w-full px-3 py-2 text-sm"
       />
+
+      {browseError && !isSearchMode && (
+        <p role="alert" className="text-sm" style={{ color: "var(--danger)" }}>
+          {browseError}
+        </p>
+      )}
 
       {isSearchMode && !searching && results.length === 0 && (
         <div className="space-y-2">

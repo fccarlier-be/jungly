@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -20,7 +21,14 @@ const JPEG_QUALITY = 82;
 
 export async function POST(request: NextRequest) {
   try {
-    await requireUserId();
+    const userId = await requireUserId();
+
+    // Protege le CPU (sharp) et le disque (bind-mount /uploads) d'un compte
+    // compromis ou d'un script cote client boucle par erreur.
+    const { allowed, retryAfterSeconds } = checkRateLimit(`upload:${userId}`, 30, 5 * 60 * 1000);
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
 
     const formData = await request.formData();
     const file = formData.get("file");

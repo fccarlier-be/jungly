@@ -197,11 +197,15 @@ export default function PlantForm({
   }
 
   async function createCareRule(payload: Record<string, unknown>) {
-    await fetch("/api/care-rules", {
+    const res = await fetch("/api/care-rules", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error ?? "Impossible de créer une règle d'entretien.");
+    }
   }
 
   async function handleSubmit(event: FormEvent) {

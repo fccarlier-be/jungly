@@ -3,6 +3,8 @@ import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { createPlantSchema } from "@/server/validation/plant";
+import { getOwnedLocation } from "@/server/ownership";
+import { effectiveDueDate } from "@/server/careEngine/dueTasks";
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +17,11 @@ export async function GET(request: NextRequest) {
       include: {
         location: true,
         careRules: true,
-        tasks: { where: { status: "PENDING" }, orderBy: { dueAt: "asc" } },
+        // PENDING seul ignorait les taches reportees (SNOOZED) : une plante
+        // avec uniquement une tache snoozee semblait n'avoir "rien a faire"
+        // (mauvais filtre "none", pas de prochaine tache affichee), alors
+        // qu'elle a bien une tache active, juste repoussee.
+        tasks: { where: { status: { in: ["PENDING", "SNOOZED"] } } },
       },
       orderBy:
         sort === "location"
@@ -27,9 +33,15 @@ export async function GET(request: NextRequest) {
 
     const now = new Date();
     const withState = plants.map((plant) => {
-      const nextTask = plant.tasks[0] ?? null;
-      const overdue = plant.tasks.some((t) => t.dueAt < now);
-      return { ...plant, nextTask, overdue };
+      // Tri par date effective (snoozedUntil pour une tache reportee, sinon
+      // dueAt) : sans ca, une tache PENDING lointaine pouvait passer devant
+      // une tache SNOOZED dont le report est deja arrive a echeance.
+      const sortedTasks = [...plant.tasks].sort(
+        (a, b) => effectiveDueDate(a).getTime() - effectiveDueDate(b).getTime(),
+      );
+      const nextTask = sortedTasks[0] ?? null;
+      const overdue = sortedTasks.some((t) => effectiveDueDate(t) < now);
+      return { ...plant, tasks: sortedTasks, nextTask, overdue };
     });
 
     const filtered = withState.filter((plant) => {
@@ -51,7 +63,7 @@ export async function GET(request: NextRequest) {
       filtered.sort((a, b) => {
         if (!a.nextTask) return 1;
         if (!b.nextTask) return -1;
-        return a.nextTask.dueAt.getTime() - b.nextTask.dueAt.getTime();
+        return effectiveDueDate(a.nextTask).getTime() - effectiveDueDate(b.nextTask).getTime();
       });
     }
 
@@ -66,6 +78,13 @@ export async function POST(request: NextRequest) {
     const userId = await requireUserId();
     const body = await request.json();
     const input = createPlantSchema.parse(body);
+
+    // locationId est un id fourni par le client : sans cette verification, un
+    // utilisateur pourrait rattacher sa plante a l'emplacement d'un autre
+    // compte (l'emplacement est ensuite renvoye avec la plante).
+    if (input.locationId) {
+      await getOwnedLocation(userId, input.locationId);
+    }
 
     const plant = await db.plant.create({
       data: { ...input, userId },

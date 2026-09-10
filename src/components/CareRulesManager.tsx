@@ -41,6 +41,7 @@ export default function CareRulesManager({
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [newType, setNewType] = useState<"WATERING" | "FERTILIZING" | "REPOTTING">("WATERING");
   const [newRecurrence, setNewRecurrence] = useState("FIXED_INTERVAL_DAYS");
@@ -49,12 +50,17 @@ export default function CareRulesManager({
 
   async function toggleEnabled(rule: Rule) {
     setPending(rule.id);
+    setError(null);
     try {
-      await fetch(`/api/care-rules/${rule.id}`, {
+      const res = await fetch(`/api/care-rules/${rule.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: !rule.enabled }),
       });
+      if (!res.ok) {
+        setError("Impossible de modifier cette règle.");
+        return;
+      }
       router.refresh();
     } finally {
       setPending(null);
@@ -63,8 +69,13 @@ export default function CareRulesManager({
 
   async function removeRule(rule: Rule) {
     setPending(rule.id);
+    setError(null);
     try {
-      await fetch(`/api/care-rules/${rule.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/care-rules/${rule.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        setError("Impossible de supprimer cette règle.");
+        return;
+      }
       router.refresh();
     } finally {
       setPending(null);
@@ -73,8 +84,9 @@ export default function CareRulesManager({
 
   async function addRule() {
     setPending("new");
+    setError(null);
     try {
-      await fetch("/api/care-rules", {
+      const res = await fetch("/api/care-rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -86,6 +98,11 @@ export default function CareRulesManager({
           configuration: newType === "FERTILIZING" ? { fertilizerId: newFertilizerId || undefined } : undefined,
         }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error ?? "Impossible d'ajouter cette règle.");
+        return;
+      }
       setAdding(false);
       router.refresh();
     } finally {
@@ -95,6 +112,11 @@ export default function CareRulesManager({
 
   return (
     <div className="space-y-3">
+      {error && (
+        <p role="alert" className="text-sm" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
       {rules.map((rule) => (
         <div key={rule.id} className="card flex items-center gap-3 p-3 text-sm">
           <div

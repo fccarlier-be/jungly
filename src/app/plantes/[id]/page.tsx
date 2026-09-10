@@ -11,6 +11,7 @@ import StatusBadge from "@/components/StatusBadge";
 import { CareTypeIcon, careSoftBackground } from "@/components/careIcons";
 import { computePlantStatus } from "@/lib/plantStatus";
 import { formatDate, formatDistanceMm, formatRelativeDueDate } from "@/lib/units";
+import { effectiveDueDate } from "@/server/careEngine/dueTasks";
 
 const RULE_LABEL: Record<string, string> = { WATERING: "Arrosage", FERTILIZING: "Fertilisation", REPOTTING: "Rempotage" };
 const NOTE_CATEGORY_LABEL: Record<string, string> = {
@@ -31,7 +32,10 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ id
     include: {
       location: true,
       careRules: { orderBy: { createdAt: "asc" } },
-      tasks: { where: { status: "PENDING" }, orderBy: { dueAt: "asc" } },
+      // SNOOZED inclus (voir #9/#10) : sans ca, une tache reportee
+      // disparaissait de la fiche plante (ligne de regle "Manuel", statut
+      // de la plante ignorant la tache en realite juste repoussee).
+      tasks: { where: { status: { in: ["PENDING", "SNOOZED"] } } },
       sensors: { include: { readings: { orderBy: { recordedAt: "desc" }, take: 1 } } },
       photos: { orderBy: { createdAt: "asc" } },
     },
@@ -57,7 +61,12 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ id
   const fallbackImageUrl = (libraryEntry?.careProfile as { imageUrl?: string } | null)?.imageUrl ?? null;
 
   const now = new Date();
-  const status = computePlantStatus(plant.tasks[0]?.dueAt ?? null);
+  // dueAt remplace par la date effective (snoozedUntil pour une tache
+  // reportee, voir effectiveDueDate) avant tri et affichage.
+  const tasks = plant.tasks
+    .map((t) => ({ ...t, dueAt: effectiveDueDate(t) }))
+    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
+  const status = computePlantStatus(tasks[0]?.dueAt ?? null);
   const infoRows: Array<{ label: string; value: string | null | undefined }> = [
     { label: "Exposition", value: plant.exposure },
     { label: "Substrat", value: plant.substrate },
@@ -99,7 +108,7 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ id
         <div className="card p-0">
           {plant.careRules.length === 0 && <p className="text-muted p-4 text-sm">Aucune règle d&apos;entretien définie.</p>}
           {plant.careRules.map((rule) => {
-            const task = plant.tasks.find((t) => t.careRuleId === rule.id);
+            const task = tasks.find((t) => t.careRuleId === rule.id);
             const overdue = Boolean(task && task.dueAt < now);
             return (
               <div

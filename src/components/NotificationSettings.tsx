@@ -73,15 +73,22 @@ export default function NotificationSettings({ initial }: { initial: Preference 
   }, []);
 
   async function savePreference(next: Partial<Preference>) {
+    const previous = preference;
     const merged = { ...preference, ...next };
     setPreference(merged);
     setSaving(true);
     try {
-      await fetch("/api/notifications/preferences", {
+      const res = await fetch("/api/notifications/preferences", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(next),
       });
+      if (!res.ok) {
+        // Revert : sans ca, l'interface affichait un reglage "enregistre"
+        // alors que le serveur l'avait refuse (ex. heure invalide).
+        setPreference(previous);
+        setMessage("Impossible d'enregistrer ce réglage.");
+      }
     } finally {
       setSaving(false);
     }
@@ -110,11 +117,19 @@ export default function NotificationSettings({ initial }: { initial: Preference 
       });
 
       const json = subscription.toJSON();
-      await fetch("/api/notifications/subscribe", {
+      const res = await fetch("/api/notifications/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
       });
+      if (!res.ok) {
+        // L'abonnement navigateur existe mais le serveur ne le connait pas :
+        // annoncer un succes ici aurait laisse croire a des notifications
+        // actives qui ne partiraient jamais.
+        await subscription.unsubscribe();
+        setMessage("Impossible d'enregistrer l'abonnement sur le serveur.");
+        return;
+      }
 
       setSubscribed(true);
       if (!preference.enabled) {
@@ -137,11 +152,18 @@ export default function NotificationSettings({ initial }: { initial: Preference 
       if (subscription) {
         const endpoint = subscription.endpoint;
         await subscription.unsubscribe();
-        await fetch("/api/notifications/subscribe", {
+        const res = await fetch("/api/notifications/subscribe", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint }),
         });
+        if (!res.ok) {
+          // Desabonnement navigateur deja effectif malgre l'echec serveur :
+          // le signaler plutot que de pretendre que tout s'est bien passe.
+          setMessage("Désabonné sur cet appareil, mais le serveur n'a pas pu être mis à jour.");
+          setSubscribed(false);
+          return;
+        }
       }
       setSubscribed(false);
       setMessage("Notifications désactivées sur cet appareil.");
@@ -159,6 +181,12 @@ export default function NotificationSettings({ initial }: { initial: Preference 
 
   return (
     <div className="space-y-4">
+      {message && support !== "supported" && (
+        <p role="alert" className="text-sm" style={{ color: "var(--danger)" }}>
+          {message}
+        </p>
+      )}
+
       {support === "unsupported" && (
         <p className="text-sm text-muted">Les notifications push ne sont pas supportées par ce navigateur.</p>
       )}

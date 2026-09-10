@@ -14,26 +14,35 @@ export async function POST(request: NextRequest) {
 
     await getOwnedPlant(userId, input.plantId);
 
-    const rule = await db.plantCareRule.create({
-      data: {
-        plantId: input.plantId,
-        type: input.type,
-        enabled: input.enabled,
-        recurrenceType: input.recurrenceType,
-        interval: input.interval,
-        configuration: input.configuration
-          ? JSON.parse(
-              JSON.stringify(input.configuration, (_key, value) =>
-                value instanceof Date ? value.toISOString() : value,
-              ),
-            )
-          : undefined,
-      },
-    });
+    // Creation de la regle + generation de sa premiere tache dans une seule
+    // transaction : sans ca, un echec dans ensurePendingTaskForRule (ex.
+    // combinaison recurrenceType/interval/exactDate invalide passee malgre
+    // la validation Zod) laissait une regle orpheline en base, creee mais
+    // sans aucune tache generee.
+    const rule = await db.$transaction(async (tx) => {
+      const created = await tx.plantCareRule.create({
+        data: {
+          plantId: input.plantId,
+          type: input.type,
+          enabled: input.enabled,
+          recurrenceType: input.recurrenceType,
+          interval: input.interval,
+          configuration: input.configuration
+            ? JSON.parse(
+                JSON.stringify(input.configuration, (_key, value) =>
+                  value instanceof Date ? value.toISOString() : value,
+                ),
+              )
+            : undefined,
+        },
+      });
 
-    if (rule.enabled) {
-      await ensurePendingTaskForRule(rule);
-    }
+      if (created.enabled) {
+        await ensurePendingTaskForRule(created, new Date(), tx);
+      }
+
+      return created;
+    });
 
     return NextResponse.json(rule, { status: 201 });
   } catch (error) {

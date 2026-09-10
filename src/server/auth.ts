@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/server/db";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
@@ -17,7 +18,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Mot de passe", type: "password" },
       },
-      authorize: async (credentials) => {
+      authorize: async (credentials, request) => {
+        // Meme reponse (null -> "Email ou mot de passe incorrect") qu'un
+        // echec d'identifiants normal : ne jamais reveler qu'une limite a
+        // ete atteinte, ce qui donnerait a un attaquant un moyen de
+        // distinguer un compte existant d'un rate limit generique.
+        const ip = getClientIp(request);
+        const { allowed } = checkRateLimit(`login:${ip}`, 10, 5 * 60 * 1000);
+        if (!allowed) {
+          return null;
+        }
+
         const email = typeof credentials?.email === "string" ? credentials.email.trim().toLowerCase() : undefined;
         const password = typeof credentials?.password === "string" ? credentials.password : undefined;
         if (!email || !password) {

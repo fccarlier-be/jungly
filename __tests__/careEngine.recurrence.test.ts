@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeNextDueDate } from "@/server/careEngine/recurrence";
+import { computeNextDueDate, addMonths } from "@/server/careEngine/recurrence";
 
 describe("computeNextDueDate", () => {
   it("arrosage tous les 7 jours", () => {
@@ -64,5 +64,54 @@ describe("computeNextDueDate", () => {
     expect(() =>
       computeNextDueDate({ recurrenceType: "FIXED_INTERVAL_DAYS", interval: 0 }, new Date()),
     ).toThrow();
+  });
+});
+
+describe("addMonths", () => {
+  it("31 janvier + 1 mois -> 28 fevrier (annee non bissextile)", () => {
+    const result = addMonths(new Date(2026, 0, 31), 1);
+    expect(result.getFullYear()).toBe(2026);
+    expect(result.getMonth()).toBe(1); // fevrier
+    expect(result.getDate()).toBe(28);
+  });
+
+  it("31 janvier 2028 + 1 mois -> 29 fevrier (annee bissextile)", () => {
+    const result = addMonths(new Date(2028, 0, 31), 1);
+    expect(result.getFullYear()).toBe(2028);
+    expect(result.getMonth()).toBe(1);
+    expect(result.getDate()).toBe(29);
+  });
+
+  it("31 mars + 1 mois -> 30 avril", () => {
+    const result = addMonths(new Date(2026, 2, 31), 1);
+    expect(result.getMonth()).toBe(3); // avril
+    expect(result.getDate()).toBe(30);
+  });
+
+  it("29 fevrier (bissextile) + 1 mois -> 29 mars (pas de clamp necessaire)", () => {
+    const result = addMonths(new Date(2028, 1, 29), 1);
+    expect(result.getMonth()).toBe(2); // mars
+    expect(result.getDate()).toBe(29);
+  });
+
+  it("31 decembre + 1 mois -> 31 janvier de l'annee suivante", () => {
+    const result = addMonths(new Date(2026, 11, 31), 1);
+    expect(result.getFullYear()).toBe(2027);
+    expect(result.getMonth()).toBe(0);
+    expect(result.getDate()).toBe(31);
+  });
+
+  it("29 fevrier bissextile + 12 mois -> 28 fevrier l'annee suivante (non bissextile)", () => {
+    const result = addMonths(new Date(2028, 1, 29), 12);
+    expect(result.getFullYear()).toBe(2029);
+    expect(result.getMonth()).toBe(1);
+    expect(result.getDate()).toBe(28);
+  });
+
+  it("jour sans probleme de fin de mois -> inchange", () => {
+    const result = addMonths(new Date(2026, 8, 15), 3);
+    expect(result.getFullYear()).toBe(2026);
+    expect(result.getMonth()).toBe(11); // decembre
+    expect(result.getDate()).toBe(15);
   });
 });

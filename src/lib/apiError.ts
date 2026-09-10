@@ -29,6 +29,21 @@ export function handleApiError(error: unknown): NextResponse {
     return NextResponse.json({ error: error.message }, { status: 404 });
   }
 
+  if (error instanceof ForbiddenError) {
+    return NextResponse.json({ error: error.message }, { status: 403 });
+  }
+
+  if (error instanceof ConflictError) {
+    return NextResponse.json({ error: error.message }, { status: 409 });
+  }
+
+  // Filet de securite : ne devrait plus se produire une fois les etats de
+  // tache verifies explicitement (ConflictError ci-dessus), mais evite un
+  // 500 opaque si un autre appel venait a violer une contrainte unique.
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    return NextResponse.json({ error: "Cette action a déjà été effectuée." }, { status: 409 });
+  }
+
   if (error instanceof PerenualError) {
     return NextResponse.json({ error: error.message }, { status: error.status === 429 ? 429 : 502 });
   }
@@ -39,6 +54,20 @@ export function handleApiError(error: unknown): NextResponse {
 
 export class NotFoundError extends Error {
   constructor(message = "Ressource introuvable.") {
+    super(message);
+  }
+}
+
+/** Action refusee a cause de l'etat actuel de la ressource (ex. tache deja completee). */
+export class ConflictError extends Error {
+  constructor(message = "Cette action n'est plus possible dans l'état actuel.") {
+    super(message);
+  }
+}
+
+/** Ressource existante et son id connu de l'appelant, mais action reservee (ex. administration). */
+export class ForbiddenError extends Error {
+  constructor(message = "Action non autorisée.") {
     super(message);
   }
 }

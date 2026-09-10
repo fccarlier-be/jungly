@@ -1,6 +1,6 @@
 import { requireSessionUserId } from "@/lib/session";
 import { db } from "@/server/db";
-import { isTaskDueNow } from "@/server/careEngine/dueTasks";
+import { effectiveDueDate, isTaskDueNow } from "@/server/careEngine/dueTasks";
 import TaskCard, { type TaskCardData } from "@/components/TaskCard";
 import EmptyState from "@/components/EmptyState";
 import { getLibraryImageMap } from "@/lib/libraryImages";
@@ -19,10 +19,17 @@ export default async function TasksPage() {
   });
 
   const libraryImageByName = await getLibraryImageMap(rawTasks.map((t) => t.plant.scientificName));
-  const tasks = rawTasks.map((t) => ({
-    ...t,
-    plantImage: t.plant.photoUrl || (t.plant.scientificName ? libraryImageByName.get(t.plant.scientificName) : null),
-  }));
+  // dueAt est remplace par sa date effective (snoozedUntil pour une tache
+  // reportee, voir effectiveDueDate) : sans ca, une tache snoozee continuait
+  // d'afficher et de trier sur son ancienne echeance (ex. "en retard de 5
+  // jours" pour une tache en realite reportee a demain).
+  const tasks = rawTasks
+    .map((t) => ({
+      ...t,
+      dueAt: effectiveDueDate(t),
+      plantImage: t.plant.photoUrl || (t.plant.scientificName ? libraryImageByName.get(t.plant.scientificName) : null),
+    }))
+    .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
 
   // Une tâche SNOOZED dont la date de report est déjà passée redevient due
   // (isTaskDueNow), au même titre qu'une tâche PENDING en retard.

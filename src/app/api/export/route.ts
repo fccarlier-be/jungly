@@ -25,6 +25,7 @@ export async function GET() {
           careRules: true,
           careEvents: { orderBy: { performedAt: "asc" } },
           plantNotes: { orderBy: { createdAt: "asc" } },
+          photos: { orderBy: { createdAt: "asc" } },
         },
       }),
       db.notificationPreference.findUnique({ where: { userId } }),
@@ -84,6 +85,7 @@ export async function GET() {
             note: e.note,
           })),
           plantNotes: p.plantNotes.map((n) => ({ content: n.content, category: n.category, photoUrl: n.photoUrl })),
+          photos: p.photos.map((ph) => ph.url),
         };
       }),
       notificationPreference: preference

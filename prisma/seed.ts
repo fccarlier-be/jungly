@@ -209,10 +209,13 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
+  // isAdmin sur update aussi (pas seulement create) : garantit que le
+  // compte designe par SEED_USER_EMAIL reste administrateur a chaque
+  // redeploiement, meme s'il existait deja avant l'introduction du role.
   const user = await db.user.upsert({
     where: { email },
-    update: {},
-    create: { email, passwordHash, name: "Demo" },
+    update: { isAdmin: true },
+    create: { email, passwordHash, name: "Demo", isAdmin: true },
   });
 
   const existingPlantCount = await db.plant.count({ where: { userId: user.id } });

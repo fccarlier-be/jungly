@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { getOwnedPlant, getOwnedPlantPhoto } from "@/server/ownership";
+import { deleteUploadedFile } from "@/server/uploads";
 
 type Params = { params: Promise<{ id: string; photoId: string }> };
 
@@ -17,7 +18,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     const userId = await requireUserId();
     const { id, photoId } = await params;
     const plant = await getOwnedPlant(userId, id);
-    const photo = await getOwnedPlantPhoto(userId, photoId);
+    const photo = await getOwnedPlantPhoto(userId, id, photoId);
 
     await db.plantPhoto.delete({ where: { id: photo.id } });
 
@@ -28,6 +29,11 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       });
       await db.plant.update({ where: { id }, data: { photoUrl: fallback?.url ?? null } });
     }
+
+    // Le nom de fichier est un UUID genere a l'upload : aucune autre ligne
+    // ne peut referencer la meme url, le fichier physique est donc bien
+    // orphelin une fois cette PlantPhoto supprimee.
+    await deleteUploadedFile(photo.url);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

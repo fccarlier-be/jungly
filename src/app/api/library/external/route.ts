@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { searchExternal } from "@/server/externalSpecies/providers";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 /**
  * Recherche externe (OpenPlantbook en premier, Perenual en repli) -- a
@@ -12,7 +13,15 @@ import { searchExternal } from "@/server/externalSpecies/providers";
  */
 export async function GET(request: NextRequest) {
   try {
-    await requireUserId();
+    const userId = await requireUserId();
+
+    // Protege le quota gratuit des APIs tierces (Perenual : 100
+    // requetes/jour) d'une boucle cote client ou d'un usage abusif.
+    const { allowed, retryAfterSeconds } = checkRateLimit(`library-search:${userId}`, 20, 5 * 60 * 1000);
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
+
     const q = request.nextUrl.searchParams.get("q")?.trim();
     if (!q || q.length < 2) {
       return NextResponse.json({ source: null, results: [] });

@@ -51,6 +51,7 @@ const plantBackupSchema = z.object({
   careRules: z.array(careRuleBackupSchema).default([]),
   careEvents: z.array(careEventBackupSchema).default([]),
   plantNotes: z.array(noteBackupSchema).default([]),
+  photos: z.array(z.string()).default([]),
 });
 
 const fertilizerBackupSchema = z.object({

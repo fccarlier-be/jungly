@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { requireUserId } from "@/lib/session";
+import { requireAdminUserId } from "@/lib/session";
 import { handleApiError, NotFoundError } from "@/lib/apiError";
 import { db } from "@/server/db";
 import { getExternalDetails } from "@/server/externalSpecies/providers";
@@ -15,10 +15,14 @@ const EXTERNAL_SOURCES: ExternalSource[] = ["OPENPLANTBOOK", "PERENUAL"];
  * `lastSyncedAt`). N'affecte jamais les plantes des utilisateurs qui
  * referencent cette fiche : leurs regles/champs ont ete copies une fois a
  * l'ajout, ils ne sont pas lus en direct depuis la bibliotheque.
+ *
+ * Reserve a l'administrateur : PlantLibraryEntry est une table GLOBALE
+ * partagee par tous les comptes -- sans cette restriction, n'importe quel
+ * utilisateur connecte pouvait modifier ce que voient tous les autres.
  */
 export async function POST(_request: Request, { params }: Params) {
   try {
-    await requireUserId();
+    await requireAdminUserId();
     const { id } = await params;
 
     const entry = await db.plantLibraryEntry.findUnique({ where: { id } });

@@ -34,16 +34,23 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const [customDate, setCustomDate] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   async function complete() {
     setPending(true);
-    setDone(true);
+    setError(null);
     try {
-      await fetch(`/api/tasks/${task.id}/complete`, {
+      const res = await fetch(`/api/tasks/${task.id}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error ?? "Impossible de valider cette tâche.");
+        return;
+      }
+      setDone(true);
       await new Promise((resolve) => setTimeout(resolve, 320));
       router.refresh();
     } finally {
@@ -53,12 +60,18 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
 
   async function snooze(until: Date) {
     setPending(true);
+    setError(null);
     try {
-      await fetch(`/api/tasks/${task.id}/snooze`, {
+      const res = await fetch(`/api/tasks/${task.id}/snooze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ until: until.toISOString() }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        setError(body?.error ?? "Impossible de reporter cette tâche.");
+        return;
+      }
       router.refresh();
     } finally {
       setPending(false);
@@ -152,6 +165,11 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
             </div>
           </details>
         </div>
+        {error && (
+          <p role="alert" className="pt-2 text-sm" style={{ color: "var(--danger)" }}>
+            {error}
+          </p>
+        )}
       </div>
     </div>
     </SwipeableCard>

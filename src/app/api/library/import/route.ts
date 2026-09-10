@@ -5,6 +5,7 @@ import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { db } from "@/server/db";
 import { getExternalDetails } from "@/server/externalSpecies/providers";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 const importSchema = z.object({ source: z.enum(["OPENPLANTBOOK", "PERENUAL"]), sourceId: z.string().min(1) });
 
@@ -17,7 +18,13 @@ const importSchema = z.object({ source: z.enum(["OPENPLANTBOOK", "PERENUAL"]), s
  */
 export async function POST(request: NextRequest) {
   try {
-    await requireUserId();
+    const userId = await requireUserId();
+
+    const { allowed, retryAfterSeconds } = checkRateLimit(`library-import:${userId}`, 20, 5 * 60 * 1000);
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
+
     const { source, sourceId } = importSchema.parse(await request.json());
 
     const details = await getExternalDetails(source, sourceId);

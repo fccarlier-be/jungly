@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { handleApiError } from "@/lib/apiError";
 import { createReadingSchema } from "@/server/validation/sensor";
 import { evaluateSensorReadingForTasks } from "@/server/careEngine/service";
+import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rateLimit";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -15,6 +16,13 @@ type Params = { params: Promise<{ id: string }> };
  */
 export async function POST(request: NextRequest, { params }: Params) {
   try {
+    // Par IP, avant toute lecture en base : borne aussi bien un capteur qui
+    // s'emballe qu'une tentative de force brute sur X-Sensor-Key par id.
+    const { allowed, retryAfterSeconds } = checkRateLimit(`sensor-reading:${getClientIp(request)}`, 60, 60 * 1000);
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
+
     const { id } = await params;
     const providedKey = request.headers.get("x-sensor-key");
 

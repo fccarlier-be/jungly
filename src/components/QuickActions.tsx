@@ -17,6 +17,7 @@ export default function QuickActions({ plantId, careRules }: { plantId: string; 
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const wateringRule = careRules.find((r) => r.type === "WATERING");
   const fertilizingRule = careRules.find((r) => r.type === "FERTILIZING");
@@ -44,18 +45,27 @@ export default function QuickActions({ plantId, careRules }: { plantId: string; 
 
   async function run(fn: () => Promise<void>) {
     setPending(true);
+    setError(null);
     try {
       await fn();
       setOpen(null);
       router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Une erreur est survenue.");
     } finally {
       setPending(false);
     }
   }
 
+  async function throwIfNotOk(res: Response, fallbackMessage: string) {
+    if (res.ok) return;
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? fallbackMessage);
+  }
+
   const submitWater = () =>
     run(async () => {
-      await fetch(`/api/plants/${plantId}/water`, {
+      const res = await fetch(`/api/plants/${plantId}/water`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -65,12 +75,13 @@ export default function QuickActions({ plantId, careRules }: { plantId: string; 
           careRuleId: wateringRule?.id,
         }),
       });
+      await throwIfNotOk(res, "Impossible d'enregistrer l'arrosage.");
       setWaterNote("");
     });
 
   const submitFertilize = () =>
     run(async () => {
-      await fetch(`/api/plants/${plantId}/fertilize`, {
+      const res = await fetch(`/api/plants/${plantId}/fertilize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -81,12 +92,13 @@ export default function QuickActions({ plantId, careRules }: { plantId: string; 
           careRuleId: fertilizingRule?.id,
         }),
       });
+      await throwIfNotOk(res, "Impossible d'enregistrer la fertilisation.");
       setFertNote("");
     });
 
   const submitRepot = () =>
     run(async () => {
-      await fetch(`/api/plants/${plantId}/repot`, {
+      const res = await fetch(`/api/plants/${plantId}/repot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -95,26 +107,29 @@ export default function QuickActions({ plantId, careRules }: { plantId: string; 
           note: repotNote || undefined,
         }),
       });
+      await throwIfNotOk(res, "Impossible d'enregistrer le rempotage.");
       setRepotNote("");
     });
 
   const submitGeneric = (type: "PRUNING" | "INSPECTION", note: string, reset: () => void) =>
     run(async () => {
-      await fetch(`/api/plants/${plantId}/events`, {
+      const res = await fetch(`/api/plants/${plantId}/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type, note: note || undefined }),
       });
+      await throwIfNotOk(res, "Impossible d'enregistrer cet événement.");
       reset();
     });
 
   const submitNote = () =>
     run(async () => {
-      await fetch(`/api/notes`, {
+      const res = await fetch(`/api/notes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plantId, content: noteContent, category: noteCategory }),
       });
+      await throwIfNotOk(res, "Impossible d'ajouter cette note.");
       setNoteContent("");
     });
 
@@ -128,6 +143,12 @@ export default function QuickActions({ plantId, careRules }: { plantId: string; 
         <ActionButton icon={CARE_ICON.INSPECTION} color={CARE_COLOR.INSPECTION} label="Inspection" active={open === "inspect"} onClick={() => toggle("inspect")} />
         <ActionButton icon={StickyNote} label="Note" active={open === "note"} onClick={() => toggle("note")} />
       </div>
+
+      {error && (
+        <p role="alert" className="text-sm" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
 
       {open === "water" && (
         <div className="card p-3 space-y-2">
