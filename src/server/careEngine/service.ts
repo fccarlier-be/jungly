@@ -22,9 +22,22 @@ export async function ensurePendingTaskForRule(
 ) {
   // Accepte un client de transaction optionnel pour pouvoir etre appelee
   // depuis l'interieur d'une transaction englobante (ex. import JSON) sans
-  // ouvrir de transaction imbriquee (non supporte par Prisma).
-  const client = tx ?? db;
+  // ouvrir de transaction imbriquee (non supporte par Prisma). Sinon, la
+  // lecture (existe-t-il deja un PENDING ?) et l'ecriture sont englobees
+  // dans une transaction dediee : sans ca, deux appels concurrents pouvaient
+  // chacun constater l'absence de tache PENDING avant que l'un des deux
+  // n'ecrive, produisant deux taches PENDING pour la meme regle.
+  if (tx) {
+    return ensurePendingTaskForRuleWithClient(rule, fromDate, tx);
+  }
+  return db.$transaction((innerTx) => ensurePendingTaskForRuleWithClient(rule, fromDate, innerTx));
+}
 
+async function ensurePendingTaskForRuleWithClient(
+  rule: PlantCareRule,
+  fromDate: Date,
+  client: Prisma.TransactionClient,
+) {
   const existing = await client.task.findFirst({
     where: { careRuleId: rule.id, status: "PENDING" },
   });
@@ -60,25 +73,17 @@ export async function ensurePendingTaskForRule(
 
   const plant = await client.plant.findUniqueOrThrow({ where: { id: rule.plantId }, select: { name: true } });
 
-  const taskData = {
-    plantId: rule.plantId,
-    careRuleId: rule.id,
-    type: mapRuleTypeToTaskType(rule.type),
-    title: buildTaskTitle(rule.type, plant.name),
-    dueAt,
-    status: "PENDING" as const,
-  };
-
-  if (tx) {
-    const task = await tx.task.create({ data: taskData });
-    await tx.plantCareRule.update({ where: { id: rule.id }, data: { nextDueAt: dueAt } });
-    return task;
-  }
-
-  const [task] = await db.$transaction([
-    db.task.create({ data: taskData }),
-    db.plantCareRule.update({ where: { id: rule.id }, data: { nextDueAt: dueAt } }),
-  ]);
+  const task = await client.task.create({
+    data: {
+      plantId: rule.plantId,
+      careRuleId: rule.id,
+      type: mapRuleTypeToTaskType(rule.type),
+      title: buildTaskTitle(rule.type, plant.name),
+      dueAt,
+      status: "PENDING",
+    },
+  });
+  await client.plantCareRule.update({ where: { id: rule.id }, data: { nextDueAt: dueAt } });
 
   return task;
 }
@@ -215,15 +220,20 @@ export async function evaluateSensorReadingForTasks(sensor: Sensor, reading: Sen
       continue;
     }
 
-    const existing = await db.task.findFirst({ where: { careRuleId: rule.id, status: "PENDING" } });
-    if (existing) {
-      continue;
-    }
+    // Lecture (tache PENDING existante ?) et ecriture englobees dans une
+    // seule transaction, comme pour ensurePendingTaskForRule() -- meme
+    // raisonnement : sans ca, deux lectures de capteur rapprochees
+    // pouvaient chacune constater l'absence de tache avant que l'une des
+    // deux n'ecrive.
+    await db.$transaction(async (tx) => {
+      const existing = await tx.task.findFirst({ where: { careRuleId: rule.id, status: "PENDING" } });
+      if (existing) {
+        return;
+      }
 
-    const plant = await db.plant.findUniqueOrThrow({ where: { id: rule.plantId }, select: { name: true } });
-    const dueAt = new Date();
-    await db.$transaction([
-      db.task.create({
+      const plant = await tx.plant.findUniqueOrThrow({ where: { id: rule.plantId }, select: { name: true } });
+      const dueAt = new Date();
+      await tx.task.create({
         data: {
           plantId: rule.plantId,
           careRuleId: rule.id,
@@ -233,8 +243,8 @@ export async function evaluateSensorReadingForTasks(sensor: Sensor, reading: Sen
           status: "PENDING",
           metadata: { triggeredBySensorId: sensor.id, readingValue: reading.value, readingUnit: reading.unit },
         },
-      }),
-      db.plantCareRule.update({ where: { id: rule.id }, data: { nextDueAt: dueAt } }),
-    ]);
+      });
+      await tx.plantCareRule.update({ where: { id: rule.id }, data: { nextDueAt: dueAt } });
+    });
   }
 }
