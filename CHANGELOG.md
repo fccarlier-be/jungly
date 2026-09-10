@@ -3,6 +3,20 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-10 — Durcissement post-audit2
+
+Suite à une 2e revue de code indépendante (GPT, sur l'état post-E2E/CI), vérifiée ligne par ligne contre le code réel avant correction -- deux de ses affirmations se sont révélées fausses (version Next.js déjà à jour d'après le lockfile ; le "bug" `overdueEnabled` ne se reproduit pas selon le calcul réel du digest), et un bug adjacent réel a été trouvé en vérifiant ce dernier point.
+
+### Sécurité
+
+- **CVE NextAuth réelle** (CVE-2026-73421 / GHSA-8fpg-xm3f-6cx3, vérifiée par recherche web) : `next-auth` `5.0.0-beta.25` → `5.0.0-beta.32`. Les versions `beta.0` à `beta.31` retournent un objet tronqué mais *truthy* depuis `auth()` quand la configuration devient invalide (ex. `AUTH_SECRET` absent), au lieu de `null` -- notre middleware fait exactement `if (!req.auth)`, le pattern vulnérable à ce "fail open". Pas activement exploité (notre config est correcte), mais plus de garantie de repli sécurisé si une variable d'environnement venait à manquer.
+- **Mot de passe seed par défaut supprimé** : `prisma/seed.ts` ne retombe plus sur `"changeme123"` si `SEED_USER_PASSWORD` est absent -- le démarrage échoue explicitement à la place.
+- **Mécanisme de changement de mot de passe réparé** : changer `SEED_USER_PASSWORD` puis relancer le seed ne mettait à jour que `isAdmin`, jamais `passwordHash`, sur un compte déjà existant -- contrairement à ce que promettait le README. `passwordHash` fait maintenant partie de l'`update` de l'upsert.
+
+### Documentation
+
+- README : suppression de la mention obsolète "pas de page d'inscription publique" (existe depuis `/inscription`), et de "capteurs IoT hors périmètre" en tête de fichier alors qu'ils sont déjà implémentés et documentés plus bas.
+
 ## [Post-MVP] - 2026-09-10 — CI GitHub Actions
 
 ### Ajouté

@@ -1,6 +1,6 @@
 # Jungly
 
-Application de suivi et d'entretien des plantes (arrosage, fertilisation, rempotage, tâches, historique). Couvre les phases 1 à 7 du cahier des charges : gestion des plantes, moteur de règles/tâches (CareEngine), historique, dashboard, notifications push, PWA installable, bibliothèque de plantes, export/import. Capteurs IoT restent hors périmètre (le modèle de données le prévoit déjà, voir Phase 8).
+Application de suivi et d'entretien des plantes (arrosage, fertilisation, rempotage, tâches, historique). Couvre les phases 1 à 8 du cahier des charges : gestion des plantes, moteur de règles/tâches (CareEngine), historique, dashboard, notifications push, PWA installable, bibliothèque de plantes, export/import, capteurs IoT. Multi-utilisateur (inscription en libre-service, voir ci-dessous).
 
 ## Stack
 
@@ -33,7 +33,7 @@ Copier `.env.example` en `.env` et renseigner :
 
 **Attention** : `NEXT_PUBLIC_*` est figé au moment du `next build`, jamais relu au runtime. En Docker, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` doit donc passer en `build.args` (voir `docker-compose.yml`), pas seulement en variable d'environnement du conteneur.
 
-Il n'y a pas de page d'inscription publique : c'est le seul utilisateur, créé au premier démarrage par le seed. À changer via `SEED_USER_PASSWORD` puis un nouveau `prisma db seed` si besoin (le seed est un no-op si l'utilisateur a déjà des plantes -- voir `prisma/seed.ts`).
+L'inscription est en libre-service (`/inscription`) : n'importe qui connaissant l'URL peut créer un compte. `SEED_USER_EMAIL`/`SEED_USER_PASSWORD` créent (et gardent administrateur, `User.isAdmin`) un premier compte au démarrage -- changer `SEED_USER_PASSWORD` puis relancer `prisma db seed` met bien à jour le mot de passe d'un compte déjà existant (pas seulement à la création). `SEED_USER_PASSWORD` est obligatoire : son absence fait échouer le démarrage plutôt que de créer un compte administrateur avec un mot de passe par défaut connu.
 
 ## Développement local
 

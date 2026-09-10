@@ -205,16 +205,24 @@ async function main() {
   await seedPlantfolio();
 
   const email = (process.env.SEED_USER_EMAIL ?? "demo@example.com").trim().toLowerCase();
-  const password = process.env.SEED_USER_PASSWORD ?? "changeme123";
+  // Aucun mot de passe par defaut : un SEED_USER_PASSWORD oublie donnait
+  // auparavant un compte administrateur avec "changeme123" en clair.
+  if (!process.env.SEED_USER_PASSWORD) {
+    throw new Error("SEED_USER_PASSWORD est requis (aucune valeur par defaut).");
+  }
+  const password = process.env.SEED_USER_PASSWORD;
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  // isAdmin sur update aussi (pas seulement create) : garantit que le
-  // compte designe par SEED_USER_EMAIL reste administrateur a chaque
-  // redeploiement, meme s'il existait deja avant l'introduction du role.
+  // isAdmin ET passwordHash sur update (pas seulement create) : garantit
+  // que le compte designe par SEED_USER_EMAIL reste administrateur a
+  // chaque redeploiement, et que changer SEED_USER_PASSWORD puis relancer
+  // le seed change reellement le mot de passe d'un compte deja existant
+  // (auparavant seul isAdmin etait mis a jour, le README promettait
+  // pourtant que ce mecanisme fonctionnait).
   const user = await db.user.upsert({
     where: { email },
-    update: { isAdmin: true },
+    update: { isAdmin: true, passwordHash },
     create: { email, passwordHash, name: "Demo", isAdmin: true },
   });
 
