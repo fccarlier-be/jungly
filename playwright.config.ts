@@ -12,6 +12,11 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 5_000 },
   fullyParallel: false,
+  // 1 seul worker : SQLite ne serialise qu'un seul writer a la fois --
+  // plusieurs tests ecrivant en parallele (creation de plantes/regles/
+  // uploads) faisaient sinon la queue jusqu'a depasser le timeout de 30s
+  // cote serveur ("Socket timeout") des que la suite a grandi.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"]],
