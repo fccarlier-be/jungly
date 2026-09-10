@@ -45,6 +45,10 @@ Suite à une 2e revue de code indépendante (GPT, sur l'état post-E2E/CI), vér
 
 - README : suppression de la mention obsolète "pas de page d'inscription publique" (existe depuis `/inscription`), et de "capteurs IoT hors périmètre" en tête de fichier alors qu'ils sont déjà implémentés et documentés plus bas.
 
+### Corrigé (post-plan, trouvé en vérifiant la CI)
+
+- **La CI (`job e2e`) et un run local complet échouaient systématiquement sur le tout dernier test de la suite** (`tasks-and-settings.spec.ts` — "le réglage 'tâches en retard' persiste après rechargement"), en environnement isolé (CI, compte jetable frais) comme contre la vraie prod : pas une régression applicative (le code métier est correct, vérifié en reproduisant exactement le job CI en local), mais un dépassement réel du rate limiter de connexion (`login:${ip}`, 10/5min). Chaque fichier E2E se connectait indépendamment (`loginAs()` par `test()`), et l'inscription compte double (auto-connexion après `/api/register`, puis la reconnexion explicite du test) -- le total réel était monté à 11 connexions au fil de l'ajout de tests cette session, dépassant la limite pile sur la toute dernière. `backup.spec.ts` et `tasks-and-settings.spec.ts` partagent désormais une seule connexion entre leurs tests (`test.describe.serial` + `page` partagé créé dans un `beforeAll`), ramenant le total à 8. Documenté dans `e2e/README.md` pour ne pas repasser la limite au prochain fichier de test ajouté.
+
 ## [Post-MVP] - 2026-09-10 — CI GitHub Actions
 
 ### Ajouté

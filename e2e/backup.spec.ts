@@ -1,5 +1,5 @@
 import JSZip from "jszip";
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { createTestUser, loginAs, testPlantName } from "./testHelpers";
 import { cleanupDb, cleanupE2eData } from "./dbCleanup";
 
@@ -18,84 +18,98 @@ test.afterAll(async () => {
   await cleanupDb.$disconnect();
 });
 
-test("export puis import restaure la plante et le fichier physique de sa photo", async ({ page }) => {
-  await loginAs(page, user.email, user.password);
+// describe.serial + une seule connexion partagee entre les deux tests (au
+// lieu d'un loginAs() par test) : le budget du rate limiter de connexion
+// (10/5min/IP, partage par TOUTE la suite E2E) est deja tres serre une fois
+// tous les fichiers additionnes -- voir la remarque similaire dans
+// tasks-and-settings.spec.ts.
+test.describe.serial("export/import backup", () => {
+  let page: Page;
 
-  const plantName = testPlantName("Backup");
-  const plantRes = await page.request.post("/api/plants", { data: { name: plantName } });
-  const plant = await plantRes.json();
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    await loginAs(page, user.email, user.password);
+  });
 
-  const uploadRes = await page.request.post("/api/uploads", {
-    multipart: {
-      file: {
-        name: "test.png",
-        mimeType: "image/png",
-        buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
+  test.afterAll(async () => {
+    await page.close();
+  });
+
+  test("export puis import restaure la plante et le fichier physique de sa photo", async () => {
+    const plantName = testPlantName("Backup");
+    const plantRes = await page.request.post("/api/plants", { data: { name: plantName } });
+    const plant = await plantRes.json();
+
+    const uploadRes = await page.request.post("/api/uploads", {
+      multipart: {
+        file: {
+          name: "test.png",
+          mimeType: "image/png",
+          buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
+        },
       },
-    },
+    });
+    const { url: photoUrl } = await uploadRes.json();
+    await page.request.post(`/api/plants/${plant.id}/photos`, { data: { urls: [photoUrl] } });
+    await page.request.patch(`/api/plants/${plant.id}`, { data: { photoUrl } });
+
+    const exportRes = await page.request.get("/api/export");
+    expect(exportRes.ok()).toBe(true);
+    expect(exportRes.headers()["content-type"]).toContain("application/zip");
+    const zipBuffer = await exportRes.body();
+
+    await page.request.delete(`/api/plants/${plant.id}`);
+    const afterDelete = await (await page.request.get("/api/plants")).json();
+    expect(afterDelete.some((p: { id: string }) => p.id === plant.id)).toBe(false);
+
+    const importRes = await page.request.post("/api/import", {
+      multipart: { file: { name: "backup.zip", mimeType: "application/zip", buffer: zipBuffer } },
+    });
+    expect(importRes.ok()).toBe(true);
+    const importBody = await importRes.json();
+    expect(importBody.importedPlants).toBe(1);
+
+    const afterImport = await (await page.request.get("/api/plants")).json();
+    const restored = afterImport.find((p: { name: string }) => p.name === plantName);
+    expect(restored).toBeTruthy();
+    expect(restored.photoUrl).toBeTruthy();
+    // Nom de fichier neuf (UUID frais) : ne reutilise jamais le nom d'origine.
+    expect(restored.photoUrl).not.toBe(photoUrl);
+
+    const photoFetch = await page.request.get(restored.photoUrl);
+    expect(photoFetch.ok()).toBe(true);
+
+    await page.request.delete(`/api/plants/${restored.id}`);
   });
-  const { url: photoUrl } = await uploadRes.json();
-  await page.request.post(`/api/plants/${plant.id}/photos`, { data: { urls: [photoUrl] } });
-  await page.request.patch(`/api/plants/${plant.id}`, { data: { photoUrl } });
 
-  const exportRes = await page.request.get("/api/export");
-  expect(exportRes.ok()).toBe(true);
-  expect(exportRes.headers()["content-type"]).toContain("application/zip");
-  const zipBuffer = await exportRes.body();
+  test("import n'active jamais une URL /uploads/... dont le fichier est absent de l'archive", async () => {
+    // Archive fabriquee a la main (pas via GET /api/export) : simule soit un
+    // backup partiel/corrompu, soit une archive malveillante qui reference le
+    // fichier d'un AUTRE utilisateur par son nom sans l'inclure dans le zip
+    // -- si remapUrl() conservait l'URL telle quelle, la plante importee
+    // pointerait vers ce fichier physique, que la route de service sert des
+    // qu'une plante DU compte courant le reference (voir import/route.ts).
+    const plantName = testPlantName("Orphan");
+    const zip = new JSZip();
+    zip.file(
+      "data.json",
+      JSON.stringify({
+        version: 1,
+        plants: [{ name: plantName, photoUrl: "/uploads/does-not-exist-in-this-archive.jpg" }],
+      }),
+    );
+    const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
 
-  await page.request.delete(`/api/plants/${plant.id}`);
-  const afterDelete = await (await page.request.get("/api/plants")).json();
-  expect(afterDelete.some((p: { id: string }) => p.id === plant.id)).toBe(false);
+    const importRes = await page.request.post("/api/import", {
+      multipart: { file: { name: "orphan-url.zip", mimeType: "application/zip", buffer: zipBuffer } },
+    });
+    expect(importRes.ok()).toBe(true);
 
-  const importRes = await page.request.post("/api/import", {
-    multipart: { file: { name: "backup.zip", mimeType: "application/zip", buffer: zipBuffer } },
+    const afterImport = await (await page.request.get("/api/plants")).json();
+    const restored = afterImport.find((p: { name: string }) => p.name === plantName);
+    expect(restored).toBeTruthy();
+    expect(restored.photoUrl).toBeNull();
+
+    await page.request.delete(`/api/plants/${restored.id}`);
   });
-  expect(importRes.ok()).toBe(true);
-  const importBody = await importRes.json();
-  expect(importBody.importedPlants).toBe(1);
-
-  const afterImport = await (await page.request.get("/api/plants")).json();
-  const restored = afterImport.find((p: { name: string }) => p.name === plantName);
-  expect(restored).toBeTruthy();
-  expect(restored.photoUrl).toBeTruthy();
-  // Nom de fichier neuf (UUID frais) : ne reutilise jamais le nom d'origine.
-  expect(restored.photoUrl).not.toBe(photoUrl);
-
-  const photoFetch = await page.request.get(restored.photoUrl);
-  expect(photoFetch.ok()).toBe(true);
-
-  await page.request.delete(`/api/plants/${restored.id}`);
-});
-
-test("import n'active jamais une URL /uploads/... dont le fichier est absent de l'archive", async ({ page }) => {
-  await loginAs(page, user.email, user.password);
-
-  // Archive fabriquee a la main (pas via GET /api/export) : simule soit un
-  // backup partiel/corrompu, soit une archive malveillante qui reference le
-  // fichier d'un AUTRE utilisateur par son nom sans l'inclure dans le zip
-  // -- si remapUrl() conservait l'URL telle quelle, la plante importee
-  // pointerait vers ce fichier physique, que la route de service sert des
-  // qu'une plante DU compte courant le reference (voir import/route.ts).
-  const plantName = testPlantName("Orphan");
-  const zip = new JSZip();
-  zip.file(
-    "data.json",
-    JSON.stringify({
-      version: 1,
-      plants: [{ name: plantName, photoUrl: "/uploads/does-not-exist-in-this-archive.jpg" }],
-    }),
-  );
-  const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
-
-  const importRes = await page.request.post("/api/import", {
-    multipart: { file: { name: "orphan-url.zip", mimeType: "application/zip", buffer: zipBuffer } },
-  });
-  expect(importRes.ok()).toBe(true);
-
-  const afterImport = await (await page.request.get("/api/plants")).json();
-  const restored = afterImport.find((p: { name: string }) => p.name === plantName);
-  expect(restored).toBeTruthy();
-  expect(restored.photoUrl).toBeNull();
-
-  await page.request.delete(`/api/plants/${restored.id}`);
 });

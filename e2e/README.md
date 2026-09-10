@@ -63,3 +63,15 @@ ensemble.
   aussi aux tests -- éviter de relancer la suite en boucle rapprochée
   pendant le développement (le réel motif de la plupart des échecs
   intermittents de connexion en cours de session, pas une régression).
+- **Budget de connexions de la suite entière** : le compteur `login:${ip}`
+  est partagé par TOUS les tests de TOUS les fichiers d'un même run (single
+  worker, une seule IP). Chaque fichier qui a besoin d'une session doit donc
+  se connecter **une seule fois** (via `test.describe.serial` + un `page`
+  partagé créé dans un `beforeAll`, voir `backup.spec.ts`/
+  `tasks-and-settings.spec.ts`), jamais un `loginAs()` par `test()`. Une
+  inscription compte double (auto-connexion après `/api/register`, puis la
+  connexion explicite si le test en fait une) -- déjà 11 connexions réelles
+  avaient fini par dépasser la limite de 10 avant ce refactor, faisant
+  échouer systématiquement le tout dernier test de la suite, en local comme
+  en CI. Avant d'ajouter un nouveau fichier de test avec sa propre session,
+  vérifier que le total across tous les fichiers reste sous 10.

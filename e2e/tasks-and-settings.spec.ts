@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { createTestUser, loginAs, testPlantName } from "./testHelpers";
 import { cleanupDb, cleanupE2eData } from "./dbCleanup";
 
@@ -13,63 +13,79 @@ test.afterAll(async () => {
   await cleanupDb.$disconnect();
 });
 
-test("une tache reportee redevient due une fois le report expire", async ({ page }) => {
-  await loginAs(page, user.email, user.password);
+// describe.serial + une seule connexion partagee entre les deux tests (au
+// lieu d'un loginAs() par test) : le rate limiter de connexion (10/5min/IP,
+// partage par TOUTE la suite E2E -- auth.spec.ts a lui seul en consomme deja
+// 2, l'auto-connexion apres inscription en comptant une) laissait de moins
+// en moins de marge a mesure que la suite grandissait, jusqu'a rejeter
+// systematiquement la toute derniere connexion de la suite.
+test.describe.serial("taches et parametres", () => {
+  let page: Page;
 
-  const plantRes = await page.request.post("/api/plants", { data: { name: testPlantName("Snooze") } });
-  const plant = await plantRes.json();
-  await page.request.post("/api/care-rules", {
-    data: { plantId: plant.id, type: "WATERING", enabled: true, recurrenceType: "FIXED_INTERVAL_DAYS", interval: 7 },
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    await loginAs(page, user.email, user.password);
   });
 
-  const plantsBefore = await (await page.request.get("/api/plants")).json();
-  const taskId = plantsBefore.find((p: { id: string }) => p.id === plant.id)?.nextTask?.id;
-  expect(taskId).toBeTruthy();
+  test.afterAll(async () => {
+    await page.close();
+  });
 
-  // Report a demain (voir #10 dans le suivi -- doit rester non "en retard").
-  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  const snoozeRes = await page.request.post(`/api/tasks/${taskId}/snooze`, { data: { until: tomorrow.toISOString() } });
-  expect(snoozeRes.ok()).toBe(true);
+  test("une tache reportee redevient due une fois le report expire", async () => {
+    const plantRes = await page.request.post("/api/plants", { data: { name: testPlantName("Snooze") } });
+    const plant = await plantRes.json();
+    await page.request.post("/api/care-rules", {
+      data: { plantId: plant.id, type: "WATERING", enabled: true, recurrenceType: "FIXED_INTERVAL_DAYS", interval: 7 },
+    });
 
-  let plants = await (await page.request.get("/api/plants")).json();
-  let current = plants.find((p: { id: string }) => p.id === plant.id);
-  expect(current.nextTask.status).toBe("SNOOZED");
-  expect(current.overdue).toBe(false);
+    const plantsBefore = await (await page.request.get("/api/plants")).json();
+    const taskId = plantsBefore.find((p: { id: string }) => p.id === plant.id)?.nextTask?.id;
+    expect(taskId).toBeTruthy();
 
-  // Simule l'expiration du report (pas d'attente reelle d'une journee) en
-  // manipulant directement snoozedUntil -- la tache doit alors redevenir
-  // "due" via effectiveDueDate()/isTaskDueNow(), sans que son status change.
-  await cleanupDb.task.update({ where: { id: taskId }, data: { snoozedUntil: new Date(Date.now() - 60_000) } });
+    // Report a demain (voir #10 dans le suivi -- doit rester non "en retard").
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const snoozeRes = await page.request.post(`/api/tasks/${taskId}/snooze`, { data: { until: tomorrow.toISOString() } });
+    expect(snoozeRes.ok()).toBe(true);
 
-  plants = await (await page.request.get("/api/plants")).json();
-  current = plants.find((p: { id: string }) => p.id === plant.id);
-  expect(current.nextTask.status).toBe("SNOOZED");
-  expect(current.overdue).toBe(true);
+    let plants = await (await page.request.get("/api/plants")).json();
+    let current = plants.find((p: { id: string }) => p.id === plant.id);
+    expect(current.nextTask.status).toBe("SNOOZED");
+    expect(current.overdue).toBe(false);
 
-  await page.request.delete(`/api/plants/${plant.id}`);
-});
+    // Simule l'expiration du report (pas d'attente reelle d'une journee) en
+    // manipulant directement snoozedUntil -- la tache doit alors redevenir
+    // "due" via effectiveDueDate()/isTaskDueNow(), sans que son status change.
+    await cleanupDb.task.update({ where: { id: taskId }, data: { snoozedUntil: new Date(Date.now() - 60_000) } });
 
-test("le reglage 'tâches en retard' persiste apres rechargement", async ({ page }) => {
-  await loginAs(page, user.email, user.password);
-  await page.goto("/parametres");
+    plants = await (await page.request.get("/api/plants")).json();
+    current = plants.find((p: { id: string }) => p.id === plant.id);
+    expect(current.nextTask.status).toBe("SNOOZED");
+    expect(current.overdue).toBe(true);
 
-  // "Signaler les tâches en retard" n'apparait que si le digest quotidien
-  // est active (enabled=false par defaut pour un compte fraichement cree).
-  const digestToggle = page.getByLabel("Digest quotidien activé");
-  if (!(await digestToggle.isChecked())) {
-    await digestToggle.click();
-  }
+    await page.request.delete(`/api/plants/${plant.id}`);
+  });
 
-  const overdueToggle = page.getByLabel("Signaler les tâches en retard");
-  await expect(overdueToggle).toBeVisible();
-  const wasChecked = await overdueToggle.isChecked();
-  await overdueToggle.click();
+  test("le reglage 'tâches en retard' persiste apres rechargement", async () => {
+    await page.goto("/parametres");
 
-  await expect(async () => {
-    const pref = await cleanupDb.notificationPreference.findUnique({ where: { userId: user.userId } });
-    expect(pref?.overdueEnabled).toBe(!wasChecked);
-  }).toPass({ timeout: 5_000 });
+    // "Signaler les tâches en retard" n'apparait que si le digest quotidien
+    // est active (enabled=false par defaut pour un compte fraichement cree).
+    const digestToggle = page.getByLabel("Digest quotidien activé");
+    if (!(await digestToggle.isChecked())) {
+      await digestToggle.click();
+    }
 
-  await page.reload();
-  await expect(page.getByLabel("Signaler les tâches en retard")).toHaveJSProperty("checked", !wasChecked);
+    const overdueToggle = page.getByLabel("Signaler les tâches en retard");
+    await expect(overdueToggle).toBeVisible();
+    const wasChecked = await overdueToggle.isChecked();
+    await overdueToggle.click();
+
+    await expect(async () => {
+      const pref = await cleanupDb.notificationPreference.findUnique({ where: { userId: user.userId } });
+      expect(pref?.overdueEnabled).toBe(!wasChecked);
+    }).toPass({ timeout: 5_000 });
+
+    await page.reload();
+    await expect(page.getByLabel("Signaler les tâches en retard")).toHaveJSProperty("checked", !wasChecked);
+  });
 });
