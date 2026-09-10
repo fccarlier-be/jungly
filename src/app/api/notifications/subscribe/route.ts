@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
-import { handleApiError } from "@/lib/apiError";
+import { handleApiError, ConflictError } from "@/lib/apiError";
 import { pushSubscriptionSchema, unsubscribeSchema } from "@/server/validation/notification";
 
 export async function POST(request: NextRequest) {
@@ -9,6 +9,16 @@ export async function POST(request: NextRequest) {
     const userId = await requireUserId();
     const body = await request.json();
     const input = pushSubscriptionSchema.parse(body);
+
+    // Un endpoint est en principe unique au navigateur/appareil qui l'a
+    // genere (Push API), mais rien ne le garantit cote serveur -- sans ce
+    // controle, connaitre l'endpoint d'un abonnement existant suffisait a
+    // se l'approprier silencieusement (l'upsert ecrasait userId sans
+    // verifier le proprietaire actuel).
+    const existing = await db.pushSubscription.findUnique({ where: { endpoint: input.endpoint }, select: { userId: true } });
+    if (existing && existing.userId !== userId) {
+      throw new ConflictError("Cet abonnement appartient déjà à un autre compte.");
+    }
 
     await db.pushSubscription.upsert({
       where: { endpoint: input.endpoint },
