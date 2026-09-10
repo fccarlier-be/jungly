@@ -67,3 +67,11 @@ export async function getOwnedPlantPhoto(userId: string, plantId: string, photoI
   }
   return photo;
 }
+
+export async function getOwnedSensor(userId: string, sensorId: string) {
+  const sensor = await db.sensor.findFirst({ where: { id: sensorId, plant: { userId } } });
+  if (!sensor) {
+    throw new NotFoundError("Ce capteur n'existe plus.");
+  }
+  return sensor;
+}

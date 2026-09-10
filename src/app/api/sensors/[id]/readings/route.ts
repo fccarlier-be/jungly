@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { db } from "@/server/db";
 import { handleApiError } from "@/lib/apiError";
 import { createReadingSchema } from "@/server/validation/sensor";
@@ -29,8 +30,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     const sensor = await db.sensor.findUnique({ where: { id } });
     // Meme reponse que la cle soit absente/incorrecte ou que le capteur
     // n'existe pas : ne jamais confirmer l'existence d'un id a qui n'a pas
-    // la bonne cle.
-    if (!sensor || !providedKey || providedKey !== sensor.apiKey) {
+    // la bonne cle. bcrypt.compare() plutot qu'une egalite directe : la cle
+    // n'est plus stockee en clair (apiKeyHash).
+    if (!sensor || !providedKey || !(await bcrypt.compare(providedKey, sensor.apiKeyHash))) {
       return NextResponse.json({ error: "Capteur introuvable ou cle invalide." }, { status: 404 });
     }
 

@@ -1,12 +1,37 @@
 import { z } from "zod";
 
+// Un compte compromis pouvait sinon faire travailler SQLite tres longtemps
+// (voire depasser le timeout de la transaction d'import) avec un payload
+// artificiellement enorme -- ces bornes restent tres au-dessus de tout
+// usage reel homelab.
+const MAX_PLANTS = 1000;
+const MAX_LOCATIONS = 200;
+const MAX_FERTILIZERS = 200;
+const MAX_CARE_RULES_PER_PLANT = 50;
+const MAX_CARE_EVENTS_PER_PLANT = 10000;
+const MAX_NOTES_PER_PLANT = 500;
+const MAX_PHOTOS_PER_PLANT = 100;
+const MAX_SHORT_STRING = 200;
+const MAX_LONG_STRING = 5000;
+const MAX_URL_STRING = 500;
+const MAX_JSON_SERIALIZED_SIZE = 10_000;
+
+/** Limite la taille serialisee d'un objet libre (configuration/metadata) plutot qu'un schema recursif strict. */
+const boundedJsonRecord = z
+  .record(z.string(), z.unknown())
+  .nullable()
+  .optional()
+  .refine((value) => !value || JSON.stringify(value).length <= MAX_JSON_SERIALIZED_SIZE, {
+    message: `Objet trop volumineux (max ${MAX_JSON_SERIALIZED_SIZE} caracteres serialises).`,
+  });
+
 const careEventBackupSchema = z.object({
   type: z.enum(["WATERING", "FERTILIZING", "REPOTTING", "PRUNING", "INSPECTION", "OTHER"]),
   performedAt: z.coerce.date(),
   quantity: z.number().nullable().optional(),
-  unit: z.string().nullable().optional(),
-  metadata: z.unknown().nullable().optional(),
-  note: z.string().nullable().optional(),
+  unit: z.string().max(MAX_SHORT_STRING).nullable().optional(),
+  metadata: boundedJsonRecord,
+  note: z.string().max(MAX_LONG_STRING).nullable().optional(),
 });
 
 const careRuleBackupSchema = z.object({
@@ -22,60 +47,60 @@ const careRuleBackupSchema = z.object({
     "MOISTURE_THRESHOLD",
   ]),
   interval: z.number().nullable().optional(),
-  configuration: z.record(z.string(), z.unknown()).nullable().optional(),
+  configuration: boundedJsonRecord,
   // Resolu par nom plutot que par id : un import ne doit jamais dependre
   // des ids internes de l'installation d'origine.
-  fertilizerName: z.string().nullable().optional(),
+  fertilizerName: z.string().max(MAX_SHORT_STRING).nullable().optional(),
 });
 
 const noteBackupSchema = z.object({
-  content: z.string(),
+  content: z.string().max(MAX_LONG_STRING),
   category: z.enum(["OBSERVATION", "MALADIE", "PARASITE", "CROISSANCE", "FLORAISON", "AUTRE"]),
-  photoUrl: z.string().nullable().optional(),
+  photoUrl: z.string().max(MAX_URL_STRING).nullable().optional(),
 });
 
 const plantBackupSchema = z.object({
-  name: z.string(),
-  scientificName: z.string().nullable().optional(),
-  photoUrl: z.string().nullable().optional(),
-  locationName: z.string().nullable().optional(),
+  name: z.string().max(MAX_SHORT_STRING),
+  scientificName: z.string().max(MAX_SHORT_STRING).nullable().optional(),
+  photoUrl: z.string().max(MAX_URL_STRING).nullable().optional(),
+  locationName: z.string().max(MAX_SHORT_STRING).nullable().optional(),
   acquiredAt: z.coerce.date().nullable().optional(),
   potDiameterMm: z.number().nullable().optional(),
   potHeightMm: z.number().nullable().optional(),
-  potMaterial: z.string().nullable().optional(),
-  substrate: z.string().nullable().optional(),
-  exposure: z.string().nullable().optional(),
-  temperatureNote: z.string().nullable().optional(),
-  humidityNote: z.string().nullable().optional(),
-  notes: z.string().nullable().optional(),
-  careRules: z.array(careRuleBackupSchema).default([]),
-  careEvents: z.array(careEventBackupSchema).default([]),
-  plantNotes: z.array(noteBackupSchema).default([]),
-  photos: z.array(z.string()).default([]),
+  potMaterial: z.string().max(MAX_SHORT_STRING).nullable().optional(),
+  substrate: z.string().max(MAX_SHORT_STRING).nullable().optional(),
+  exposure: z.string().max(MAX_SHORT_STRING).nullable().optional(),
+  temperatureNote: z.string().max(MAX_LONG_STRING).nullable().optional(),
+  humidityNote: z.string().max(MAX_LONG_STRING).nullable().optional(),
+  notes: z.string().max(MAX_LONG_STRING).nullable().optional(),
+  careRules: z.array(careRuleBackupSchema).max(MAX_CARE_RULES_PER_PLANT).default([]),
+  careEvents: z.array(careEventBackupSchema).max(MAX_CARE_EVENTS_PER_PLANT).default([]),
+  plantNotes: z.array(noteBackupSchema).max(MAX_NOTES_PER_PLANT).default([]),
+  photos: z.array(z.string().max(MAX_URL_STRING)).max(MAX_PHOTOS_PER_PLANT).default([]),
 });
 
 const fertilizerBackupSchema = z.object({
-  name: z.string(),
-  manufacturer: z.string().nullable().optional(),
-  type: z.string().nullable().optional(),
+  name: z.string().max(MAX_SHORT_STRING),
+  manufacturer: z.string().max(MAX_SHORT_STRING).nullable().optional(),
+  type: z.string().max(MAX_SHORT_STRING).nullable().optional(),
   nitrogen: z.number().nullable().optional(),
   phosphorus: z.number().nullable().optional(),
   potassium: z.number().nullable().optional(),
   defaultDosage: z.number().nullable().optional(),
-  dosageUnit: z.string().nullable().optional(),
-  notes: z.string().nullable().optional(),
+  dosageUnit: z.string().max(MAX_SHORT_STRING).nullable().optional(),
+  notes: z.string().max(MAX_LONG_STRING).nullable().optional(),
 });
 
 export const backupSchema = z.object({
   version: z.literal(1),
-  exportedAt: z.string().optional(),
-  locations: z.array(z.object({ name: z.string() })).default([]),
-  fertilizers: z.array(fertilizerBackupSchema).default([]),
-  plants: z.array(plantBackupSchema).default([]),
+  exportedAt: z.string().max(MAX_SHORT_STRING).optional(),
+  locations: z.array(z.object({ name: z.string().max(MAX_SHORT_STRING) })).max(MAX_LOCATIONS).default([]),
+  fertilizers: z.array(fertilizerBackupSchema).max(MAX_FERTILIZERS).default([]),
+  plants: z.array(plantBackupSchema).max(MAX_PLANTS).default([]),
   notificationPreference: z
     .object({
       enabled: z.boolean(),
-      notificationTime: z.string(),
+      notificationTime: z.string().max(MAX_SHORT_STRING),
       overdueEnabled: z.boolean(),
       advanceReminderDays: z.number(),
     })

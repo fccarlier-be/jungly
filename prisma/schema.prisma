@@ -356,10 +356,12 @@ model Sensor {
   type       SensorType
   name       String
   externalId String?
-  // Jeton d'ingestion (distinct de externalId, qui identifie le
-  // peripherique physique) : permet a un appareil IoT de poster des
+  // Hash bcrypt du jeton d'ingestion (distinct de externalId, qui identifie
+  // le peripherique physique) : permet a un appareil IoT de poster des
   // mesures sans session utilisateur (voir POST /api/sensors/[id]/readings).
-  apiKey     String   @unique @default(cuid())
+  // Le jeton en clair n'est jamais stocke -- visible une seule fois, a la
+  // creation ou a la rotation (POST /api/sensors/:id/rotate).
+  apiKeyHash String   @unique
   createdAt  DateTime @default(now())
 
   plant    Plant           @relation(fields: [plantId], references: [id], onDelete: Cascade)
