@@ -13,6 +13,11 @@ Suite à une 2e revue de code indépendante (GPT, sur l'état post-E2E/CI), vér
 - **Mot de passe seed par défaut supprimé** : `prisma/seed.ts` ne retombe plus sur `"changeme123"` si `SEED_USER_PASSWORD` est absent -- le démarrage échoue explicitement à la place.
 - **Mécanisme de changement de mot de passe réparé** : changer `SEED_USER_PASSWORD` puis relancer le seed ne mettait à jour que `isAdmin`, jamais `passwordHash`, sur un compte déjà existant -- contrairement à ce que promettait le README. `passwordHash` fait maintenant partie de l'`update` de l'upsert.
 
+### Corrigé
+
+- **Digest de notifications** : le comptage des tâches "en retard" utilisait `dueAt` brut au lieu de la date effective (`effectiveDueDate()`) -- une tâche reportée (`SNOOZED`) avec un ancien `dueAt` d'origine mais reportée à aujourd'hui était comptée à tort comme en retard. Logique de comptage extraite en fonction pure testée (`splitOverdueAndDueToday`).
+- **`MOISTURE_THRESHOLD` restreint à l'arrosage** : rien n'empêchait de créer une règle `FERTILIZING`/`REPOTTING` avec cette récurrence -- un capteur d'humidité du sol aurait alors pu déclencher une fertilisation ou un rempotage. Champ `moistureThresholdPercent` ajouté à l'interface `RuleConfiguration` (déjà utilisé au runtime, absent du type).
+
 ### Documentation
 
 - README : suppression de la mention obsolète "pas de page d'inscription publique" (existe depuis `/inscription`), et de "capteurs IoT hors périmètre" en tête de fichier alors qu'ils sont déjà implémentés et documentés plus bas.

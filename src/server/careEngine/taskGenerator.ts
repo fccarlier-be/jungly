@@ -9,6 +9,9 @@ export interface RuleConfiguration extends SeasonalWindow {
   fertilizerId?: string;
   dosagePerLiter?: number;
   dilutionVolumeLiters?: number;
+  // Utilise par sensorTrigger.ts (regle MOISTURE_THRESHOLD) -- absent
+  // jusqu'ici de cette interface bien que deja lu au runtime.
+  moistureThresholdPercent?: number;
 }
 
 export interface CareRuleLike {

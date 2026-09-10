@@ -74,6 +74,37 @@ describe("createCareRuleSchema -- combinaisons recurrenceType/interval/exactDate
     });
     expect(result.success).toBe(false);
   });
+
+  it("accepte MOISTURE_THRESHOLD sur WATERING", () => {
+    const result = createCareRuleSchema.safeParse({
+      plantId: "p1",
+      type: "WATERING",
+      enabled: true,
+      recurrenceType: "MOISTURE_THRESHOLD",
+      configuration: { moistureThresholdPercent: 30 },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejette MOISTURE_THRESHOLD sur FERTILIZING", () => {
+    const result = createCareRuleSchema.safeParse({
+      plantId: "p1",
+      type: "FERTILIZING",
+      enabled: true,
+      recurrenceType: "MOISTURE_THRESHOLD",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejette MOISTURE_THRESHOLD sur REPOTTING", () => {
+    const result = createCareRuleSchema.safeParse({
+      plantId: "p1",
+      type: "REPOTTING",
+      enabled: true,
+      recurrenceType: "MOISTURE_THRESHOLD",
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("recurrenceComboCheckSchema -- revalidation apres fusion PATCH", () => {

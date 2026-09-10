@@ -94,6 +94,16 @@ function checkRecurrenceCombo(
       });
     }
   }
+  // Sans ce controle, une regle FERTILIZING/REPOTTING pouvait etre creee avec
+  // MOISTURE_THRESHOLD : un capteur d'humidite du sol declencherait alors une
+  // fertilisation/un rempotage quand le sol est sec, ce qui n'a pas de sens.
+  if (data.recurrenceType === "MOISTURE_THRESHOLD" && data.type !== "WATERING") {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["recurrenceType"],
+      message: "MOISTURE_THRESHOLD n'est pris en charge que pour l'arrosage.",
+    });
+  }
 }
 
 export const createCareRuleSchema = z

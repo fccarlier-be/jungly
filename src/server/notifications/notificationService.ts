@@ -1,5 +1,5 @@
 import { db } from "@/server/db";
-import { dueTasksWhere } from "@/server/careEngine/dueTasks";
+import { dueTasksWhere, effectiveDueDate, type DueCheckable } from "@/server/careEngine/dueTasks";
 import { sendPushToUser, type PushPayload } from "./webPush";
 
 export interface DigestCounts {
@@ -45,6 +45,17 @@ export function buildDailyDigestMessage(counts: DigestCounts): PushPayload | nul
 }
 
 /**
+ * Separe les taches "en retard" des taches "dues aujourd'hui" selon leur
+ * date effective (fonction pure, testee) : sans effectiveDueDate(), une
+ * tache SNOOZED avec un vieux dueAt d'origine mais reportee a aujourd'hui
+ * etait comptee a tort comme "en retard".
+ */
+export function splitOverdueAndDueToday(tasks: DueCheckable[], startOfToday: Date): { overdueCount: number; dueTodayCount: number } {
+  const overdueCount = tasks.filter((t) => effectiveDueDate(t) < startOfToday).length;
+  return { overdueCount, dueTodayCount: tasks.length - overdueCount };
+}
+
+/**
  * Calcule et envoie le digest quotidien d'un utilisateur, puis met à jour
  * `lastDigestSentAt`. À appeler au plus une fois par jour et par
  * utilisateur (voir scheduler.ts pour la logique de déclenchement).
@@ -63,10 +74,9 @@ export async function sendDailyDigest(userId: string): Promise<void> {
 
   const dueTasks = await db.task.findMany({
     where: { plant: { userId }, ...dueTasksWhere(endOfToday) },
-    select: { dueAt: true },
+    select: { dueAt: true, status: true, snoozedUntil: true },
   });
-  const overdueCount = dueTasks.filter((t) => t.dueAt < startOfToday).length;
-  const dueTodayCount = dueTasks.length - overdueCount;
+  const { overdueCount, dueTodayCount } = splitOverdueAndDueToday(dueTasks, startOfToday);
 
   let upcomingCount = 0;
   if (preference.advanceReminderDays > 0) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDailyDigestMessage } from "@/server/notifications/notificationService";
+import { buildDailyDigestMessage, splitOverdueAndDueToday } from "@/server/notifications/notificationService";
 
 describe("buildDailyDigestMessage", () => {
   it("aucune tâche due ni à venir -> pas de notification", () => {
@@ -33,5 +33,42 @@ describe("buildDailyDigestMessage", () => {
     const message = buildDailyDigestMessage({ dueTodayCount: 1, overdueCount: 0, upcomingCount: 1, advanceReminderDays: 2 });
     expect(message?.body).toContain("aujourd'hui");
     expect(message?.body).toContain("à venir sous 2 jours");
+  });
+});
+
+describe("splitOverdueAndDueToday", () => {
+  const startOfToday = new Date("2026-09-10T00:00:00.000Z");
+
+  it("une tache PENDING en retard compte comme en retard", () => {
+    const result = splitOverdueAndDueToday(
+      [{ status: "PENDING", dueAt: new Date("2026-09-05T00:00:00.000Z") }],
+      startOfToday,
+    );
+    expect(result).toEqual({ overdueCount: 1, dueTodayCount: 0 });
+  });
+
+  it("une tache PENDING due aujourd'hui ne compte pas comme en retard", () => {
+    const result = splitOverdueAndDueToday(
+      [{ status: "PENDING", dueAt: new Date("2026-09-10T10:00:00.000Z") }],
+      startOfToday,
+    );
+    expect(result).toEqual({ overdueCount: 0, dueTodayCount: 1 });
+  });
+
+  it("une tache SNOOZED avec un vieux dueAt mais reportee a aujourd'hui n'est PAS en retard", () => {
+    // Cas du bug corrige : dueAt d'origine tres ancien, mais snoozedUntil = aujourd'hui.
+    const result = splitOverdueAndDueToday(
+      [{ status: "SNOOZED", dueAt: new Date("2026-08-01T00:00:00.000Z"), snoozedUntil: new Date("2026-09-10T08:00:00.000Z") }],
+      startOfToday,
+    );
+    expect(result).toEqual({ overdueCount: 0, dueTodayCount: 1 });
+  });
+
+  it("une tache SNOOZED dont le report est lui-meme deja passe reste en retard", () => {
+    const result = splitOverdueAndDueToday(
+      [{ status: "SNOOZED", dueAt: new Date("2026-09-08T00:00:00.000Z"), snoozedUntil: new Date("2026-09-09T00:00:00.000Z") }],
+      startOfToday,
+    );
+    expect(result).toEqual({ overdueCount: 1, dueTodayCount: 0 });
   });
 });
