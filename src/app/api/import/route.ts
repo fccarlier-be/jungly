@@ -3,14 +3,26 @@ import { writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import JSZip from "jszip";
+import sharp from "sharp";
 import { Prisma } from "@prisma/client";
 import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
-import { handleApiError } from "@/lib/apiError";
-import { backupSchema, type BackupData } from "@/server/validation/backup";
+import { handleApiError, BadRequestError } from "@/lib/apiError";
+import {
+  backupSchema,
+  MAX_ZIP_ENTRIES,
+  MAX_UPLOAD_FILE_SIZE,
+  MAX_TOTAL_DECOMPRESSED_SIZE,
+  type BackupData,
+} from "@/server/validation/backup";
 import { ensurePendingTaskForRule } from "@/server/careEngine/service";
 import { resolveUploadedFilePath, deleteUploadedFile } from "@/server/uploads";
 import { generateSensorApiKey } from "@/server/sensorAuth";
+
+// Meme recadrage que /api/uploads (photo affichee au plus en bandeau large) :
+// un import reste soumis aux memes bornes qu'un televersement normal.
+const MAX_IMPORTED_IMAGE_DIMENSION = 1600;
+const IMPORTED_IMAGE_JPEG_QUALITY = 82;
 
 /**
  * Restaure une sauvegarde (.zip produite par GET /api/export : data.json +
@@ -45,18 +57,65 @@ export async function POST(request: NextRequest) {
 
     // Nouveaux noms de fichiers (UUID frais) : evite toute collision avec
     // des fichiers deja presents sur le serveur cible.
-    const uploadsFolder = zip.folder("uploads");
     const filenameMap = new Map<string, string>();
-    if (uploadsFolder) {
-      const entries = Object.values(uploadsFolder.files).filter((entry) => !entry.dir);
+    {
+      // zip.folder("uploads").files n'est PAS filtre au dossier : JSZip
+      // partage la meme table de fichiers (chemins complets) entre le zip
+      // racine et toute "vue" de sous-dossier -- filtrer explicitement sur
+      // le prefixe de chemin, sinon data.json lui-meme se retrouve traite
+      // comme une image a importer (et rejete par la validation sharp
+      // ci-dessous, cassant tout import legitime).
+      const entries = Object.values(zip.files).filter((entry) => !entry.dir && entry.name.startsWith("uploads/"));
+      if (entries.length > MAX_ZIP_ENTRIES) {
+        throw new BadRequestError(`Trop de fichiers dans l'archive (max ${MAX_ZIP_ENTRIES}).`);
+      }
+
+      let totalDecompressedSize = 0;
       for (const entry of entries) {
         const originalName = path.basename(entry.name);
-        const newName = `${randomUUID()}.jpg`;
+        // Une entree a la fois (pas tout le zip decompresse en parallele) :
+        // borne le pic memoire a la taille d'un seul fichier plutot qu'a la
+        // somme de toutes. JSZip decompresse entierement en memoire (pas de
+        // mode flux) -- dans le pire cas theorique (un seul fichier avec un
+        // ratio DEFLATE extreme), CETTE ligne peut encore consommer
+        // plusieurs centaines de Mo avant que le controle de taille
+        // ci-dessous ne s'applique. Residuel accepte pour un usage homelab :
+        // la taille de l'archive elle-meme reste plafonnee a 10 Mo par
+        // nginx (client_max_body_size), ce qui borne le nombre d'entrees
+        // pouvant chacune tenter ce pire cas.
         const buffer = await entry.async("nodebuffer");
+        if (buffer.length > MAX_UPLOAD_FILE_SIZE) {
+          throw new BadRequestError(`Fichier trop volumineux dans l'archive : ${originalName}.`);
+        }
+        totalDecompressedSize += buffer.length;
+        if (totalDecompressedSize > MAX_TOTAL_DECOMPRESSED_SIZE) {
+          throw new BadRequestError("Archive trop volumineuse une fois décompressée.");
+        }
+
+        let processed: Buffer;
+        try {
+          // Meme pipeline que /api/uploads : reoriente/recadre et rejette
+          // tout ce qui n'est pas une image reellement decodable -- protege
+          // aussi contre un fichier de contenu arbitraire deguise en .jpg.
+          processed = await sharp(buffer)
+            .rotate()
+            .resize({
+              width: MAX_IMPORTED_IMAGE_DIMENSION,
+              height: MAX_IMPORTED_IMAGE_DIMENSION,
+              fit: "inside",
+              withoutEnlargement: true,
+            })
+            .jpeg({ quality: IMPORTED_IMAGE_JPEG_QUALITY })
+            .toBuffer();
+        } catch {
+          throw new BadRequestError(`Fichier illisible comme image dans l'archive : ${originalName}.`);
+        }
+
+        const newName = `${randomUUID()}.jpg`;
         // Ecrits immediatement (avant la transaction Prisma) : si l'un des
         // fichiers echoue, on nettoie ceux deja ecrits et on abandonne tout
         // l'import plutot que de laisser une restauration partielle.
-        await writeFile(resolveUploadedFilePath(newName), buffer);
+        await writeFile(resolveUploadedFilePath(newName), processed);
         writtenFiles.push(newName);
         filenameMap.set(originalName, newName);
       }

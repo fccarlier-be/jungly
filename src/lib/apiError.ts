@@ -37,6 +37,10 @@ export function handleApiError(error: unknown): NextResponse {
     return NextResponse.json({ error: error.message }, { status: 409 });
   }
 
+  if (error instanceof BadRequestError) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
   // Filet de securite : ne devrait plus se produire une fois les etats de
   // tache verifies explicitement (ConflictError ci-dessus), mais evite un
   // 500 opaque si un autre appel venait a violer une contrainte unique.
@@ -68,6 +72,13 @@ export class ConflictError extends Error {
 /** Ressource existante et son id connu de l'appelant, mais action reservee (ex. administration). */
 export class ForbiddenError extends Error {
   constructor(message = "Action non autorisée.") {
+    super(message);
+  }
+}
+
+/** Requête bien formée mais dont le contenu viole une contrainte métier hors du schéma Zod (ex. limite de taille détectée après décompression). */
+export class BadRequestError extends Error {
+  constructor(message = "Requête invalide.") {
     super(message);
   }
 }

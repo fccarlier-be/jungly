@@ -18,6 +18,15 @@ const MAX_LONG_STRING = 5000;
 const MAX_URL_STRING = 500;
 const MAX_JSON_SERIALIZED_SIZE = 10_000;
 
+// Le zip lui-meme est deja plafonne a 10 Mo compresses par nginx
+// (client_max_body_size), mais JSZip decompresse entierement en memoire
+// (voir sa doc "limitations") -- sans plafond explicite sur la taille
+// decompressee, un zip malveillant pourrait faire exploser la memoire du
+// serveur avant meme la validation Zod du JSON qu'il contient.
+export const MAX_ZIP_ENTRIES = 2000;
+export const MAX_UPLOAD_FILE_SIZE = 8 * 1024 * 1024;
+export const MAX_TOTAL_DECOMPRESSED_SIZE = 50 * 1024 * 1024;
+
 /** Limite la taille serialisee d'un objet libre (configuration/metadata) plutot qu'un schema recursif strict. */
 const boundedJsonRecord = z
   .record(z.string(), z.unknown())
