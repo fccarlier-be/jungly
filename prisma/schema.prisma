@@ -29,6 +29,7 @@ model User {
   notificationPreference NotificationPreference?
   pushSubscriptions     PushSubscription[]
   weatherProfile        WeatherProfile?
+  uploads               Upload[]
 }
 
 // ---------------------------------------------------------------------------
@@ -380,6 +381,24 @@ model SensorReading {
   sensor Sensor @relation(fields: [sensorId], references: [id], onDelete: Cascade)
 
   @@index([sensorId, recordedAt])
+}
+
+/**
+ * Trace qui a physiquement televerse un fichier via POST /api/uploads,
+ * avant meme qu'il soit attache a une plante/note -- necessaire pour
+ * verifier l'ownership d'une URL /uploads/... fournie par le client sur les
+ * routes qui l'acceptent (creation/edition de plante, photo, note), voir
+ * assertOwnedUpload() dans src/server/uploads.ts. `filename` est deja
+ * l'identifiant unique utilise dans l'URL (`/uploads/<filename>`).
+ */
+model Upload {
+  filename  String   @id
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /**

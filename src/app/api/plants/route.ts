@@ -5,6 +5,7 @@ import { handleApiError } from "@/lib/apiError";
 import { createPlantSchema } from "@/server/validation/plant";
 import { getOwnedLocation } from "@/server/ownership";
 import { effectiveDueDate } from "@/server/careEngine/dueTasks";
+import { assertOwnedUpload } from "@/server/uploads";
 
 export async function GET(request: NextRequest) {
   try {
@@ -85,6 +86,7 @@ export async function POST(request: NextRequest) {
     if (input.locationId) {
       await getOwnedLocation(userId, input.locationId);
     }
+    await assertOwnedUpload(userId, input.photoUrl);
 
     const plant = await db.plant.create({
       data: { ...input, userId },

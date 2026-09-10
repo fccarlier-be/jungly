@@ -4,6 +4,7 @@ import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { getOwnedPlant } from "@/server/ownership";
 import { createNoteSchema } from "@/server/validation/note";
+import { assertOwnedUpload } from "@/server/uploads";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +13,7 @@ export async function POST(request: NextRequest) {
     const input = createNoteSchema.parse(body);
 
     await getOwnedPlant(userId, input.plantId);
+    await assertOwnedUpload(userId, input.photoUrl);
 
     const note = await db.note.create({ data: input });
     return NextResponse.json(note, { status: 201 });

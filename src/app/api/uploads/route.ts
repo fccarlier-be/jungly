@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
+import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
@@ -56,6 +57,10 @@ export async function POST(request: NextRequest) {
       .jpeg({ quality: JPEG_QUALITY })
       .toBuffer();
     await writeFile(path.join(UPLOAD_DIR, filename), processed);
+    // Trace qui a televerse ce fichier -- necessaire pour verifier
+    // l'ownership de l'URL quand elle est fournie ensuite sur une autre
+    // route (voir assertOwnedUpload() dans src/server/uploads.ts).
+    await db.upload.create({ data: { filename, userId } });
 
     return NextResponse.json({ url: `/uploads/${filename}` }, { status: 201 });
   } catch (error) {

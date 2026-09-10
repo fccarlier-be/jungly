@@ -1,5 +1,7 @@
 import { unlink } from "node:fs/promises";
 import path from "node:path";
+import { db } from "@/server/db";
+import { BadRequestError } from "@/lib/apiError";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
@@ -28,4 +30,39 @@ export async function deleteUploadedFile(url: string | null | undefined): Promis
       console.error("Echec de suppression du fichier uploade", filePath, error);
     }
   }
+}
+
+/**
+ * Verifie qu'une URL /uploads/... fournie par le client appartient bien a
+ * l'utilisateur -- soit parce qu'il l'a lui-meme televersee (table Upload),
+ * soit parce qu'elle est deja referencee par une de SES plantes/photos/notes
+ * existantes (reedition legitime). Rejette toute autre URL /uploads/... :
+ * sans ca, un utilisateur pouvait faire pointer sa plante vers le fichier
+ * physique d'un AUTRE compte en devinant/recuperant son nom (UUID). Les
+ * URLs hors /uploads/ (bibliotheque, sources externes) ne sont jamais des
+ * fichiers geres par cette app et ne sont pas concernees.
+ */
+export async function assertOwnedUpload(userId: string, url: string | null | undefined): Promise<void> {
+  if (!url || !url.startsWith("/uploads/")) {
+    return;
+  }
+  const filename = path.basename(url);
+
+  const upload = await db.upload.findUnique({ where: { filename } });
+  if (upload?.userId === userId) {
+    return;
+  }
+
+  const alreadyOwned = await db.plant.findFirst({
+    where: {
+      userId,
+      OR: [{ photoUrl: url }, { photos: { some: { url } } }, { plantNotes: { some: { photoUrl: url } } }],
+    },
+    select: { id: true },
+  });
+  if (alreadyOwned) {
+    return;
+  }
+
+  throw new BadRequestError("Fichier non reconnu.");
 }

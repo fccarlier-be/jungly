@@ -90,6 +90,20 @@ test("aucune ressource d'un compte n'est accessible depuis un autre compte", asy
   const photoDeleteRes = await pageB.request.delete(`/api/plants/${plantA.id}/photos/${photoA.id}`);
   expect(photoDeleteRes.status()).toBe(404);
 
+  // B ne peut pas s'approprier le fichier physique de A en referencant
+  // simplement son URL (UUID connu) -- assertOwnedUpload() doit rejeter,
+  // que ce soit via la couverture, la galerie ou une note.
+  const patchPhotoRes = await pageB.request.patch(`/api/plants/${plantB.id}`, { data: { photoUrl } });
+  expect(patchPhotoRes.status()).toBe(400);
+
+  const addPhotoBRes = await pageB.request.post(`/api/plants/${plantB.id}/photos`, { data: { urls: [photoUrl] } });
+  expect(addPhotoBRes.status()).toBe(400);
+
+  const noteRes = await pageB.request.post("/api/notes", {
+    data: { plantId: plantB.id, content: "test", category: "OBSERVATION", photoUrl },
+  });
+  expect(noteRes.status()).toBe(400);
+
   // Nettoyage via l'UI/API (compte A).
   await pageA.request.delete(`/api/plants/${plantA.id}`);
   await pageB.request.delete(`/api/plants/${plantB.id}`);
