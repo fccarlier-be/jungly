@@ -65,6 +65,37 @@ test.describe.serial("taches et parametres", () => {
     await page.request.delete(`/api/plants/${plant.id}`);
   });
 
+  test("un arrosage spontane pendant qu'une tache est reportee ne cree pas de doublon", async () => {
+    const plantRes = await page.request.post("/api/plants", { data: { name: testPlantName("SnoozeSpontane") } });
+    const plant = await plantRes.json();
+    const ruleRes = await page.request.post("/api/care-rules", {
+      data: { plantId: plant.id, type: "WATERING", enabled: true, recurrenceType: "FIXED_INTERVAL_DAYS", interval: 7 },
+    });
+    const rule = await ruleRes.json();
+
+    const plantsBefore = await (await page.request.get("/api/plants")).json();
+    const originalTaskId = plantsBefore.find((p: { id: string }) => p.id === plant.id)?.nextTask?.id;
+    expect(originalTaskId).toBeTruthy();
+
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await page.request.post(`/api/tasks/${originalTaskId}/snooze`, { data: { until: tomorrow.toISOString() } });
+
+    // Arrosage spontane (pas via la completion de la tache reportee) --
+    // avant le fix, ensurePendingTaskForRule() ne voyait que les taches
+    // PENDING, jamais SNOOZED, et en recreait donc une nouvelle a cote de
+    // celle deja reportee.
+    const waterRes = await page.request.post(`/api/plants/${plant.id}/water`, { data: { careRuleId: rule.id } });
+    expect(waterRes.ok()).toBe(true);
+
+    const originalTask = await cleanupDb.task.findUnique({ where: { id: originalTaskId } });
+    expect(originalTask?.status).toBe("COMPLETED");
+
+    const activeTasks = await cleanupDb.task.findMany({ where: { careRuleId: rule.id, status: { in: ["PENDING", "SNOOZED"] } } });
+    expect(activeTasks).toHaveLength(1);
+
+    await page.request.delete(`/api/plants/${plant.id}`);
+  });
+
   test("le reglage 'tâches en retard' persiste apres rechargement", async () => {
     await page.goto("/parametres");
 

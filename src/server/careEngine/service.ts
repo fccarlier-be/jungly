@@ -11,9 +11,10 @@ function toJsonInput(value: Record<string, unknown> | undefined): Prisma.InputJs
 }
 
 /**
- * Crée la prochaine tâche PENDING d'une règle si elle n'existe pas déjà.
- * Idempotent : n'insère jamais un doublon si une tâche PENDING est déjà
- * associée à cette règle.
+ * Crée la prochaine tâche PENDING d'une règle si elle n'a pas déjà de tâche
+ * active. Idempotent : n'insère jamais un doublon si une tâche PENDING *ou
+ * SNOOZED* est déjà associée à cette règle (une tâche reportée reste une
+ * tâche active, pas un slot libre).
  */
 export async function ensurePendingTaskForRule(
   rule: PlantCareRule,
@@ -38,8 +39,12 @@ async function ensurePendingTaskForRuleWithClient(
   fromDate: Date,
   client: Prisma.TransactionClient,
 ) {
+  // PENDING et SNOOZED comptent tous les deux comme "tache active" pour
+  // cette regle -- sinon un arrosage spontane (recordStandaloneCareEvent)
+  // pendant qu'une tache est reportee (SNOOZED) laissait cette derniere
+  // orpheline tout en creant une nouvelle PENDING a cote.
   const existing = await client.task.findFirst({
-    where: { careRuleId: rule.id, status: "PENDING" },
+    where: { careRuleId: rule.id, status: { in: ["PENDING", "SNOOZED"] } },
   });
   if (existing) {
     return existing;
@@ -175,7 +180,11 @@ export async function recordStandaloneCareEvent(
     // et en completer/regenerer la tache depuis sa propre plante.
     const rule = await db.plantCareRule.findFirst({ where: { id: careRuleId, plantId } });
     if (rule) {
-      const pendingTask = await db.task.findFirst({ where: { careRuleId, plantId, status: "PENDING" } });
+      // SNOOZED inclus : un arrosage spontane pendant qu'une tache est
+      // reportee doit la completer, pas la laisser orpheline (voir
+      // ensurePendingTaskForRule() ci-dessus, qui ne recree plus rien tant
+      // qu'une tache active -- PENDING ou SNOOZED -- existe deja).
+      const pendingTask = await db.task.findFirst({ where: { careRuleId, plantId, status: { in: ["PENDING", "SNOOZED"] } } });
       if (pendingTask) {
         await db.task.update({ where: { id: pendingTask.id }, data: { status: "COMPLETED", completedAt: performedAt } });
       }
@@ -226,7 +235,7 @@ export async function evaluateSensorReadingForTasks(sensor: Sensor, reading: Sen
     // pouvaient chacune constater l'absence de tache avant que l'une des
     // deux n'ecrive.
     await db.$transaction(async (tx) => {
-      const existing = await tx.task.findFirst({ where: { careRuleId: rule.id, status: "PENDING" } });
+      const existing = await tx.task.findFirst({ where: { careRuleId: rule.id, status: { in: ["PENDING", "SNOOZED"] } } });
       if (existing) {
         return;
       }
