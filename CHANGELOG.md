@@ -10,6 +10,7 @@ Suite à une 3e revue de code indépendante (GPT, sur l'état post-audit2), vér
 ### Sécurité
 
 - **Plancher `next` corrigé dans `package.json`** (`^15.1.4` → `^15.5.24`) pour refléter la réalité : la version réellement installée (`package-lock.json`, image Docker en prod) était déjà `15.5.25`, au-delà du correctif du bulletin d'août 2026 (deux RCE critiques non-authentifiées, CVSS 9.0/9.5 -- AVIF via `libheif`/`sharp`, non exploitable ici en pratique faute d'usage de `next/image` ; path traversal Windows, non pertinent sur ce déploiement Linux). Aucun changement de version réel, juste une correction de plancher déclaré pour éviter toute confusion future.
+- **Import : URL `/uploads/...` orpheline conservée telle quelle au lieu d'être supprimée** (`remapUrl()` dans `import/route.ts`) -- un backup partiel/corrompu, ou une archive fabriquée à la main référençant le nom de fichier (UUID) d'un AUTRE utilisateur sans l'inclure dans le zip, faisait conserver l'URL d'origine telle quelle. La plante importée pointait alors vers ce chemin, que la nouvelle route de service (audit2) sert dès qu'une plante DU compte courant le référence -- sans vérifier que le fichier a réellement été apporté par CET import. `remapUrl()` retourne désormais `null` (photo perdue, jamais un chemin non maîtrisé) quand le fichier référencé est absent de l'archive. Nouveau test E2E dédié (`backup.spec.ts`) construisant une archive avec une référence orpheline.
 
 ## [Post-MVP] - 2026-09-10 — Durcissement post-audit2
 

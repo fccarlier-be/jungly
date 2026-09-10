@@ -44,10 +44,7 @@ export async function POST(request: NextRequest) {
     const data: BackupData = backupSchema.parse(rawData);
 
     // Nouveaux noms de fichiers (UUID frais) : evite toute collision avec
-    // des fichiers deja presents sur le serveur cible. Un fichier reference
-    // dans data.json mais absent de l'archive (backup partiel/corrompu)
-    // n'est pas bloquant -- son URL reste telle quelle (photo cassee a
-    // l'affichage, mais l'import du reste continue).
+    // des fichiers deja presents sur le serveur cible.
     const uploadsFolder = zip.folder("uploads");
     const filenameMap = new Map<string, string>();
     if (uploadsFolder) {
@@ -65,10 +62,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    function remapUrl<T extends string | null | undefined>(url: T): T {
-      if (!url || !url.startsWith("/uploads/")) return url;
+    // Une reference /uploads/... dans data.json sans fichier correspondant
+    // dans l'archive (backup partiel/corrompu, OU archive fabriquee a la
+    // main par un utilisateur malveillant) ne doit JAMAIS etre conservee
+    // telle quelle : ca permettrait de faire pointer une plante importee
+    // vers le fichier physique d'un AUTRE utilisateur si son nom (un UUID)
+    // est connu -- la route de service ne verifie que l'appartenance de la
+    // plante, pas que le fichier a bien ete apporte par cet import precis.
+    // On perd la photo (elle redevient null) plutot que de risquer ca.
+    function remapUrl(url: string | null | undefined): string | null {
+      if (!url || !url.startsWith("/uploads/")) return url ?? null;
       const newName = filenameMap.get(path.basename(url));
-      return (newName ? `/uploads/${newName}` : url) as T;
+      return newName ? `/uploads/${newName}` : null;
     }
 
     // timeout releve : une sauvegarde reelle (dizaines de plantes, regles,

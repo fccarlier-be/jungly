@@ -1,3 +1,4 @@
+import JSZip from "jszip";
 import { test, expect } from "@playwright/test";
 import { createTestUser, loginAs, testPlantName } from "./testHelpers";
 import { cleanupDb, cleanupE2eData } from "./dbCleanup";
@@ -62,6 +63,39 @@ test("export puis import restaure la plante et le fichier physique de sa photo",
 
   const photoFetch = await page.request.get(restored.photoUrl);
   expect(photoFetch.ok()).toBe(true);
+
+  await page.request.delete(`/api/plants/${restored.id}`);
+});
+
+test("import n'active jamais une URL /uploads/... dont le fichier est absent de l'archive", async ({ page }) => {
+  await loginAs(page, user.email, user.password);
+
+  // Archive fabriquee a la main (pas via GET /api/export) : simule soit un
+  // backup partiel/corrompu, soit une archive malveillante qui reference le
+  // fichier d'un AUTRE utilisateur par son nom sans l'inclure dans le zip
+  // -- si remapUrl() conservait l'URL telle quelle, la plante importee
+  // pointerait vers ce fichier physique, que la route de service sert des
+  // qu'une plante DU compte courant le reference (voir import/route.ts).
+  const plantName = testPlantName("Orphan");
+  const zip = new JSZip();
+  zip.file(
+    "data.json",
+    JSON.stringify({
+      version: 1,
+      plants: [{ name: plantName, photoUrl: "/uploads/does-not-exist-in-this-archive.jpg" }],
+    }),
+  );
+  const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
+
+  const importRes = await page.request.post("/api/import", {
+    multipart: { file: { name: "orphan-url.zip", mimeType: "application/zip", buffer: zipBuffer } },
+  });
+  expect(importRes.ok()).toBe(true);
+
+  const afterImport = await (await page.request.get("/api/plants")).json();
+  const restored = afterImport.find((p: { name: string }) => p.name === plantName);
+  expect(restored).toBeTruthy();
+  expect(restored.photoUrl).toBeNull();
 
   await page.request.delete(`/api/plants/${restored.id}`);
 });
