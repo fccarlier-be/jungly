@@ -17,29 +17,38 @@ export async function POST(request: NextRequest, { params }: Params) {
     const body = await request.json().catch(() => ({}));
     const input = repotEventSchema.parse(body);
 
-    const event = await recordStandaloneCareEvent(
-      id,
-      "REPOTTING",
-      {
-        performedAt: input.performedAt,
-        note: input.note,
-        metadata: {
-          oldPotDiameterMm: input.oldPotDiameterMm,
-          newPotDiameterMm: input.newPotDiameterMm,
-          newPotHeightMm: input.newPotHeightMm,
-          substrate: input.substrate,
+    // CareEvent + mise a jour du pot/substrat dans une seule transaction :
+    // sans ca, un echec du db.plant.update() apres coup laissait un
+    // historique de rempotage sans que l'etat de la plante ne change
+    // vraiment (ou l'inverse).
+    const event = await db.$transaction(async (tx) => {
+      const event = await recordStandaloneCareEvent(
+        id,
+        "REPOTTING",
+        {
+          performedAt: input.performedAt,
+          note: input.note,
+          metadata: {
+            oldPotDiameterMm: input.oldPotDiameterMm,
+            newPotDiameterMm: input.newPotDiameterMm,
+            newPotHeightMm: input.newPotHeightMm,
+            substrate: input.substrate,
+          },
         },
-      },
-      input.careRuleId,
-    );
+        input.careRuleId,
+        tx,
+      );
 
-    await db.plant.update({
-      where: { id },
-      data: {
-        potDiameterMm: input.newPotDiameterMm ?? undefined,
-        potHeightMm: input.newPotHeightMm ?? undefined,
-        substrate: input.substrate ?? undefined,
-      },
+      await tx.plant.update({
+        where: { id },
+        data: {
+          potDiameterMm: input.newPotDiameterMm ?? undefined,
+          potHeightMm: input.newPotHeightMm ?? undefined,
+          substrate: input.substrate ?? undefined,
+        },
+      });
+
+      return event;
     });
 
     return NextResponse.json(event, { status: 201 });

@@ -123,10 +123,14 @@ export async function completeTaskWithEvent(taskId: string, type: CareEventType,
 
   const performedAt = input.performedAt ?? new Date();
 
-  // Creation de l'evenement + passage a COMPLETED dans une seule transaction :
-  // si l'un des deux echoue, l'autre ne doit pas rester applique seul.
-  const [event] = await db.$transaction([
-    db.careEvent.create({
+  // Creation de l'evenement, passage a COMPLETED et generation de la
+  // prochaine echeance dans une seule transaction : sans ca, un echec de
+  // ensurePendingTaskForRule() (ex. panne DB) pouvait laisser un CareEvent
+  // et une tache COMPLETED sans que la regle recurrente ne produise sa
+  // suivante -- l'invariant "une tache recurrente completee doit produire
+  // la suivante" n'etait pas atomique.
+  return db.$transaction(async (tx) => {
+    const event = await tx.careEvent.create({
       data: {
         plantId: task.plantId,
         taskId: task.id,
@@ -137,31 +141,48 @@ export async function completeTaskWithEvent(taskId: string, type: CareEventType,
         note: input.note,
         metadata: toJsonInput(input.method ? { method: input.method, ...input.metadata } : input.metadata),
       },
-    }),
-    db.task.update({ where: { id: task.id }, data: { status: "COMPLETED", completedAt: performedAt } }),
-  ]);
+    });
+    await tx.task.update({ where: { id: task.id }, data: { status: "COMPLETED", completedAt: performedAt } });
 
-  if (task.careRule) {
-    await ensurePendingTaskForRule(task.careRule, performedAt);
-  }
+    if (task.careRule) {
+      await ensurePendingTaskForRule(task.careRule, performedAt, tx);
+    }
 
-  return event;
+    return event;
+  });
 }
 
 /**
  * Enregistre un événement de soin directement sur une plante (sans tâche
  * PENDING préalable, ex. arrosage spontané hors planning), puis rafraîchit
- * la tâche de la règle correspondante si elle existe.
+ * la tâche de la règle correspondante si elle existe. Accepte un client de
+ * transaction optionnel (meme schema que ensurePendingTaskForRule) pour
+ * pouvoir etre englobee dans une transaction plus large par l'appelant (ex.
+ * repot, qui doit aussi mettre a jour la plante de facon atomique).
  */
 export async function recordStandaloneCareEvent(
   plantId: string,
   type: CareEventType,
   input: CareEventInput,
   careRuleId?: string,
+  tx?: Prisma.TransactionClient,
+) {
+  if (tx) {
+    return recordStandaloneCareEventWithClient(plantId, type, input, careRuleId, tx);
+  }
+  return db.$transaction((innerTx) => recordStandaloneCareEventWithClient(plantId, type, input, careRuleId, innerTx));
+}
+
+async function recordStandaloneCareEventWithClient(
+  plantId: string,
+  type: CareEventType,
+  input: CareEventInput,
+  careRuleId: string | undefined,
+  client: Prisma.TransactionClient,
 ) {
   const performedAt = input.performedAt ?? new Date();
 
-  const event = await db.careEvent.create({
+  const event = await client.careEvent.create({
     data: {
       plantId,
       type,
@@ -178,17 +199,17 @@ export async function recordStandaloneCareEvent(
     // filtre plantId ici, un utilisateur pouvait fournir l'id d'une regle
     // appartenant a une AUTRE plante -- y compris d'un autre utilisateur --
     // et en completer/regenerer la tache depuis sa propre plante.
-    const rule = await db.plantCareRule.findFirst({ where: { id: careRuleId, plantId } });
+    const rule = await client.plantCareRule.findFirst({ where: { id: careRuleId, plantId } });
     if (rule) {
       // SNOOZED inclus : un arrosage spontane pendant qu'une tache est
       // reportee doit la completer, pas la laisser orpheline (voir
       // ensurePendingTaskForRule() ci-dessus, qui ne recree plus rien tant
       // qu'une tache active -- PENDING ou SNOOZED -- existe deja).
-      const pendingTask = await db.task.findFirst({ where: { careRuleId, plantId, status: { in: ["PENDING", "SNOOZED"] } } });
+      const pendingTask = await client.task.findFirst({ where: { careRuleId, plantId, status: { in: ["PENDING", "SNOOZED"] } } });
       if (pendingTask) {
-        await db.task.update({ where: { id: pendingTask.id }, data: { status: "COMPLETED", completedAt: performedAt } });
+        await client.task.update({ where: { id: pendingTask.id }, data: { status: "COMPLETED", completedAt: performedAt } });
       }
-      await ensurePendingTaskForRule(rule, performedAt);
+      await ensurePendingTaskForRule(rule, performedAt, client);
     }
   }
 
