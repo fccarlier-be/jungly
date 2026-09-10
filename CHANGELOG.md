@@ -3,6 +3,14 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-10 — Durcissement post-audit6
+
+Suite à une 6e revue de code indépendante (GPT) : aucun nouveau P0/P1/P2, confirmation que les 9 points d'audit5 sont bien présents. Seul point actionnable côté code : épingler les actions GitHub par SHA (protection de branche `main` activée manuellement par l'utilisateur côté GitHub, hors du dépôt).
+
+### Sécurité
+
+- **Actions GitHub épinglées par SHA commit** (`.github/workflows/ci.yml`) : `actions/checkout@v4`/`actions/setup-node@v4` référençaient un tag mobile plutôt qu'un commit immuable. Remplacés par leur SHA exact (`11d5960a...` / `49933ea5...`, tous deux correspondant à `v4.4.0` au moment du changement, en commentaire pour la lisibilité) -- durcissement supply-chain, non critique pour un projet homelab mais gratuit à faire.
+
 ## [Post-MVP] - 2026-09-10 — Durcissement post-audit5
 
 Suite à une 5e revue de code indépendante (GPT, sur l'état post-audit4, commit `4a3ffc72`). Audit le plus précis à ce jour -- aucune affirmation vérifiable ne s'est révélée fausse, et plus aucun P0/P1 d'IDOR/authentification trouvé. Le point le plus notable (#1 ci-dessous) est un effet de bord de mon propre fix d'audit4 (`assertOwnedUpload` autorise la réutilisation légitime d'un upload, mais la suppression n'avait jamais été mise à jour en conséquence).
