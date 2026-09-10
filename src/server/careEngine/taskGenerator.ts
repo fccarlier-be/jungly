@@ -38,8 +38,12 @@ export function mapRuleTypeToTaskType(type: CareRuleType): TaskType {
   return RULE_TYPE_TO_TASK_TYPE[type];
 }
 
-export function buildTaskTitle(type: CareRuleType, plantName: string): string {
-  return `${RULE_TYPE_LABEL[type]} - ${plantName}`;
+// Le nom de la plante n'est pas inclus ici : TaskCard/UpcomingTaskCard
+// l'affichent deja separement (voir src/components/), et le titre stocke en
+// base ne serait de toute facon jamais resynchronise si la plante est
+// renommee ensuite.
+export function buildTaskTitle(type: CareRuleType): string {
+  return RULE_TYPE_LABEL[type];
 }
 
 /** Une règle désactivée ne doit jamais générer de tâche. */

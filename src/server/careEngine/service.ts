@@ -76,14 +76,12 @@ async function ensurePendingTaskForRuleWithClient(
     return null;
   }
 
-  const plant = await client.plant.findUniqueOrThrow({ where: { id: rule.plantId }, select: { name: true } });
-
   const task = await client.task.create({
     data: {
       plantId: rule.plantId,
       careRuleId: rule.id,
       type: mapRuleTypeToTaskType(rule.type),
-      title: buildTaskTitle(rule.type, plant.name),
+      title: buildTaskTitle(rule.type),
       dueAt,
       status: "PENDING",
     },
@@ -261,14 +259,13 @@ export async function evaluateSensorReadingForTasks(sensor: Sensor, reading: Sen
         return;
       }
 
-      const plant = await tx.plant.findUniqueOrThrow({ where: { id: rule.plantId }, select: { name: true } });
       const dueAt = new Date();
       await tx.task.create({
         data: {
           plantId: rule.plantId,
           careRuleId: rule.id,
           type: mapRuleTypeToTaskType(rule.type),
-          title: buildTaskTitle(rule.type, plant.name),
+          title: buildTaskTitle(rule.type),
           dueAt,
           status: "PENDING",
           metadata: { triggeredBySensorId: sensor.id, readingValue: reading.value, readingUnit: reading.unit },

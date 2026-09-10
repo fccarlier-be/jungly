@@ -25,7 +25,7 @@ function heroMessage(taskCount: number, overdueCount: number): string {
   // aujourd'hui.").
   if (taskCount === 0) return "";
   if (overdueCount > 0) {
-    return `${overdueCount} plante${overdueCount > 1 ? "s a" : " a"} besoin${overdueCount > 1 ? "" : ""} de toi, un peu en retard.`;
+    return `${overdueCount} plante${overdueCount > 1 ? "s" : ""} ${overdueCount > 1 ? "ont" : "a"} besoin de toi, un peu en retard.`;
   }
   if (taskCount === 1) return "Une petite chose t'attend aujourd'hui.";
   return `Petite tournée d'arrosage : ${taskCount} tâches t'attendent aujourd'hui.`;

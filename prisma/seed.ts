@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { LIBRARY_SEED_ENTRIES } from "./librarySeed";
 import { mapPlantfolioEntry, type PlantfolioRawEntry } from "./plantfolioMapping";
 import plantfolioData from "./plantfolioData.json";
+import { buildTaskTitle } from "@/server/careEngine/taskGenerator";
 
 const db = new PrismaClient();
 
@@ -377,7 +378,7 @@ async function main() {
         plantId: plant.id,
         careRuleId: wateringRule.id,
         type: "WATERING",
-        title: `Arrosage - ${plant.name}`,
+        title: buildTaskTitle("WATERING"),
         dueAt: wateringDueAt,
         status: "PENDING",
       },
@@ -417,7 +418,7 @@ async function main() {
           plantId: plant.id,
           careRuleId: fertilizingRule.id,
           type: "FERTILIZING",
-          title: `Fertilisation - ${plant.name}`,
+          title: buildTaskTitle("FERTILIZING"),
           dueAt: fertilizingDueAt,
           status: "PENDING",
         },
@@ -450,7 +451,7 @@ async function main() {
           plantId: plant.id,
           careRuleId: repottingRule.id,
           type: "REPOTTING",
-          title: `Rempotage - ${plant.name}`,
+          title: buildTaskTitle("REPOTTING"),
           dueAt: repottingDueAt,
           status: "PENDING",
         },
