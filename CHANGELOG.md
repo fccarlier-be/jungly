@@ -3,6 +3,14 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-10 — Durcissement post-audit5
+
+Suite à une 5e revue de code indépendante (GPT, sur l'état post-audit4, commit `4a3ffc72`). Audit le plus précis à ce jour -- aucune affirmation vérifiable ne s'est révélée fausse, et plus aucun P0/P1 d'IDOR/authentification trouvé. Le point le plus notable (#1 ci-dessous) est un effet de bord de mon propre fix d'audit4 (`assertOwnedUpload` autorise la réutilisation légitime d'un upload, mais la suppression n'avait jamais été mise à jour en conséquence).
+
+### Corrigé
+
+- **Suppression physique trop agressive d'un upload réutilisé** : `assertOwnedUpload()` (audit4) autorise délibérément qu'une même URL `/uploads/...` soit référencée par plusieurs ressources du même utilisateur (couverture + galerie de plantes différentes, par exemple), mais `DELETE /photos/:photoId` et `DELETE /plants/:id` supprimaient le fichier physique sans vérifier qu'aucune autre ligne ne le référençait encore -- une photo légitimement partagée entre deux plantes du même compte pouvait donc casser silencieusement l'autre. Nouvelle fonction `deleteUploadedFileIfUnreferenced()` (`src/server/uploads.ts`) : vérifie `Plant.photoUrl`/`PlantPhoto.url`/`Note.photoUrl` avant de toucher au fichier, ne supprime que si plus aucune référence ne subsiste. Vérifié en direct : upload partagé entre deux plantes → suppression de la première référence → fichier intact → suppression de la seconde → fichier réellement supprimé.
+
 ## [Post-MVP] - 2026-09-10 — Durcissement post-audit4
 
 Suite à une 4e revue de code indépendante (GPT, sur l'état post-audit3, CI verte). Audit le plus précis jusqu'ici -- une seule affirmation fausse (Prisma "6.2.1, P1 immédiat" : déjà `6.19.3` dans `package-lock.json`/le conteneur en prod, même faux-positif récurrent que Next.js dans audit2 et audit3 -- fermé définitivement en épinglant les versions exactes des dépendances sensibles, voir plus bas).

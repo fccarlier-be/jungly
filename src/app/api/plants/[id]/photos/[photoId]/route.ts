@@ -3,7 +3,7 @@ import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { getOwnedPlant, getOwnedPlantPhoto } from "@/server/ownership";
-import { deleteUploadedFile } from "@/server/uploads";
+import { deleteUploadedFileIfUnreferenced } from "@/server/uploads";
 
 type Params = { params: Promise<{ id: string; photoId: string }> };
 
@@ -30,10 +30,12 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       await db.plant.update({ where: { id }, data: { photoUrl: fallback?.url ?? null } });
     }
 
-    // Le nom de fichier est un UUID genere a l'upload : aucune autre ligne
-    // ne peut referencer la meme url, le fichier physique est donc bien
-    // orphelin une fois cette PlantPhoto supprimee.
-    await deleteUploadedFile(photo.url);
+    // Le nom de fichier est un UUID genere a l'upload, mais assertOwnedUpload()
+    // autorise deliberement la reutilisation d'une meme URL entre plusieurs
+    // ressources du meme utilisateur (couverture/galerie/note d'une AUTRE
+    // plante) -- ne supprimer le fichier physique que si plus aucune ligne
+    // ne le reference.
+    await deleteUploadedFileIfUnreferenced(photo.url);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

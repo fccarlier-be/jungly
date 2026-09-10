@@ -4,7 +4,7 @@ import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { getOwnedPlant, getOwnedLocation } from "@/server/ownership";
 import { updatePlantSchema } from "@/server/validation/plant";
-import { deleteUploadedFile, assertOwnedUpload } from "@/server/uploads";
+import { deleteUploadedFileIfUnreferenced, assertOwnedUpload } from "@/server/uploads";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -71,7 +71,12 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     );
 
     await db.plant.delete({ where: { id } });
-    await Promise.all([...urlsToDelete].map((url) => deleteUploadedFile(url)));
+    // La plante (et ses PlantPhoto/Note en cascade) n'existe deja plus a ce
+    // stade : la verification "encore reference ailleurs" ne peut donc pas
+    // se faire abuser par les propres lignes de la plante supprimee, mais
+    // detecte correctement une URL encore utilisee par une AUTRE plante du
+    // meme compte (reutilisation legitime, voir assertOwnedUpload()).
+    await Promise.all([...urlsToDelete].map((url) => deleteUploadedFileIfUnreferenced(url)));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

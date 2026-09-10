@@ -33,6 +33,29 @@ export async function deleteUploadedFile(url: string | null | undefined): Promis
 }
 
 /**
+ * Comme deleteUploadedFile(), mais verifie d'abord qu'aucune autre ligne ne
+ * reference encore cette URL avant de toucher au fichier physique --
+ * necessaire depuis qu'assertOwnedUpload() autorise explicitement la
+ * reutilisation legitime d'un meme upload entre plusieurs ressources du
+ * meme utilisateur (couverture + galerie + note d'une AUTRE plante, par
+ * exemple) : sans ce controle, supprimer l'une de ces references effacait
+ * le fichier physique alors qu'une autre le referencait encore.
+ */
+export async function deleteUploadedFileIfUnreferenced(url: string | null | undefined): Promise<void> {
+  if (!url || !url.startsWith("/uploads/")) {
+    return;
+  }
+  const stillReferenced = await db.plant.findFirst({
+    where: { OR: [{ photoUrl: url }, { photos: { some: { url } } }, { plantNotes: { some: { photoUrl: url } } }] },
+    select: { id: true },
+  });
+  if (stillReferenced) {
+    return;
+  }
+  await deleteUploadedFile(url);
+}
+
+/**
  * Verifie qu'une URL /uploads/... fournie par le client appartient bien a
  * l'utilisateur -- soit parce qu'il l'a lui-meme televersee (table Upload),
  * soit parce qu'elle est deja referencee par une de SES plantes/photos/notes
