@@ -136,7 +136,13 @@ export default function PlantForm({
    * toujours la main.
    */
   function applyLibraryEntry(entry: LibraryEntry) {
-    setLibraryEntryId(entry.id);
+    // entry.id absent (chaine vide) : recherche externe utilisee par un
+    // compte non-admin (voir ExternalSpeciesSearch.tsx, qui n'ecrit plus
+    // dans la bibliotheque partagee) -- les champs sont pre-remplis mais la
+    // plante n'est liee a aucune fiche partagee, comme une plante perso.
+    if (entry.id) {
+      setLibraryEntryId(entry.id);
+    }
     setSelectedLibraryName(entry.commonName);
     setLibraryQuery(entry.commonName);
     setLibraryResults([]);

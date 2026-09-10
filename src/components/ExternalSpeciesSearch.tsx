@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { Search, Sprout, ExternalLink } from "lucide-react";
 
 type ExternalSource = "OPENPLANTBOOK" | "PERENUAL";
@@ -57,6 +58,8 @@ export default function ExternalSpeciesSearch({
   query: string;
   onImported?: (entry: ImportedLibraryEntry) => void;
 }) {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.isAdmin ?? false;
   const [status, setStatus] = useState<"idle" | "searching" | "results" | "error">("idle");
   const [results, setResults] = useState<ExternalPreviewItem[]>([]);
   const [resultsSource, setResultsSource] = useState<ExternalSource | null>(null);
@@ -105,15 +108,33 @@ export default function ExternalSpeciesSearch({
     setImporting(true);
     setError(null);
     try {
-      const res = await fetch("/api/library/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source: preview.source, sourceId: preview.sourceId }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error ?? "Import impossible.");
-      setImported(true);
-      onImported?.(body);
+      if (isAdmin) {
+        // Seul l'admin peut ecrire dans PlantLibraryEntry (table globale,
+        // partagee par tous les comptes -- voir POST /api/library/import).
+        const res = await fetch("/api/library/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: preview.source, sourceId: preview.sourceId }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error ?? "Import impossible.");
+        setImported(true);
+        onImported?.(body);
+      } else {
+        // Compte normal : jamais d'ecriture dans la bibliotheque partagee.
+        // Les donnees deja recuperees pour l'apercu (aucun appel reseau
+        // supplementaire) pre-remplissent directement SA plante -- id
+        // absent, PlantForm ne definit alors pas libraryEntryId (fiche non
+        // liee a une entree partagee, comme une plante entierement perso).
+        setImported(true);
+        onImported?.({
+          id: "",
+          commonName: preview.commonName,
+          scientificName: preview.scientificName,
+          family: preview.family,
+          careProfile: preview.careProfile,
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inattendue.");
     } finally {
@@ -202,7 +223,7 @@ export default function ExternalSpeciesSearch({
               </>
             )}
           </p>
-          {preview.alreadyImported && !imported && (
+          {isAdmin && preview.alreadyImported && !imported && (
             <p className="text-xs" style={{ color: "var(--primary-strong)" }}>Déjà présente dans ta bibliothèque.</p>
           )}
           <div className="flex gap-2 pt-1">
@@ -211,7 +232,15 @@ export default function ExternalSpeciesSearch({
               disabled={importing || imported}
               className="btn-primary flex-1 rounded-xl py-2 text-sm font-semibold disabled:opacity-60"
             >
-              {imported ? "Ajoutée ✓" : importing ? "Import..." : preview.alreadyImported ? "Mettre à jour ma bibliothèque" : "Ajouter à ma bibliothèque"}
+              {imported
+                ? "Ajoutée ✓"
+                : importing
+                  ? "Import..."
+                  : !isAdmin
+                    ? "Utiliser pour ma plante"
+                    : preview.alreadyImported
+                      ? "Mettre à jour ma bibliothèque"
+                      : "Ajouter à ma bibliothèque"}
             </button>
             <button onClick={() => setPreview(null)} className="chip rounded-xl px-3 py-2 text-sm">
               Retour

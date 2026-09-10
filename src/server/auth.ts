@@ -45,7 +45,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        return { id: user.id, email: user.email, name: user.name ?? undefined };
+        return { id: user.id, email: user.email, name: user.name ?? undefined, isAdmin: user.isAdmin };
       },
     }),
   ],
@@ -53,6 +53,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
+        token.isAdmin = user.isAdmin;
       }
       // Déclenché côté client par `useSession().update({ name })` (voir
       // AccountSettings.tsx) : la session JWT ne relit jamais la base toute
@@ -67,6 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
+        session.user.isAdmin = (token.isAdmin as boolean | undefined) ?? false;
       }
       return session;
     },
