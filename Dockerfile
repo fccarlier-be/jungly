@@ -34,6 +34,14 @@ FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PATH="/app/node_modules/.bin:${PATH}"
+# Le scheduler (src/server/notifications/scheduler.ts) calcule les
+# echeances/le digest quotidien avec des methodes Date locales
+# (getHours/setHours/...) -- sans fuseau explicite, un conteneur tournerait
+# en UTC. Node.js embarque son propre ICU et resout TZ tout seul, meme sans
+# le paquet tzdata cote OS (absent d'Alpine) -- deja effectif via
+# `environment: TZ=...` dans docker-compose.yml, fixe ici aussi pour que
+# l'image reste correcte par defaut meme lancee hors de ce compose precis.
+ENV TZ=Europe/Brussels
 
 # On garde le node_modules complet (pruned) plutot que le sous-ensemble
 # "standalone" trace par Next.js : le CLI Prisma (utilise par l'entrypoint
