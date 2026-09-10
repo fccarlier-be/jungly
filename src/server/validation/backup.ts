@@ -18,6 +18,12 @@ const MAX_LONG_STRING = 5000;
 const MAX_URL_STRING = 500;
 const MAX_JSON_SERIALIZED_SIZE = 10_000;
 
+// Chaque capteur importe recoit une cle API fraiche (bcrypt, cout 10) --
+// MAX_SENSORS_PER_PLANT (20) x MAX_PLANTS (1000) autoriserait jusqu'a
+// 20 000 hachages bcrypt dans une seule transaction d'import sans ce
+// plafond global, bien au-dela de tout usage homelab reel.
+const MAX_SENSORS_TOTAL = 100;
+
 // Le zip lui-meme est deja plafonne a 10 Mo compresses par nginx
 // (client_max_body_size), mais JSZip decompresse entierement en memoire
 // (voir sa doc "limitations") -- sans plafond explicite sur la taille
@@ -120,30 +126,35 @@ const fertilizerBackupSchema = z.object({
   notes: z.string().max(MAX_LONG_STRING).nullable().optional(),
 });
 
-export const backupSchema = z.object({
-  version: z.literal(1),
-  exportedAt: z.string().max(MAX_SHORT_STRING).optional(),
-  locations: z.array(z.object({ name: z.string().max(MAX_SHORT_STRING) })).max(MAX_LOCATIONS).default([]),
-  fertilizers: z.array(fertilizerBackupSchema).max(MAX_FERTILIZERS).default([]),
-  plants: z.array(plantBackupSchema).max(MAX_PLANTS).default([]),
-  weatherProfile: z
-    .object({
-      city: z.string().max(MAX_SHORT_STRING),
-      latitude: z.number(),
-      longitude: z.number(),
-      wateringIntervalMultiplier: z.number().optional(),
-    })
-    .nullable()
-    .optional(),
-  notificationPreference: z
-    .object({
-      enabled: z.boolean(),
-      notificationTime: z.string().max(MAX_SHORT_STRING),
-      overdueEnabled: z.boolean(),
-      advanceReminderDays: z.number(),
-    })
-    .nullable()
-    .optional(),
-});
+export const backupSchema = z
+  .object({
+    version: z.literal(1),
+    exportedAt: z.string().max(MAX_SHORT_STRING).optional(),
+    locations: z.array(z.object({ name: z.string().max(MAX_SHORT_STRING) })).max(MAX_LOCATIONS).default([]),
+    fertilizers: z.array(fertilizerBackupSchema).max(MAX_FERTILIZERS).default([]),
+    plants: z.array(plantBackupSchema).max(MAX_PLANTS).default([]),
+    weatherProfile: z
+      .object({
+        city: z.string().max(MAX_SHORT_STRING),
+        latitude: z.number(),
+        longitude: z.number(),
+        wateringIntervalMultiplier: z.number().optional(),
+      })
+      .nullable()
+      .optional(),
+    notificationPreference: z
+      .object({
+        enabled: z.boolean(),
+        notificationTime: z.string().max(MAX_SHORT_STRING),
+        overdueEnabled: z.boolean(),
+        advanceReminderDays: z.number(),
+      })
+      .nullable()
+      .optional(),
+  })
+  .refine((data) => data.plants.reduce((sum, p) => sum + p.sensors.length, 0) <= MAX_SENSORS_TOTAL, {
+    message: `Trop de capteurs au total (max ${MAX_SENSORS_TOTAL}).`,
+    path: ["plants"],
+  });
 
 export type BackupData = z.infer<typeof backupSchema>;

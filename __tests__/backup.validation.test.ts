@@ -75,4 +75,32 @@ describe("backupSchema -- limites structurelles", () => {
     const plants = [{ name: "Test", careRules: [], careEvents, plantNotes: [], photos: [] }];
     expect(backupSchema.safeParse(minimalBackup({ plants })).success).toBe(false);
   });
+
+  function plantsWithSensors(total: number) {
+    const plants: Array<Record<string, unknown>> = [];
+    let remaining = total;
+    while (remaining > 0) {
+      // Reparti sur plusieurs plantes, jamais plus de 20/plante (MAX_SENSORS_PER_PLANT)
+      // -- le plafond teste ici est le total global, pas la limite par plante.
+      const count = Math.min(20, remaining);
+      plants.push({
+        name: `Plante ${plants.length}`,
+        careRules: [],
+        careEvents: [],
+        plantNotes: [],
+        photos: [],
+        sensors: Array.from({ length: count }, (_, i) => ({ type: "SOIL_MOISTURE" as const, name: `Capteur ${plants.length}-${i}` })),
+      });
+      remaining -= count;
+    }
+    return plants;
+  }
+
+  it("rejette plus de 100 capteurs au total, repartis sur plusieurs plantes", () => {
+    expect(backupSchema.safeParse(minimalBackup({ plants: plantsWithSensors(101) })).success).toBe(false);
+  });
+
+  it("accepte exactement 100 capteurs au total", () => {
+    expect(backupSchema.safeParse(minimalBackup({ plants: plantsWithSensors(100) })).success).toBe(true);
+  });
 });
