@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { auth } from "@/server/auth";
 
 export default auth((req) => {
-  if (!req.auth) {
+  // req.auth?.user (pas seulement req.auth) : defense en profondeur
+  // recommandee par l'advisory NextAuth GHSA-8fpg-xm3f-6cx3 -- une config
+  // invalide peut faire renvoyer un objet tronque mais truthy par auth(),
+  // beta.32 corrige deja le fail-open cote librairie, ceci n'est qu'une
+  // securite supplementaire si jamais ce comportement revenait.
+  if (!req.auth?.user) {
     const loginUrl = new URL("/login", req.nextUrl.origin);
     return NextResponse.redirect(loginUrl);
   }
