@@ -20,6 +20,7 @@ import {
 import { ensurePendingTaskForRule } from "@/server/careEngine/service";
 import { resolveUploadedFilePath, deleteUploadedFile } from "@/server/uploads";
 import { generateSensorApiKey } from "@/server/sensorAuth";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 // Meme recadrage que /api/uploads (photo affichee au plus en bandeau large) :
 // un import reste soumis aux memes bornes qu'un televersement normal.
@@ -42,6 +43,14 @@ export async function POST(request: NextRequest) {
 
   try {
     const userId = await requireUserId();
+
+    // Une transaction d'import peut a elle seule traiter 1000 plantes/100
+    // capteurs/50 Mio decompresses -- un usage repete en boucle reste
+    // couteux pour SQLite meme borne par les quotas de creation individuels.
+    const { allowed, retryAfterSeconds } = checkRateLimit(`import:${userId}`, 3, 60 * 60 * 1000);
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
 
     const formData = await request.formData();
     const file = formData.get("file");

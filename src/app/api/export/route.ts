@@ -7,6 +7,7 @@ import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { resolveUploadedFilePath } from "@/server/uploads";
 import type { BackupData } from "@/server/validation/backup";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 /**
  * Export complet des données de l'utilisateur, sous forme d'archive .zip
@@ -22,6 +23,14 @@ import type { BackupData } from "@/server/validation/backup";
 export async function GET() {
   try {
     const userId = await requireUserId();
+
+    // Requete lourde (jusqu'a 1000 readings/capteur, lecture de tous les
+    // fichiers photo, compression ZIP) -- un usage repete en boucle fait
+    // travailler Prisma/SQLite/le filesystem/Sharp/JSZip pour rien.
+    const { allowed, retryAfterSeconds } = checkRateLimit(`export:${userId}`, 5, 60 * 60 * 1000);
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
 
     const [locations, fertilizers, plants, preference, weatherProfile] = await Promise.all([
       db.location.findMany({ where: { userId } }),
