@@ -3,6 +3,14 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-10 — Durcissement post-audit3
+
+Suite à une 3e revue de code indépendante (GPT, sur l'état post-audit2), vérifiée ligne par ligne contre le code réel avant correction -- aucune affirmation vérifiable ne s'est révélée fausse, sauf une sous-estimée (Next.js : RCE non-authentifiées critiques CVSS 9.0/9.5 confirmées par recherche web, pas juste "des advisories") et une surestimée (le plancher `^15.1.4` de `package.json` était périmé, mais `package-lock.json`/le conteneur en prod tournaient déjà en `next@15.5.25`, patché, depuis la régénération du lockfile de la phase 5 d'audit2 -- même type de faux positif que celui trouvé dans audit2 lui-même).
+
+### Sécurité
+
+- **Plancher `next` corrigé dans `package.json`** (`^15.1.4` → `^15.5.24`) pour refléter la réalité : la version réellement installée (`package-lock.json`, image Docker en prod) était déjà `15.5.25`, au-delà du correctif du bulletin d'août 2026 (deux RCE critiques non-authentifiées, CVSS 9.0/9.5 -- AVIF via `libheif`/`sharp`, non exploitable ici en pratique faute d'usage de `next/image` ; path traversal Windows, non pertinent sur ce déploiement Linux). Aucun changement de version réel, juste une correction de plancher déclaré pour éviter toute confusion future.
+
 ## [Post-MVP] - 2026-09-10 — Durcissement post-audit2
 
 Suite à une 2e revue de code indépendante (GPT, sur l'état post-E2E/CI), vérifiée ligne par ligne contre le code réel avant correction -- deux de ses affirmations se sont révélées fausses (version Next.js déjà à jour d'après le lockfile ; le "bug" `overdueEnabled` ne se reproduit pas selon le calcul réel du digest), et un bug adjacent réel a été trouvé en vérifiant ce dernier point.
