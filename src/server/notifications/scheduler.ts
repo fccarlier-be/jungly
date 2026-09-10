@@ -68,6 +68,31 @@ async function tickWeather(): Promise<void> {
   }
 }
 
+// Sans ca, un capteur legitime a 1 mesure/minute produit ~525 600
+// lectures/an -- SQLite/Prisma commencent a souffrir sur les requetes
+// historiques bien avant que ce chiffre devienne confortable. Pas de
+// downsampling/agregation (sur-ingenierie tant qu'aucun capteur reel n'est
+// branche, voir README) : purge brute au-dela de 90 jours.
+const SENSOR_READING_RETENTION_DAYS = 90;
+let lastSensorPurgeDay: Date | null = null;
+
+async function tickSensorRetention(): Promise<void> {
+  const now = new Date();
+  if (lastSensorPurgeDay && isSameDay(lastSensorPurgeDay, now)) {
+    return;
+  }
+  const cutoff = new Date(now.getTime() - SENSOR_READING_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  try {
+    const { count } = await db.sensorReading.deleteMany({ where: { recordedAt: { lt: cutoff } } });
+    if (count > 0) {
+      console.log(`[sensors] purge : ${count} lecture(s) de plus de ${SENSOR_READING_RETENTION_DAYS} jours supprimée(s).`);
+    }
+    lastSensorPurgeDay = now;
+  } catch (error) {
+    console.error("[sensors] échec de la purge des lectures :", error);
+  }
+}
+
 let started = false;
 
 /**
@@ -92,10 +117,12 @@ export function startNotificationScheduler(): void {
   function loop(): void {
     tick().catch((error) => console.error("[notifications] verification echouee :", error));
     tickWeather().catch((error) => console.error("[weather] verification echouee :", error));
+    tickSensorRetention().catch((error) => console.error("[sensors] verification echouee :", error));
     setTimeout(loop, delayToNextQuarterHour());
   }
 
   tick().catch((error) => console.error("[notifications] première vérification échouée :", error));
   tickWeather().catch((error) => console.error("[weather] première vérification échouée :", error));
+  tickSensorRetention().catch((error) => console.error("[sensors] première vérification échouée :", error));
   setTimeout(loop, delayToNextQuarterHour());
 }
