@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export default function AccountSettings({ email, initialName }: { email?: string | null; initialName?: string | null }) {
@@ -11,6 +11,11 @@ export default function AccountSettings({ email, initialName }: { email?: string
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function save() {
     if (!name.trim() || name.trim() === initialName) return;
@@ -32,6 +37,22 @@ export default function AccountSettings({ email, initialName }: { email?: string
       setError(err instanceof Error ? err.message : "Erreur inattendue.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function deleteAccount() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/user", { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? "Impossible de supprimer le compte.");
+      }
+      await signOut({ callbackUrl: "/login" });
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Erreur inattendue.");
+      setDeleting(false);
     }
   }
 
@@ -70,6 +91,61 @@ export default function AccountSettings({ email, initialName }: { email?: string
           <p className="mt-1 text-xs" style={{ color: "var(--primary-strong)" }}>
             Nom mis à jour.
           </p>
+        )}
+      </div>
+
+      <div className="mt-4 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+        {!confirmingDelete ? (
+          <button
+            onClick={() => setConfirmingDelete(true)}
+            className="text-sm font-medium"
+            style={{ color: "var(--danger)" }}
+          >
+            Supprimer mon compte
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm" style={{ color: "var(--danger)" }}>
+              Cette action est définitive : toutes tes plantes, tâches, historiques et photos seront supprimés
+              sans possibilité de récupération.
+            </p>
+            <label htmlFor="confirm-email" className="block text-xs font-medium">
+              Tape ton email ({email}) pour confirmer
+            </label>
+            <input
+              id="confirm-email"
+              value={confirmEmail}
+              onChange={(e) => setConfirmEmail(e.target.value)}
+              placeholder={email ?? ""}
+              className="input w-full px-3 py-2 text-sm"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={deleteAccount}
+                disabled={deleting || confirmEmail.trim().toLowerCase() !== (email ?? "").toLowerCase()}
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                style={{ background: "var(--danger)" }}
+              >
+                {deleting ? "Suppression..." : "Supprimer définitivement"}
+              </button>
+              <button
+                onClick={() => {
+                  setConfirmingDelete(false);
+                  setConfirmEmail("");
+                  setDeleteError(null);
+                }}
+                disabled={deleting}
+                className="btn-ghost rounded-xl px-4 py-2 text-sm"
+              >
+                Annuler
+              </button>
+            </div>
+            {deleteError && (
+              <p className="text-xs" style={{ color: "var(--danger)" }}>
+                {deleteError}
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>

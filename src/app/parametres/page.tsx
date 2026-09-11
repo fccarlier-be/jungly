@@ -65,11 +65,6 @@ export default async function SettingsPage() {
       </section>
 
       <section className="card p-4 space-y-2 text-sm">
-        <h2 className="font-semibold">Unités</h2>
-        <p className="text-muted">Volumes en ml/L, distances en mm/cm, converties automatiquement à l&apos;affichage.</p>
-      </section>
-
-      <section className="card p-4 space-y-2 text-sm">
         <h2 className="font-semibold">Export / Import</h2>
         <ExportImport />
       </section>
