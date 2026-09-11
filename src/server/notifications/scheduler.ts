@@ -1,6 +1,7 @@
 import { db } from "@/server/db";
 import { sendDailyDigest } from "./notificationService";
 import { refreshWeatherProfile } from "@/server/weather/refresh";
+import { collectOrphanFiles } from "@/server/fileGarbageCollector";
 
 const QUARTER_HOUR_MS = 15 * 60 * 1000;
 
@@ -93,6 +94,25 @@ async function tickSensorRetention(): Promise<void> {
   }
 }
 
+// Reconciliation DB <-> filesystem (voir fileGarbageCollector.ts, audit15.md
+// #4) : les fichiers orphelins ne s'accumulent que lentement (un crash
+// serveur au mauvais moment, pas un evenement frequent), une verification
+// quotidienne suffit largement.
+let lastGcDay: Date | null = null;
+
+async function tickFileGc(): Promise<void> {
+  const now = new Date();
+  if (lastGcDay && isSameDay(lastGcDay, now)) {
+    return;
+  }
+  try {
+    await collectOrphanFiles(now.getTime());
+    lastGcDay = now;
+  } catch (error) {
+    console.error("[gc] verification echouee :", error);
+  }
+}
+
 let started = false;
 
 /**
@@ -105,6 +125,14 @@ let started = false;
  * conteneur -- sinon l'heure choisie par l'utilisateur (elle-même restreinte
  * aux quarts d'heure, voir validation/notification.ts) pouvait être
  * atteinte jusqu'à 14 minutes avant d'être détectée.
+ *
+ * Hypothèse mono-instance assumée (documentée ici, voir audit15.md, #3) :
+ * `lastDigestSentAt`/`lastGcDay` empêchent une répétition au sein d'un même
+ * process, mais ne constituent pas un verrou distribué -- deux instances de
+ * l'application tournant simultanément exécuteraient chacune leur propre
+ * scheduler et pourraient dupliquer un envoi. Comme le rate limiter (voir
+ * rateLimit.ts), acceptable tant que Jungly reste un unique conteneur ; à
+ * revoir (verrou distribué ou file de jobs) si ça change un jour.
  */
 export function startNotificationScheduler(): void {
   if (started) {
@@ -118,11 +146,13 @@ export function startNotificationScheduler(): void {
     tick().catch((error) => console.error("[notifications] verification echouee :", error));
     tickWeather().catch((error) => console.error("[weather] verification echouee :", error));
     tickSensorRetention().catch((error) => console.error("[sensors] verification echouee :", error));
+    tickFileGc().catch((error) => console.error("[gc] verification echouee :", error));
     setTimeout(loop, delayToNextQuarterHour());
   }
 
   tick().catch((error) => console.error("[notifications] première vérification échouée :", error));
   tickWeather().catch((error) => console.error("[weather] première vérification échouée :", error));
   tickSensorRetention().catch((error) => console.error("[sensors] première vérification échouée :", error));
+  tickFileGc().catch((error) => console.error("[gc] première vérification échouée :", error));
   setTimeout(loop, delayToNextQuarterHour());
 }
