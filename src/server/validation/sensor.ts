@@ -11,7 +11,11 @@ const MAX_READING_AGE_MS = 48 * 60 * 60 * 1000;
 const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
 export const createReadingSchema = z.object({
-  value: z.number(),
+  // .finite() : un nombre trop grand pour IEEE754 (ex. 1e400) devient
+  // Infinity/-Infinity au parsing JSON sans erreur -- une seule lecture avec
+  // cette valeur ferait declencher a tort chaque regle MOISTURE_THRESHOLD de
+  // la plante (readingValue <= threshold toujours vrai avec -Infinity).
+  value: z.number().finite(),
   unit: z.string().trim().min(1).max(20),
   recordedAt: z.coerce
     .date()

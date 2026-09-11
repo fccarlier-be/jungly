@@ -216,17 +216,25 @@ async function recordStandaloneCareEventWithClient(
   return event;
 }
 
-/** Reporte une tâche sans jamais toucher à la règle de récurrence. */
+/**
+ * Reporte une tâche sans jamais toucher à la règle de récurrence.
+ *
+ * Vérification ET transition du statut dans une seule operation atomique
+ * (updateMany conditionnel), comme completeTaskWithEvent() -- meme race
+ * sinon possible : deux requetes concurrentes (ex. /complete et /snooze sur
+ * la meme tache) pouvaient toutes les deux lire PENDING avant que l'une des
+ * deux ne commit, laissant la tache SNOOZED alors qu'un CareEvent existe
+ * deja pour elle.
+ */
 export async function snoozeTaskById(taskId: string, until: Date) {
-  const task = await db.task.findUniqueOrThrow({ where: { id: taskId } });
-  if (!COMPLETABLE_STATUSES.includes(task.status)) {
-    throw new ConflictError("Cette tâche a déjà été traitée.");
-  }
-
-  return db.task.update({
-    where: { id: taskId },
+  const { count } = await db.task.updateMany({
+    where: { id: taskId, status: { in: COMPLETABLE_STATUSES } },
     data: { status: "SNOOZED", snoozedUntil: until },
   });
+  if (count === 0) {
+    throw new ConflictError("Cette tâche a déjà été traitée.");
+  }
+  return db.task.findUniqueOrThrow({ where: { id: taskId } });
 }
 
 /**

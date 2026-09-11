@@ -4,6 +4,14 @@ import bcrypt from "bcryptjs";
 import { db } from "@/server/db";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
+// Hash bcrypt factice (mot de passe jamais utilise, ne correspond a aucun
+// compte) : compare contre ce hash quand l'email n'existe pas, pour que le
+// temps de reponse soit le meme que pour un email existant avec un mauvais
+// mot de passe -- sans ca, l'absence de bcrypt.compare() dans ce cas rendait
+// la reponse mesurablement plus rapide, permettant de deviner par mesure de
+// temps quels emails ont un compte (avant meme le rate limit ci-dessous).
+const DUMMY_PASSWORD_HASH = "$2a$10$y/yA0hsuIi4RJkxSwcIjSu2EdQIhPjwHsWg2V/n80IO7EjlzAhmA2";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
@@ -36,12 +44,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const user = await db.user.findUnique({ where: { email } });
-        if (!user) {
-          return null;
-        }
-
-        const valid = await bcrypt.compare(password, user.passwordHash);
-        if (!valid) {
+        const valid = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+        if (!user || !valid) {
           return null;
         }
 

@@ -3,7 +3,7 @@ import { Prisma } from "@generated/prisma/client";
 import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
-import { getOwnedCareRule } from "@/server/ownership";
+import { getOwnedCareRule, getOwnedFertilizer } from "@/server/ownership";
 import { recurrenceComboCheckSchema, updateCareRuleSchema, configSchemaByType } from "@/server/validation/careRule";
 import { ensurePendingTaskForRule } from "@/server/careEngine/service";
 
@@ -27,6 +27,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     let validatedConfiguration = input.configuration;
     if (input.configuration !== undefined) {
       validatedConfiguration = configSchemaByType[existing.type].parse(input.configuration);
+    }
+
+    // Meme verification qu'a la creation (POST /api/care-rules) : sans elle,
+    // un PATCH pouvait faire pointer une regle FERTILIZING vers l'engrais
+    // d'un AUTRE compte.
+    if (existing.type === "FERTILIZING" && (validatedConfiguration as { fertilizerId?: string } | undefined)?.fertilizerId) {
+      await getOwnedFertilizer(userId, (validatedConfiguration as { fertilizerId: string }).fertilizerId);
     }
 
     // updateCareRuleSchema ne peut pas, a lui seul, verifier la coherence

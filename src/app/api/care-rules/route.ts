@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
-import { getOwnedPlant } from "@/server/ownership";
+import { getOwnedPlant, getOwnedFertilizer } from "@/server/ownership";
 import { createCareRuleSchema } from "@/server/validation/careRule";
 import { ensurePendingTaskForRule } from "@/server/careEngine/service";
 
@@ -13,6 +13,14 @@ export async function POST(request: NextRequest) {
     const input = createCareRuleSchema.parse(body);
 
     await getOwnedPlant(userId, input.plantId);
+    // configuration.fertilizerId est un id fourni par le client (regle
+    // FERTILIZING) : sans cette verification, un utilisateur pouvait faire
+    // pointer sa regle vers l'engrais d'un AUTRE compte, dont le nom et la
+    // composition NPK sont ensuite affiches sur son propre tableau de bord
+    // (page.tsx resout ces ids sans filtrer par userId).
+    if (input.type === "FERTILIZING" && input.configuration?.fertilizerId) {
+      await getOwnedFertilizer(userId, input.configuration.fertilizerId);
+    }
 
     // Creation de la regle + generation de sa premiere tache dans une seule
     // transaction : sans ca, un echec dans ensurePendingTaskForRule (ex.
