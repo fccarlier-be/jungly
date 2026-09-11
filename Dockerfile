@@ -3,6 +3,9 @@
 
 FROM node:22-alpine AS deps
 WORKDIR /app
+# better-sqlite3 (adapter Prisma 7, voir src/server/db.ts) compile un binaire
+# natif a l'installation (node-gyp) -- absent de l'image Alpine de base.
+RUN apk add --no-cache python3 make g++
 COPY package.json package-lock.json* ./
 # @playwright/test (devDependency, tests E2E sous e2e/) telecharge sinon des
 # navigateurs (~300 Mo) au moindre `npm ci` -- inutile pour construire
@@ -19,6 +22,11 @@ ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
 ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# `prisma generate` n'a besoin d'aucune connexion reelle (il ne fait
+# qu'inspecter le schema), mais prisma.config.ts valide desormais que
+# DATABASE_URL resout a quelque chose des cette etape -- valeur factice,
+# ecrasee au runtime par docker-compose.yml (DATABASE_URL=/app/data/...).
+ENV DATABASE_URL="file:./build-placeholder.db"
 RUN npx prisma generate
 # Cache de build Next.js (compilation incrementale SWC) persiste entre les
 # `docker compose build` successifs sur cette machine -- sans lui, chaque
@@ -67,7 +75,13 @@ COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
 COPY --from=build --chown=node:node /app/package.json ./package.json
 COPY --from=build --chown=node:node /app/tsconfig.json ./tsconfig.json
+COPY --from=build --chown=node:node /app/prisma.config.ts ./prisma.config.ts
 COPY --from=build --chown=node:node /app/prisma ./prisma
+# Client Prisma genere hors de node_modules (voir prisma/schema.prisma,
+# generator.output) : le CLI (migrate deploy/db seed, via docker-entrypoint.sh)
+# et les scripts prisma/*.ts executes par tsx en ont besoin directement, pas
+# seulement le serveur Next.js (deja bundle dans .next/standalone).
+COPY --from=build --chown=node:node /app/generated ./generated
 # Scripts de maintenance ponctuels sous prisma/ (ex. backfillImages.ts)
 # reutilisent des utilitaires de src/server/ -- pas necessaire au serveur
 # Next.js lui-meme (deja bundle dans .next/standalone), juste a `tsx`.

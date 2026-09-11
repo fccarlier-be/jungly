@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { CareEventType } from "@prisma/client";
+import { CareEventType } from "@generated/prisma/client";
 import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";

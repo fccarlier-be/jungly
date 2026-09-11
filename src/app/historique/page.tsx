@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CareEventType } from "@prisma/client";
+import { CareEventType } from "@generated/prisma/client";
 import { requireSessionUserId } from "@/lib/session";
 import { db } from "@/server/db";
 import { formatDate } from "@/lib/units";

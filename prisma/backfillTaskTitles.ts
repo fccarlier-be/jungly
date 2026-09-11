@@ -16,10 +16,9 @@
  * A relancer manuellement si besoin (`npx tsx prisma/backfillTaskTitles.ts`) --
  * idempotent, sans effet sur les titres deja au format canonique.
  */
-import { PrismaClient, CareRuleType } from "@prisma/client";
+import { CareRuleType } from "@generated/prisma/client";
 import { buildTaskTitle } from "../src/server/careEngine/taskGenerator";
-
-const db = new PrismaClient();
+import { db } from "../src/server/db";
 
 // Les seuls types de tache generes via buildTaskTitle() (voir service.ts) --
 // PRUNING/INSPECTION/OTHER (TaskType) n'ont jamais ete construits avec ce

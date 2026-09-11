@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@generated/prisma/client";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 /**
  * Client Prisma independant (pas celui de src/server/db.ts) pointe sur le
@@ -6,7 +7,8 @@ import { PrismaClient } from "@prisma/client";
  * nettoyer les donnees creees par les tests E2E (comptes/plantes marques
  * d'un prefixe distinctif), jamais pour piloter l'app elle-meme.
  */
-export const cleanupDb = new PrismaClient();
+const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL! });
+export const cleanupDb = new PrismaClient({ adapter });
 
 export const E2E_MARKER = "__E2E_TEST__";
 

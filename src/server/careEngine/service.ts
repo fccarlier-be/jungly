@@ -1,4 +1,4 @@
-import { Prisma, type CareEventType, type PlantCareRule, type Sensor, type SensorReading, type TaskStatus } from "@prisma/client";
+import { Prisma, type CareEventType, type PlantCareRule, type Sensor, type SensorReading, type TaskStatus } from "@generated/prisma/client";
 import { db } from "@/server/db";
 import { ConflictError } from "@/lib/apiError";
 import { buildTaskTitle, computeRuleNextDueDate, mapRuleTypeToTaskType, type RuleConfiguration } from "./taskGenerator";
