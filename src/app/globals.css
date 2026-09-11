@@ -1,6 +1,29 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Migration Tailwind v4 (tailwind.config.ts supprime) : les seules
+   personnalisations du theme reellement utilisees ailleurs dans le code
+   etaient le rayon de bordure lg/xl/2xl (color/boxShadow/keyframes/animation
+   du config precedent n'etaient jamais utilises comme classes Tailwind --
+   colors/ink notamment servaient uniquement via var(--ink) etc., pas via
+   text-ink ; animate-rise-in/animate-pop sont definis en CSS pur plus bas
+   independamment du theme Tailwind). */
+@theme {
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.75rem;
+}
+
+/* font-display/font-sans (next/font, voir layout.tsx) : passees en classes
+   utilitaires simples plutot que via @theme --font-*, pour eviter toute
+   ambiguite de cascade -- --font-display est a la fois le nom de la
+   variable next/font (posee sur <html>) et serait devenu, dans @theme,
+   celui d'une variable Tailwind de meme nom sur :root (= <html> aussi). */
+.font-display {
+  font-family: var(--font-display);
+}
+.font-sans {
+  font-family: var(--font-body);
+}
 
 /*
  * Design system — voir le brief de refonte UI/UX.
