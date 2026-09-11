@@ -3,6 +3,18 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-11 — Préparation Android/Google Play
+
+Suite à l'empaquetage TWA de Jungly (voir `docs/android-apk-build.md`) et à un prompt d'audit externe pointant un manque bloquant pour toute soumission Play Store.
+
+### Ajouté
+
+- **Suppression de compte en self-service** (`DELETE /api/user`, bouton dans Paramètres avec confirmation par saisie de l'email) : une app permettant la création de compte doit permettre sa suppression sans passer par un support -- exigence Google Play, absente jusqu'ici. Cascade Prisma déjà en place pour toutes les tables liées (plantes, règles, tâches, historique, photos, capteurs, engrais, notifications, abonnements push, profil météo, emplacements, uploads) ; les fichiers physiques (photos) sont nettoyés à la main, même logique que la suppression d'une plante. Déconnexion automatique une fois le compte supprimé. Vérifié en direct (compte jetable avec plante, règle de soin et photo) : tout disparaît, y compris le fichier physique sur disque.
+
+### Supprimé
+
+- **Section "Unités" des Paramètres** : purement informative (ml/L, mm/cm fixes, aucun réglage possible) -- n'avait pas sa place dans un écran de paramètres tant qu'aucune unité n'est réellement configurable.
+
 ## [Post-MVP] - 2026-09-10 — Durcissement post-audit7
 
 Suite à une 7e revue de code indépendante (GPT), synthèse de clôture plutôt que nouvelles trouvailles -- le seul point concret concernait le build Docker.
