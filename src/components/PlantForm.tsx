@@ -2,9 +2,10 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Sprout } from "lucide-react";
 import { CareTypeIcon } from "@/components/careIcons";
-import ExternalSpeciesSearch, { type ImportedLibraryEntry } from "@/components/ExternalSpeciesSearch";
+import ExternalSpeciesSearch from "@/components/ExternalSpeciesSearch";
 import { mmToInputUnit, inputUnitToMm, type UnitSystem } from "@/lib/units";
 
 export interface LocationOption {
@@ -400,10 +401,14 @@ export default function PlantForm({
 
         <div className="flex items-center gap-4">
           <div
-            className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+            className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl"
             style={{ background: "var(--surface-alt)", color: "var(--secondary)" }}
           >
-            {photoUrl ? <img src={photoUrl} alt="" className="h-full w-full object-cover" /> : <Sprout size={28} strokeWidth={1.5} />}
+            {photoUrl ? (
+              <Image src={photoUrl} alt="" fill sizes="80px" className="object-cover" unoptimized={photoUrl.startsWith("http")} />
+            ) : (
+              <Sprout size={28} strokeWidth={1.5} />
+            )}
           </div>
           <label className="text-sm">
             <span className="btn-primary inline-block cursor-pointer rounded-xl px-3 py-2 font-semibold">

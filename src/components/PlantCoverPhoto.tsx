@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Sprout } from "lucide-react";
 import { usePhotoViewer } from "./PhotoViewerProvider";
 
@@ -30,8 +31,15 @@ export default function PlantCoverPhoto({
   const startIndex = Math.max(allPhotos.indexOf(displayUrl), 0);
 
   return (
-    <button type="button" onClick={() => open(allPhotos, startIndex)} className="block h-full w-full">
-      <img src={displayUrl} alt="" className="h-full w-full object-cover" />
+    <button type="button" onClick={() => open(allPhotos, startIndex)} className="relative block h-full w-full">
+      <Image
+        src={displayUrl}
+        alt=""
+        fill
+        sizes="(max-width: 640px) 100vw, 800px"
+        className="object-cover"
+        unoptimized={displayUrl.startsWith("http")}
+      />
     </button>
   );
 }

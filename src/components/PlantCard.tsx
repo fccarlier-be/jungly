@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Sprout, TriangleAlert } from "lucide-react";
 import { formatRelativeDueDate } from "@/lib/units";
 import { computePlantStatus } from "@/lib/plantStatus";
@@ -40,7 +41,18 @@ export default function PlantCard({ plant }: { plant: PlantCardData }) {
     <Link href={`/plantes/${plant.id}`} className="card group block overflow-hidden">
       <div className="relative aspect-square w-full overflow-hidden" style={{ background: "var(--surface-alt)" }}>
         {image ? (
-          <img src={image} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+          <Image
+            src={image}
+            alt=""
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            // image peut rester une URL externe brute si le mirroring a
+            // echoue (best-effort, voir resolvePhotoUrl) -- unoptimized
+            // contourne alors la restriction remotePatterns sans crasher,
+            // au prix de l'optimisation pour ce seul cas rare.
+            unoptimized={image.startsWith("http")}
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center" style={{ color: "var(--secondary)" }}>
             <Sprout size={40} strokeWidth={1.5} />

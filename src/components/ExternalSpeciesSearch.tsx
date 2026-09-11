@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { Search, Sprout, ExternalLink } from "lucide-react";
 
@@ -171,11 +172,15 @@ export default function ExternalSpeciesSearch({
               className="card flex w-full items-center gap-3 p-2.5 text-left text-sm"
             >
               <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg"
+                className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg"
                 style={{ background: "var(--surface-alt)", color: "var(--secondary)" }}
               >
                 {r.thumbnailUrl ? (
-                  <img src={r.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                  // unoptimized : toujours une URL de fournisseur externe a ce
+                  // stade (avant tout mirroring/decision d'import), voir
+                  // ExternalPreviewItem -- contourne remotePatterns plutot que
+                  // de maintenir une liste de domaines par fournisseur.
+                  <Image src={r.thumbnailUrl} alt="" fill sizes="44px" className="object-cover" unoptimized />
                 ) : (
                   <Sprout size={18} strokeWidth={1.5} />
                 )}
@@ -192,7 +197,9 @@ export default function ExternalSpeciesSearch({
       {preview && (
         <div className="card space-y-2 p-3 text-sm">
           {preview.image.imageUrl && (
-            <img src={preview.image.imageUrl} alt="" className="h-32 w-full rounded-lg object-cover" />
+            <div className="relative h-32 w-full overflow-hidden rounded-lg">
+              <Image src={preview.image.imageUrl} alt="" fill sizes="100vw" className="object-cover" unoptimized />
+            </div>
           )}
           <div>
             <p className="font-medium">{preview.commonName}</p>

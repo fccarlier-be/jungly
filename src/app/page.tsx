@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Sprout, Leaf, Coffee, Thermometer } from "lucide-react";
 import { requireSessionUserId } from "@/lib/session";
 import { auth } from "@/server/auth";
@@ -240,11 +241,18 @@ export default async function DashboardPage() {
             {collection.map((plant) => (
               <Link key={plant.id} href={`/plantes/${plant.id}`} className="w-16 shrink-0 snap-start text-center">
                 <div
-                  className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-full"
+                  className="relative mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-full"
                   style={{ background: "var(--surface-alt)" }}
                 >
                   {plant.image ? (
-                    <img src={plant.image} alt="" className="h-full w-full object-cover" />
+                    <Image
+                      src={plant.image}
+                      alt=""
+                      fill
+                      sizes="64px"
+                      className="object-cover"
+                      unoptimized={plant.image.startsWith("http")}
+                    />
                   ) : (
                     <Sprout size={22} strokeWidth={1.5} style={{ color: "var(--secondary)" }} />
                   )}

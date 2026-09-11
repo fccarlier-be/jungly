@@ -2,6 +2,7 @@
 
 import { useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Star, Trash2, Plus } from "lucide-react";
 import { usePhotoViewer } from "./PhotoViewerProvider";
 
@@ -124,10 +125,17 @@ export default function PlantPhotoGallery({
                 <button
                   type="button"
                   onClick={() => openViewer(photos.map((p) => p.url), photos.indexOf(photo))}
-                  className="block h-full w-full"
+                  className="relative block h-full w-full"
                   aria-label="Agrandir cette photo"
                 >
-                  <img src={photo.url} alt="" className="h-full w-full object-cover" />
+                  <Image
+                    src={photo.url}
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 33vw, 200px"
+                    className="object-cover"
+                    unoptimized={photo.url.startsWith("http")}
+                  />
                 </button>
                 {isCover && (
                   <span

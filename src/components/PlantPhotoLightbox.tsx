@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type TouchEvent } from "react";
+import Image from "next/image";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 const SWIPE_THRESHOLD_PX = 40;
@@ -76,7 +77,14 @@ export default function PlantPhotoLightbox({
             <ChevronLeft size={22} />
           </button>
         )}
-        <img src={photos[index]} alt="" className="max-h-full max-w-full object-contain" />
+        <Image
+          src={photos[index]}
+          alt=""
+          fill
+          sizes="100vw"
+          className="object-contain"
+          unoptimized={photos[index].startsWith("http")}
+        />
         {index < photos.length - 1 && (
           <button
             type="button"

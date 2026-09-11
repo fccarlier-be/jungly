@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Check, Sprout } from "lucide-react";
 import { formatRelativeDueDate } from "@/lib/units";
 import { CareTypeIcon, careSoftBackground } from "@/components/careIcons";
@@ -115,11 +116,18 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
         </Link>
         <Link
           href={`/plantes/${task.plantId}`}
-          className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+          className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl"
           style={{ background: "var(--surface-alt)" }}
         >
           {task.plantImage ? (
-            <img src={task.plantImage} alt="" className="h-full w-full object-cover" />
+            <Image
+              src={task.plantImage}
+              alt=""
+              fill
+              sizes="56px"
+              className="object-cover"
+              unoptimized={task.plantImage.startsWith("http")}
+            />
           ) : (
             <Sprout size={22} strokeWidth={1.5} style={{ color: "var(--secondary)" }} />
           )}

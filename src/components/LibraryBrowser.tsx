@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronLeft, ChevronRight, Sprout, Sun, Thermometer, Droplets, Layers, Tag, ShieldAlert, Gauge, type LucideIcon } from "lucide-react";
 import { CARE_ICON, CARE_COLOR } from "@/components/careIcons";
@@ -128,11 +129,18 @@ export default function LibraryBrowser() {
             <div key={entry.id} className="card p-3 text-sm">
               <button className="flex w-full items-center gap-3 text-left" onClick={() => setOpenId(open ? null : entry.id)}>
                 <div
-                  className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+                  className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl"
                   style={{ background: "var(--surface-alt)", color: "var(--secondary)" }}
                 >
                   {profile?.imageUrl ? (
-                    <img src={profile.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    <Image
+                      src={profile.imageUrl}
+                      alt=""
+                      fill
+                      sizes="56px"
+                      className="object-cover"
+                      unoptimized={profile.imageUrl.startsWith("http")}
+                    />
                   ) : (
                     <Sprout size={22} strokeWidth={1.5} />
                   )}
@@ -147,7 +155,16 @@ export default function LibraryBrowser() {
               {open && profile && (
                 <div className="mt-3 space-y-3 border-t pt-3" style={{ borderColor: "var(--border)" }}>
                   {profile.imageUrl && (
-                    <img src={profile.imageUrl} alt={entry.commonName} className="mb-1 h-40 w-full rounded-xl object-cover" />
+                    <div className="relative mb-1 h-40 w-full overflow-hidden rounded-xl">
+                      <Image
+                        src={profile.imageUrl}
+                        alt={entry.commonName}
+                        fill
+                        sizes="100vw"
+                        className="object-cover"
+                        unoptimized={profile.imageUrl.startsWith("http")}
+                      />
+                    </div>
                   )}
                   <div className="grid grid-cols-2 gap-2">
                     {entry.family && <Tile icon={Tag} label="Famille" value={entry.family} />}
