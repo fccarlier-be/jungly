@@ -41,5 +41,22 @@ export function CareTypeIcon({
 }) {
   const key = (type in CARE_ICON ? type : "OTHER") as CareType;
   const Icon = CARE_ICON[key];
-  return <Icon size={size} className={className} strokeWidth={2} style={colored ? { color: CARE_COLOR[key] } : undefined} />;
+  return (
+    <Icon
+      size={size}
+      className={className}
+      strokeWidth={2}
+      style={{
+        ...(colored ? { color: CARE_COLOR[key] } : undefined),
+        // Force une couche de composition dediee pour ce SVG : sans ca, un
+        // bug connu de rasterisation GPU sur certains Android/Chrome affiche
+        // les traits arrondis (stroke-linecap round) a petite taille comme
+        // une suite de points au lieu d'un trait continu -- reproduit sur
+        // tablette, absent en emulation desktop. transform + backface-
+        // visibility forcent un chemin de rendu different qui evite le bug.
+        transform: "translateZ(0)",
+        backfaceVisibility: "hidden",
+      }}
+    />
+  );
 }
