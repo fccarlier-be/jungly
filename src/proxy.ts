@@ -24,8 +24,7 @@ export const config = {
     // Android), doit rester joignable sans session.
     "/((?!api|login|inscription|_next/static|_next/image|favicon.ico|icons|uploads|manifest.json|sw.js|\\.well-known).*)",
   ],
-  // Le runtime Node.js (stable depuis Next.js 15.2) evite d'embarquer
-  // bcrypt/Prisma dans un bundle Edge : on deploie sur un conteneur Node
-  // classique (Docker), pas sur un edge runtime type Vercel/Cloudflare.
-  runtime: "nodejs",
+  // Next.js 16 : le runtime Node.js est desormais le seul possible pour
+  // proxy.ts (ex-middleware.ts) -- fixer `runtime` dans la config leve une
+  // erreur au build, l'option n'existe plus.
 };
