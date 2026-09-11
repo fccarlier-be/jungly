@@ -51,7 +51,7 @@ export default function ExportImport() {
           <input ref={fileInputRef} type="file" accept=".zip,application/zip" className="hidden" onChange={handleImport} disabled={importing} />
         </label>
         <p className="text-xs text-muted mt-1">
-          Les plantes importées sont toujours ajoutées (jamais fusionnées avec une plante existante). Les photos sont restaurées avec l'archive.
+          Les plantes importées sont toujours ajoutées (jamais fusionnées avec une plante existante). Les photos sont restaurées avec l&apos;archive.
         </p>
       </div>
 

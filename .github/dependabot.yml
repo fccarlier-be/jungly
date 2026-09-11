@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # Dependabot sait mettre a jour une action epinglee par SHA (voir
+  # .github/workflows/ci.yml) tout en gardant le commentaire de version
+  # a jour -- ne casse pas le durcissement supply-chain deja en place.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Next, React, Prisma et NextAuth sont epingles a une version exacte
+    # (voir package.json) parce que ce sont des dependances sensibles ou
+    # NextAuth est encore en beta -- une mise a jour mineure/majeure
+    # automatique non revue serait risquee. Dependabot ouvre quand meme
+    # une PR (utile pour etre notifie), mais ne merge jamais tout seul.
+    open-pull-requests-limit: 5

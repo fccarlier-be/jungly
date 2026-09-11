@@ -3,6 +3,16 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-11 — Durcissement post-audit9
+
+Suite à un audit Copilot (audit9.md), moins rigoureux que les audits GPT précédents (plusieurs affirmations vérifiées comme fausses/dépassées : les tests d'intrusion multi-tenant existaient déjà (`e2e/ownership.spec.ts`), la protection des uploads via nginx était déjà traitée plus rigoureusement que suggéré). Deux points étaient en revanche justes et absents jusqu'ici : lint et scan de dépendances.
+
+### Ajouté
+
+- **ESLint** (`eslint.config.mjs`, config flat, `next/core-web-vitals` + `next/typescript`, versions exactes alignées sur `next@15.5.25`) : `npm run lint`. 2 erreurs réelles corrigées (apostrophe non échappée dans `ExportImport.tsx`, `next-env.d.ts` généré par Next exclu du lint). 13 avertissements restants (`<img>` non `next/image`, imports inutilisés) laissés tels quels — non bloquants, hors périmètre de cet ajout.
+- **`npm audit` en CI**, seuil `critical` plutôt que `high` (et `--omit=dev`) : au moment de l'ajout, les seules vulnérabilités "high" existantes sont internes à des dépendances directes de Next.js/Prisma eux-mêmes (postcss embarqué par next, deepmerge-ts embarqué par @prisma/config), sans correctif disponible sans saut de version majeure (Next 16, Prisma pre-release) — un seuil "high" aurait rendu la CI rouge en permanence pour un problème non actionnable aujourd'hui.
+- **Dependabot** (`.github/dependabot.yml`) : npm + github-actions (compatible avec l'épinglage par SHA des actions), 5 PR ouvertes max en parallèle, aucun merge automatique (Next/React/Prisma/NextAuth restent épinglés à une version exacte, revue manuelle nécessaire).
+
 ## [Post-MVP] - 2026-09-11 — Préparation Android/Google Play
 
 Suite à l'empaquetage TWA de Jungly (voir `docs/android-apk-build.md`) et à un prompt d'audit externe pointant un manque bloquant pour toute soumission Play Store.

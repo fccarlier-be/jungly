@@ -29,6 +29,21 @@ jobs:
 
       - run: npm ci
 
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      # Seuil "critical" plutot que "high" : au 2026-09-11, les seules
+      # vulnerabilites "high" existantes sont internes a des dependances
+      # directes de Next.js/Prisma eux-memes (postcss embarque par next,
+      # deepmerge-ts embarque par @prisma/config), sans correctif disponible
+      # sans un saut de version majeure (Next 16, Prisma pre-release) --
+      # les faire echouer ici bloquerait la CI en permanence pour un
+      # probleme qu'on ne peut pas corriger aujourd'hui. --omit=dev : les
+      # vulnerabilites de vitest/vite (tests uniquement) ne concernent
+      # jamais le code qui tourne reellement en production.
+      - name: Audit des dependances (npm audit)
+        run: npm audit --omit=dev --audit-level=critical
+
       - name: Génère le client Prisma
         run: npx prisma generate
 

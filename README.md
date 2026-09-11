@@ -74,6 +74,7 @@ npx prisma db seed
 
 ```bash
 npm test
+npm run lint
 ```
 
 Voir `e2e/README.md` pour les tests end-to-end (Playwright).
