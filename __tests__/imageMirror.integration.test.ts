@@ -4,21 +4,30 @@ import { readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import { db } from "@/server/db";
-import { mirrorLibraryImage } from "@/server/libraryPhotos";
-import { resolvePhotoUrl } from "@/server/uploads";
+import { fetchWithSizeLimit, ExternalFetchError } from "@/server/externalImageFetch";
+import { mirrorLibraryImage, processAndStoreLibraryImage } from "@/server/libraryPhotos";
+import { resolvePhotoUrl, processAndStoreUpload } from "@/server/uploads";
 
 /**
  * Test d'integration reelle (vrai serveur HTTP local, vrai traitement Sharp,
  * vraie base) plutot que des mocks de fetch/sharp -- coherent avec le reste
- * de la suite (voir dueTasks.integration.test.ts), et seul moyen d'attraper
- * un vrai bug de branchement content-type/taille/format.
+ * de la suite (voir dueTasks.integration.test.ts).
+ *
+ * fetchWithSizeLimit() est teste ICI contre le serveur local (127.0.0.1),
+ * separement de mirrorLibraryImage()/resolvePhotoUrl() : ces derniers
+ * appellent maintenant assertSafeExternalUrl() en premier (voir
+ * externalImageFetch.test.ts), qui REJETTE precisement les adresses
+ * loopback/privees -- impossible de leur faire atteindre un serveur de test
+ * local sans re-ouvrir la faille SSRF le temps du test. Le telechargement
+ * et le traitement d'image sont donc verifies independamment (chacun avec
+ * un vrai serveur/un vrai buffer), et la composition des deux dans
+ * mirrorLibraryImage()/resolvePhotoUrl() est verifiee via le rejet SSRF
+ * lui-meme, qui ne necessite aucun serveur.
  */
-describe("mirrorLibraryImage / resolvePhotoUrl (integration reelle)", () => {
+describe("fetchWithSizeLimit (integration reelle, serveur HTTP local)", () => {
   let server: Server;
   let baseUrl: string;
   let validJpeg: Buffer;
-  const writtenLibraryPhotos: string[] = [];
-  const writtenUploads: string[] = [];
 
   beforeAll(async () => {
     validJpeg = await sharp({ create: { width: 4, height: 4, channels: 3, background: { r: 34, g: 74, b: 52 } } })
@@ -33,7 +42,7 @@ describe("mirrorLibraryImage / resolvePhotoUrl (integration reelle)", () => {
         res.writeHead(200, { "Content-Type": "text/plain" });
         res.end("pas une image");
       } else if (req.url === "/too-big.jpg") {
-        res.writeHead(200, { "Content-Type": "image/jpeg", "Content-Length": String(20 * 1024 * 1024) });
+        res.writeHead(200, { "Content-Type": "image/jpeg" });
         res.end(Buffer.alloc(20 * 1024 * 1024));
       } else {
         res.writeHead(404);
@@ -50,6 +59,38 @@ describe("mirrorLibraryImage / resolvePhotoUrl (integration reelle)", () => {
     await new Promise((resolve) => server.close(resolve));
   });
 
+  it("telecharge une image valide en respectant la limite de taille", async () => {
+    const { buffer, contentType } = await fetchWithSizeLimit(`${baseUrl}/photo.jpg`, 8 * 1024 * 1024);
+    expect(contentType).toBe("image/jpeg");
+    const metadata = await sharp(buffer).metadata();
+    expect(metadata.width).toBe(4);
+  });
+
+  it("retourne le content-type meme pour un fichier non-image (le tri se fait chez l'appelant)", async () => {
+    const { contentType } = await fetchWithSizeLimit(`${baseUrl}/not-an-image.txt`, 8 * 1024 * 1024);
+    expect(contentType).toBe("text/plain");
+  });
+
+  it("interrompt le flux et rejette des que la limite est depassee, sans Content-Length prealable", async () => {
+    await expect(fetchWithSizeLimit(`${baseUrl}/too-big.jpg`, 8 * 1024 * 1024)).rejects.toThrow(ExternalFetchError);
+  });
+
+  it("rejette une reponse 404", async () => {
+    await expect(fetchWithSizeLimit(`${baseUrl}/absent.jpg`, 8 * 1024 * 1024)).rejects.toThrow(ExternalFetchError);
+  });
+});
+
+describe("processAndStoreLibraryImage / processAndStoreUpload (integration reelle, vrai Sharp/DB/filesystem)", () => {
+  let validJpeg: Buffer;
+  const writtenLibraryPhotos: string[] = [];
+  const writtenUploads: string[] = [];
+
+  beforeAll(async () => {
+    validJpeg = await sharp({ create: { width: 4, height: 4, channels: 3, background: { r: 34, g: 74, b: 52 } } })
+      .jpeg()
+      .toBuffer();
+  });
+
   afterEach(async () => {
     for (const filename of writtenLibraryPhotos.splice(0)) {
       await rm(path.join(process.cwd(), "public", "library-photos", filename), { force: true });
@@ -60,31 +101,35 @@ describe("mirrorLibraryImage / resolvePhotoUrl (integration reelle)", () => {
     }
   });
 
-  it("mirrorLibraryImage telecharge, traite et stocke une image valide", async () => {
-    const result = await mirrorLibraryImage(`${baseUrl}/photo.jpg`);
+  it("processAndStoreLibraryImage traite et stocke publiquement", async () => {
+    const result = await processAndStoreLibraryImage(validJpeg);
     expect(result).toMatch(/^\/library-photos\/[0-9a-f-]+\.jpg$/);
-    writtenLibraryPhotos.push(path.basename(result!));
+    writtenLibraryPhotos.push(path.basename(result));
 
-    const stored = await readFile(path.join(process.cwd(), "public", "library-photos", path.basename(result!)));
+    const stored = await readFile(path.join(process.cwd(), "public", "library-photos", path.basename(result)));
     const metadata = await sharp(stored).metadata();
     expect(metadata.format).toBe("jpeg");
   });
 
-  it("mirrorLibraryImage retourne null pour un content-type non supporte", async () => {
-    const result = await mirrorLibraryImage(`${baseUrl}/not-an-image.txt`);
-    expect(result).toBeNull();
-  });
+  it("processAndStoreUpload traite, stocke et enregistre l'ownership", async () => {
+    const user = await db.user.create({
+      data: { email: `test-process-upload-${Date.now()}@example.com`, passwordHash: "x" },
+    });
+    try {
+      const result = await processAndStoreUpload(validJpeg, user.id);
+      expect(result).toMatch(/^\/uploads\/[0-9a-f-]+\.jpg$/);
+      const filename = path.basename(result);
+      writtenUploads.push(filename);
 
-  it("mirrorLibraryImage retourne null pour un fichier trop volumineux", async () => {
-    const result = await mirrorLibraryImage(`${baseUrl}/too-big.jpg`);
-    expect(result).toBeNull();
+      const upload = await db.upload.findUnique({ where: { filename } });
+      expect(upload?.userId).toBe(user.id);
+    } finally {
+      await db.user.delete({ where: { id: user.id } });
+    }
   });
+});
 
-  it("mirrorLibraryImage retourne null pour une URL introuvable (404)", async () => {
-    const result = await mirrorLibraryImage(`${baseUrl}/absent.jpg`);
-    expect(result).toBeNull();
-  });
-
+describe("mirrorLibraryImage / resolvePhotoUrl (garde-fous, aucun serveur requis)", () => {
   it("resolvePhotoUrl laisse passer null/undefined inchanges", async () => {
     expect(await resolvePhotoUrl("user-1", null)).toBeNull();
     expect(await resolvePhotoUrl("user-1", undefined)).toBeUndefined();
@@ -95,32 +140,60 @@ describe("mirrorLibraryImage / resolvePhotoUrl (integration reelle)", () => {
     expect(result).toBe("/library-photos/deja-mirroree.jpg");
   });
 
-  it("resolvePhotoUrl mirroire une URL externe en upload prive appartenant a l'utilisateur", async () => {
+  // SSRF (audit11.md section 1) : resolvePhotoUrl()/mirrorLibraryImage()
+  // acceptaient auparavant n'importe quelle URL http(s) fournie par le
+  // client et la televersaient sans verification -- un compte authentifie
+  // pouvait ainsi faire sonder le reseau interne par le serveur. Ces tests
+  // verifient que le rejet a bien lieu, PAS de mock reseau necessaire : le
+  // rejet intervient avant toute tentative de connexion.
+  it("resolvePhotoUrl refuse une URL pointant vers le loopback (SSRF)", async () => {
     const user = await db.user.create({
-      data: { email: `test-photo-mirror-${Date.now()}@example.com`, passwordHash: "x" },
+      data: { email: `test-ssrf-${Date.now()}@example.com`, passwordHash: "x" },
     });
     try {
-      const result = await resolvePhotoUrl(user.id, `${baseUrl}/photo.jpg`);
-      expect(result).toMatch(/^\/uploads\/[0-9a-f-]+\.jpg$/);
-      const filename = path.basename(result!);
-      writtenUploads.push(filename);
-
-      const upload = await db.upload.findUnique({ where: { filename } });
-      expect(upload?.userId).toBe(user.id);
+      const dangerous = "http://127.0.0.1:1/photo.jpg";
+      const result = await resolvePhotoUrl(user.id, dangerous);
+      // Best-effort : l'URL d'origine est conservee (comme tout autre echec
+      // de mirroring), mais AUCUN upload n'a ete cree a partir de cette
+      // cible interne.
+      expect(result).toBe(dangerous);
+      const uploads = await db.upload.findMany({ where: { userId: user.id } });
+      expect(uploads).toHaveLength(0);
     } finally {
       await db.user.delete({ where: { id: user.id } });
     }
   });
 
-  it("resolvePhotoUrl garde l'URL externe d'origine si le telechargement echoue", async () => {
+  it("resolvePhotoUrl refuse une URL pointant vers le reseau prive (SSRF)", async () => {
     const user = await db.user.create({
-      data: { email: `test-photo-mirror-fail-${Date.now()}@example.com`, passwordHash: "x" },
+      data: { email: `test-ssrf-private-${Date.now()}@example.com`, passwordHash: "x" },
     });
     try {
-      const result = await resolvePhotoUrl(user.id, `${baseUrl}/absent.jpg`);
-      expect(result).toBe(`${baseUrl}/absent.jpg`);
+      const result = await resolvePhotoUrl(user.id, "http://192.168.1.1/photo.jpg");
+      expect(result).toBe("http://192.168.1.1/photo.jpg");
+      const uploads = await db.upload.findMany({ where: { userId: user.id } });
+      expect(uploads).toHaveLength(0);
     } finally {
       await db.user.delete({ where: { id: user.id } });
     }
+  });
+
+  it("resolvePhotoUrl refuse localhost (resolution DNS, pas seulement la chaine de l'URL)", async () => {
+    const user = await db.user.create({
+      data: { email: `test-ssrf-localhost-${Date.now()}@example.com`, passwordHash: "x" },
+    });
+    try {
+      const result = await resolvePhotoUrl(user.id, "http://localhost:1/photo.jpg");
+      expect(result).toBe("http://localhost:1/photo.jpg");
+      const uploads = await db.upload.findMany({ where: { userId: user.id } });
+      expect(uploads).toHaveLength(0);
+    } finally {
+      await db.user.delete({ where: { id: user.id } });
+    }
+  });
+
+  it("mirrorLibraryImage refuse une URL pointant vers le loopback (SSRF)", async () => {
+    const result = await mirrorLibraryImage("http://127.0.0.1:1/photo.jpg");
+    expect(result).toBeNull();
   });
 });

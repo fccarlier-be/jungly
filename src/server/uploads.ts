@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { db } from "@/server/db";
 import { BadRequestError } from "@/lib/errors";
+import { assertSafeExternalUrl, fetchWithSizeLimit } from "@/server/externalImageFetch";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const ALLOWED_MIRROR_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -104,42 +105,57 @@ export async function assertOwnedUpload(userId: string, url: string | null | und
 }
 
 /**
+ * Traite (reorientation EXIF, redimensionnement, conversion JPEG) et stocke
+ * un buffer d'image deja telecharge, comme un upload possede par userId.
+ * Separee de mirrorExternalImageToUpload() pour rester testable
+ * independamment du telechargement reseau (voir
+ * __tests__/imageMirror.integration.test.ts).
+ */
+export async function processAndStoreUpload(buffer: Buffer, userId: string): Promise<string> {
+  const processed = await sharp(buffer)
+    .rotate()
+    .resize({ width: MAX_MIRROR_DIMENSION, height: MAX_MIRROR_DIMENSION, fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: MIRROR_JPEG_QUALITY })
+    .toBuffer();
+
+  await mkdir(UPLOAD_DIR, { recursive: true });
+  const filename = `${randomUUID()}.jpg`;
+  await writeFile(resolveUploadedFilePath(filename), processed);
+  try {
+    await db.upload.create({ data: { filename, userId } });
+  } catch (error) {
+    await unlink(resolveUploadedFilePath(filename)).catch(() => {});
+    throw error;
+  }
+  return `/uploads/${filename}`;
+}
+
+/**
  * Telecharge une image externe (suggestion de la bibliotheque, source
  * OpenPlantbook/Perenual pre-remplissant le champ photo d'une plante) et la
  * stocke comme un upload possede par userId -- plutot que de laisser l'URL
  * externe hotlinkee indefiniment sur la plante de l'utilisateur : fragile
  * (casse si la source la deplace/supprime) et fuit son IP vers ce tiers a
  * chaque affichage de sa propre plante. Best-effort : retourne l'URL
- * d'origine inchangee en cas d'echec (reseau, format non supporte...),
- * jamais bloquant pour la creation/modification de la ressource.
+ * d'origine inchangee en cas d'echec (reseau, format non supporte, URL
+ * jugee dangereuse...), jamais bloquant pour la creation/modification de la
+ * ressource.
+ *
+ * `url` est fourni par le CLIENT (photoUrl dans le corps de la requete,
+ * jamais valide contre une liste d'hotes attendus par le schema Zod) --
+ * sans assertSafeExternalUrl() ci-dessous, un compte authentifie pouvait
+ * faire televerser par le serveur n'importe quelle adresse du reseau
+ * interne (SSRF, voir audit11.md section 1) et recuperer le resultat dans
+ * sa propre galerie si la reponse ressemblait a une image.
  */
 async function mirrorExternalImageToUpload(url: string, userId: string): Promise<string> {
   try {
-    const res = await fetch(url);
-    if (!res.ok) return url;
+    await assertSafeExternalUrl(url);
 
-    const contentType = res.headers.get("content-type")?.split(";")[0]?.trim();
+    const { buffer, contentType } = await fetchWithSizeLimit(url, MAX_MIRROR_SIZE_BYTES);
     if (!contentType || !ALLOWED_MIRROR_TYPES.has(contentType)) return url;
 
-    const arrayBuffer = await res.arrayBuffer();
-    if (arrayBuffer.byteLength > MAX_MIRROR_SIZE_BYTES) return url;
-
-    const processed = await sharp(Buffer.from(arrayBuffer))
-      .rotate()
-      .resize({ width: MAX_MIRROR_DIMENSION, height: MAX_MIRROR_DIMENSION, fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality: MIRROR_JPEG_QUALITY })
-      .toBuffer();
-
-    await mkdir(UPLOAD_DIR, { recursive: true });
-    const filename = `${randomUUID()}.jpg`;
-    await writeFile(resolveUploadedFilePath(filename), processed);
-    try {
-      await db.upload.create({ data: { filename, userId } });
-    } catch (error) {
-      await unlink(resolveUploadedFilePath(filename)).catch(() => {});
-      throw error;
-    }
-    return `/uploads/${filename}`;
+    return await processAndStoreUpload(buffer, userId);
   } catch (error) {
     console.error("Echec du mirroring d'image externe, URL externe conservee", url, error);
     return url;

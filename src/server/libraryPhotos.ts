@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
+import { assertSafeExternalUrl, fetchWithSizeLimit } from "@/server/externalImageFetch";
 
 const LIBRARY_PHOTOS_DIR = path.join(process.cwd(), "public", "library-photos");
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -22,6 +23,27 @@ export function resolveLibraryPhotoPath(filename: string): string {
 }
 
 /**
+ * Traite (reorientation EXIF, redimensionnement, conversion JPEG) et stocke
+ * un buffer d'image deja telecharge, pour une fiche de bibliotheque.
+ * Separee de mirrorLibraryImage() pour rester testable independamment du
+ * telechargement reseau (voir __tests__/imageMirror.integration.test.ts).
+ */
+export async function processAndStoreLibraryImage(buffer: Buffer): Promise<string> {
+  // .rotate() sans argument : reoriente selon l'EXIF puis le supprime,
+  // meme traitement que /api/uploads pour la coherence d'affichage.
+  const processed = await sharp(buffer)
+    .rotate()
+    .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: JPEG_QUALITY })
+    .toBuffer();
+
+  await mkdir(LIBRARY_PHOTOS_DIR, { recursive: true });
+  const filename = `${randomUUID()}.jpg`;
+  await writeFile(path.join(LIBRARY_PHOTOS_DIR, filename), processed);
+  return `/library-photos/${filename}`;
+}
+
+/**
  * Mirroir local d'une photo de reference externe (OpenPlantbook/Perenual)
  * pour une fiche de bibliotheque PARTAGEE (PlantLibraryEntry). Contrairement
  * a /uploads/ (prive, verifie par ownership dans uploads.ts), ces fichiers
@@ -33,33 +55,25 @@ export function resolveLibraryPhotoPath(filename: string): string {
  * deplace/supprime) et fuit l'IP du visiteur vers ce tiers a chaque page vue.
  *
  * Best-effort : retourne null en cas d'echec (reseau, format non supporte,
- * taille excessive...), l'appelant garde alors l'URL externe d'origine
- * plutot que de faire echouer tout l'import/resync pour un probleme tiers
- * passager.
+ * taille excessive, URL jugee dangereuse...), l'appelant garde alors l'URL
+ * externe d'origine plutot que de faire echouer tout l'import/resync pour
+ * un probleme tiers passager.
  */
 export async function mirrorLibraryImage(url: string): Promise<string | null> {
   try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
+    // Verifie AVANT toute requete que l'hote ne resout pas vers le reseau
+    // interne (SSRF, voir audit11.md section 1). Import/resync sont reserves
+    // a l'admin (source de confiance plus elevee que resolvePhotoUrl cote
+    // utilisateur), mais cette URL vient malgre tout d'une reponse HTTP
+    // tierce (OpenPlantbook/Perenual) -- defense en profondeur contre une
+    // reponse malveillante ou corrompue de ce fournisseur, meme verification
+    // qu'ailleurs plutot qu'un cas particulier "source de confiance".
+    await assertSafeExternalUrl(url);
 
-    const contentType = res.headers.get("content-type")?.split(";")[0]?.trim();
+    const { buffer, contentType } = await fetchWithSizeLimit(url, MAX_SIZE_BYTES);
     if (!contentType || !ALLOWED_TYPES.has(contentType)) return null;
 
-    const arrayBuffer = await res.arrayBuffer();
-    if (arrayBuffer.byteLength > MAX_SIZE_BYTES) return null;
-
-    // .rotate() sans argument : reoriente selon l'EXIF puis le supprime,
-    // meme traitement que /api/uploads pour la coherence d'affichage.
-    const processed = await sharp(Buffer.from(arrayBuffer))
-      .rotate()
-      .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
-      .jpeg({ quality: JPEG_QUALITY })
-      .toBuffer();
-
-    await mkdir(LIBRARY_PHOTOS_DIR, { recursive: true });
-    const filename = `${randomUUID()}.jpg`;
-    await writeFile(path.join(LIBRARY_PHOTOS_DIR, filename), processed);
-    return `/library-photos/${filename}`;
+    return await processAndStoreLibraryImage(buffer);
   } catch (error) {
     console.error("Echec du mirroring d'image de bibliotheque, URL externe conservee", url, error);
     return null;
