@@ -39,7 +39,7 @@
     "@eslint/eslintrc": "3.3.7",
     "@playwright/test": "1.63.0",
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^22.10.5",
+    "@types/node": "^26.5.0",
     "@types/react": "^19.0.4",
     "@types/react-dom": "^19.0.2",
     "@types/web-push": "^3.6.4",
