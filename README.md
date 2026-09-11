@@ -85,3 +85,7 @@ Voir `e2e/README.md` pour les tests end-to-end (Playwright).
 - Rate limiting sur la connexion, l'inscription, les uploads, l'import/export et les capteurs.
 - Photos privées, servies uniquement après vérification que l'utilisateur y a accès.
 - Mots de passe et clés API capteur hashés (bcrypt).
+
+## Licence
+
+[PolyForm Noncommercial 1.0.0](LICENSE.md) : code visible publiquement, usage non-commercial autorisé, toute exploitation commerciale requiert une autorisation explicite.
