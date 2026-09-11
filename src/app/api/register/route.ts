@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@generated/prisma/client";
 import { db } from "@/server/db";
 import { handleApiError } from "@/lib/apiError";
 import { registerSchema } from "@/server/validation/auth";
