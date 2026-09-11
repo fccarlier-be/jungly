@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Lora, Inter } from "next/font/google";
 import Script from "next/script";
 import { Leaf } from "lucide-react";
@@ -61,11 +62,15 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
+  // Pose par proxy.ts (Content-Security-Policy, nonce different a chaque
+  // requete) : necessaire pour que ce script inline soit autorise a
+  // s'executer sous la CSP, sans recourir a 'unsafe-inline' pour script-src.
+  const nonce = (await headers()).get("x-nonce");
 
   return (
     <html lang="fr" className={`${lora.variable} ${inter.variable}`}>
       <body className="min-h-screen antialiased font-sans">
-        <Script id="theme-init" strategy="beforeInteractive">
+        <Script id="theme-init" strategy="beforeInteractive" nonce={nonce ?? undefined}>
           {THEME_INIT_SCRIPT}
         </Script>
         <ServiceWorkerRegistration />

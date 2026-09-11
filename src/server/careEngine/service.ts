@@ -106,28 +106,31 @@ export interface CareEventInput {
  * via la règle associée.
  */
 export async function completeTaskWithEvent(taskId: string, type: CareEventType, input: CareEventInput) {
-  const task = await db.task.findUniqueOrThrow({
-    where: { id: taskId },
-    include: { careRule: true },
-  });
-
-  // Sans ce garde-fou, une tache deja COMPLETED/SKIPPED pouvait etre
-  // completee une seconde fois : un 2e CareEvent tentait de reutiliser le
-  // meme taskId (@unique dans le schema), ce qui remontait comme une
-  // erreur 500 generique au lieu d'un message clair.
-  if (!COMPLETABLE_STATUSES.includes(task.status)) {
-    throw new ConflictError("Cette tâche a déjà été traitée.");
-  }
-
   const performedAt = input.performedAt ?? new Date();
 
+  // Verification ET transition du statut dans une seule operation atomique
+  // (updateMany conditionnel), a l'interieur de la transaction -- pas un
+  // findUnique() suivi d'un update() separes. Sans ca, deux requetes
+  // concurrentes pouvaient toutes les deux lire PENDING avant que l'une des
+  // deux ne commit : la seconde tombait alors sur un P2002 brut (contrainte
+  // CareEvent.taskId @unique) au lieu du ConflictError propre ci-dessous.
   // Creation de l'evenement, passage a COMPLETED et generation de la
-  // prochaine echeance dans une seule transaction : sans ca, un echec de
+  // prochaine echeance dans la meme transaction : sans ca, un echec de
   // ensurePendingTaskForRule() (ex. panne DB) pouvait laisser un CareEvent
   // et une tache COMPLETED sans que la regle recurrente ne produise sa
   // suivante -- l'invariant "une tache recurrente completee doit produire
   // la suivante" n'etait pas atomique.
   return db.$transaction(async (tx) => {
+    const { count } = await tx.task.updateMany({
+      where: { id: taskId, status: { in: COMPLETABLE_STATUSES } },
+      data: { status: "COMPLETED", completedAt: performedAt },
+    });
+    if (count === 0) {
+      throw new ConflictError("Cette tâche a déjà été traitée.");
+    }
+
+    const task = await tx.task.findUniqueOrThrow({ where: { id: taskId }, include: { careRule: true } });
+
     const event = await tx.careEvent.create({
       data: {
         plantId: task.plantId,
@@ -140,7 +143,6 @@ export async function completeTaskWithEvent(taskId: string, type: CareEventType,
         metadata: toJsonInput(input.method ? { method: input.method, ...input.metadata } : input.metadata),
       },
     });
-    await tx.task.update({ where: { id: task.id }, data: { status: "COMPLETED", completedAt: performedAt } });
 
     if (task.careRule) {
       await ensurePendingTaskForRule(task.careRule, performedAt, tx);

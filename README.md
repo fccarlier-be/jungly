@@ -4,7 +4,7 @@ Application de suivi et d'entretien des plantes : arrosage, fertilisation, rempo
 
 ## Stack
 
-- Next.js 15 (App Router) + React 19 + TypeScript
+- Next.js 16 (App Router) + React 19 + TypeScript
 - Tailwind CSS
 - Prisma + SQLite
 - NextAuth (Auth.js) v5, provider Credentials, sessions JWT
@@ -85,6 +85,19 @@ Voir `e2e/README.md` pour les tests end-to-end (Playwright).
 - Rate limiting sur la connexion, l'inscription, les uploads, l'import/export et les capteurs.
 - Photos privées, servies uniquement après vérification que l'utilisateur y a accès.
 - Mots de passe et clés API capteur hashés (bcrypt).
+
+### Frontière de confiance
+
+`AUTH_SECRET` avec `trustHost: true` et `getClientIp()` (rate limiting) font confiance aux en-têtes `Host` / `X-Real-IP` / `X-Forwarded-For` de la requête entrante. **Next.js ne doit donc jamais être exposé directement à Internet** (port 3000) : un reverse proxy qui pose ces en-têtes lui-même (voir `nginx/default.conf`, qui prend `CF-Connecting-IP` en priorité derrière Cloudflare Tunnel) doit toujours se trouver devant. Sans ça, ces en-têtes sont forgeables par n'importe quel client et le rate limiting comme le calcul d'origine des cookies de session deviennent contournables.
+
+## Limites architecturales assumées
+
+Des choix volontairement non conçus pour du multi-instance, cohérents avec un déploiement self-hosted mono-instance. Documentés ici pour qu'un futur audit ne les signale pas comme des oublis -- ce sont des compromis délibérés, à revisiter seulement si l'usage réel de Jungly change (plusieurs instances, ouverture publique à grande échelle) :
+
+- **Rate limiting en mémoire** (`src/lib/rateLimit.ts`) : une `Map` par process, pas de Redis/Valkey. Fiable avec un seul conteneur ; deviendrait un point faible (compteurs non partagés) avec plusieurs instances.
+- **Scheduler dans le process Next.js** (`instrumentation.ts`) : pas de queue/cron externe. Un garde en mémoire (`started`) empêche les doublons sur une seule instance, mais deux instances dupliqueraient les vérifications.
+- **SQLite** (`better-sqlite3` + Prisma 7) : suffisant pour quelques utilisateurs et une faible concurrence en écriture. PostgreSQL n'aurait de sens qu'en cas d'ouverture publique à grande échelle.
+- **Suppression de fichiers non transactionnelle avec la base** (`deleteUploadedFileIfUnreferenced()`) : fenêtre théorique entre la vérification "encore référencé ?" et la suppression physique du fichier (deux requêtes strictement simultanées sur le même fichier pourraient en théorie laisser une référence orpheline). Un vrai correctif demanderait une garbage collection différée plutôt qu'une suppression immédiate -- disproportionné face à ce scénario, vu le faible nombre d'utilisateurs visé.
 
 ## Licence
 

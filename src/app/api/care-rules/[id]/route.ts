@@ -72,18 +72,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         if (updated.nextDueAt !== null) {
           return tx.plantCareRule.update({ where: { id }, data: { nextDueAt: null } });
         }
+        return updated;
       }
 
-      return updated;
-    });
-
-    if (rule.enabled) {
       // La règle a changé (fréquence, date, activation) : si une tâche
       // PENDING existe déjà elle est conservée telle quelle (on ne modifie
       // pas une échéance déjà communiquée à l'utilisateur), sinon on en
-      // génère une nouvelle à partir de maintenant.
-      await ensurePendingTaskForRule(rule);
-    }
+      // génère une nouvelle à partir de maintenant. Dans la même transaction
+      // que la mise à jour de la règle -- sinon un crash entre les deux
+      // pouvait laisser une règle activée sans sa prochaine tâche.
+      await ensurePendingTaskForRule(updated, undefined, tx);
+      return updated;
+    });
 
     return NextResponse.json(rule);
   } catch (error) {
