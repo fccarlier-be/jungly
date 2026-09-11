@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { Prisma } from "@generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { UnauthorizedError } from "@/lib/session";
 import { PerenualError } from "@/server/perenual/client";
 

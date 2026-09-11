@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { Prisma } from "@generated/prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { LIBRARY_SEED_ENTRIES } from "./librarySeed";
 import { mapPlantfolioEntry, type PlantfolioRawEntry } from "./plantfolioMapping";
 import plantfolioData from "./plantfolioData.json";
 import { buildTaskTitle } from "@/server/careEngine/taskGenerator";
-import { db } from "@/server/db";
+
+const db = new PrismaClient();
 
 function daysFromNow(days: number): Date {
   const date = new Date();

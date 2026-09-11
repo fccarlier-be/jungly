@@ -1,4 +1,4 @@
-import type { CareRuleType, TaskType } from "@generated/prisma/client";
+import type { CareRuleType, TaskType } from "@prisma/client";
 import { computeNextDueDate, type RecurrenceRule } from "./recurrence";
 import { isMonthActive, pushToNextActiveWindow, type SeasonalWindow } from "./seasonal";
 

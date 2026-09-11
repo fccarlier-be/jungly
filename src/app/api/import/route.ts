@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import JSZip from "jszip";
 import sharp from "sharp";
-import { Prisma } from "@generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError, BadRequestError } from "@/lib/apiError";

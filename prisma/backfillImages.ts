@@ -11,11 +11,12 @@
  * nouvelles fiches sans photo apparaissent. Une requete a la fois avec une
  * pause, jamais en parallele, par courtoisie envers ces API publiques.
  */
-import { Prisma } from "@generated/prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { isOpenPlantbookConfigured, findPlantbookImage } from "../src/server/openplantbook/client";
 import { findOpenLicensedPhoto as findINaturalistPhoto } from "../src/server/inaturalist/client";
 import { findOpenLicensedPhoto as findGbifPhoto } from "../src/server/gbif/client";
-import { db } from "../src/server/db";
+
+const db = new PrismaClient();
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));

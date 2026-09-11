@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { Prisma } from "@generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { requireAdminUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { db } from "@/server/db";

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@generated/prisma/client";
+import { Prisma } from "@prisma/client";
 import { requireAdminUserId } from "@/lib/session";
 import { handleApiError, NotFoundError } from "@/lib/apiError";
 import { db } from "@/server/db";

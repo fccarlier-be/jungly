@@ -4,7 +4,7 @@ import { handleApiError } from "@/lib/apiError";
 import { getOwnedTask } from "@/server/ownership";
 import { waterEventSchema } from "@/server/validation/careEvent";
 import { completeTaskWithEvent } from "@/server/careEngine/service";
-import type { CareEventType } from "@generated/prisma/client";
+import type { CareEventType } from "@prisma/client";
 
 type Params = { params: Promise<{ id: string }> };
 
