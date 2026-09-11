@@ -122,11 +122,14 @@ export default function PlantForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const librarySearchActive = mode === "create" && libraryQuery.trim().length >= 2 && libraryQuery !== selectedLibraryName;
+  // Pas de setLibraryResults([]) quand la recherche est inactive : la liste
+  // "effective" ci-dessous s'en charge au rendu plutot que par un setState
+  // synchrone dans l'effet (voir WeatherSettings.tsx, meme pattern).
+  const effectiveLibraryResults = librarySearchActive ? libraryResults : [];
+
   useEffect(() => {
-    if (mode !== "create" || libraryQuery.trim().length < 2 || libraryQuery === selectedLibraryName) {
-      setLibraryResults([]);
-      return;
-    }
+    if (!librarySearchActive) return;
     const timeout = setTimeout(async () => {
       try {
         const res = await fetch(`/api/library?q=${encodeURIComponent(libraryQuery.trim())}`);
@@ -138,7 +141,7 @@ export default function PlantForm({
       }
     }, 300);
     return () => clearTimeout(timeout);
-  }, [libraryQuery, mode, selectedLibraryName]);
+  }, [libraryQuery, librarySearchActive]);
 
   /**
    * Applique le profil suggere par la bibliotheque (section 20) : pre-remplit
@@ -362,9 +365,9 @@ export default function PlantForm({
               }}
               className={inputClass}
             />
-            {libraryResults.length > 0 && (
+            {effectiveLibraryResults.length > 0 && (
               <div className="card absolute left-0 right-0 z-10 mt-1 max-h-56 overflow-y-auto p-1">
-                {libraryResults.map((entry) => (
+                {effectiveLibraryResults.map((entry) => (
                   <button
                     key={entry.id}
                     type="button"
@@ -383,7 +386,7 @@ export default function PlantForm({
               Profil &quot;{selectedLibraryName}&quot; appliqué aux champs ci-dessous.
             </p>
           )}
-          {!libraryEntryId && libraryResults.length === 0 && libraryQuery.trim().length >= 2 && (
+          {!libraryEntryId && effectiveLibraryResults.length === 0 && libraryQuery.trim().length >= 2 && (
             <ExternalSpeciesSearch
               query={libraryQuery}
               onImported={(entry) => applyLibraryEntry(entry as unknown as LibraryEntry)}

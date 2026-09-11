@@ -22,6 +22,12 @@ export default function ThemeToggle() {
     try {
       const stored = localStorage.getItem("theme");
       if (stored === "light" || stored === "dark" || stored === "system") {
+        // Faux positif connu de react-hooks/set-state-in-effect (voir
+        // react/react#34743, non resolu cote React) : localStorage n'existe
+        // pas cote serveur, ce useEffect doit s'executer apres l'hydratation
+        // pour eviter un mismatch SSR/client -- impossible a calculer au
+        // rendu comme le suggere la regle.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setTheme(stored);
       }
     } catch {

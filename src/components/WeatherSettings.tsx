@@ -28,7 +28,9 @@ export default function WeatherSettings({ initial }: { initial: WeatherProfile |
 
   useEffect(() => {
     if (query.trim().length < 2) {
-      setCandidates([]);
+      // Pas de setCandidates([]) ici : visibleCandidates (derive au rendu,
+      // voir plus bas) s'en charge deja sans passer par un setState
+      // synchrone dans l'effet.
       return;
     }
     const timeout = setTimeout(async () => {
@@ -43,6 +45,8 @@ export default function WeatherSettings({ initial }: { initial: WeatherProfile |
     }, 400);
     return () => clearTimeout(timeout);
   }, [query]);
+
+  const visibleCandidates = query.trim().length < 2 ? [] : candidates;
 
   async function selectCity(candidate: GeocodeCandidate) {
     setSaving(true);
@@ -120,9 +124,9 @@ export default function WeatherSettings({ initial }: { initial: WeatherProfile |
           className="input w-full px-3 py-2 text-sm"
           disabled={saving}
         />
-        {candidates.length > 0 && (
+        {visibleCandidates.length > 0 && (
           <div className="card absolute left-0 right-0 z-10 mt-1 max-h-56 overflow-y-auto p-1">
-            {candidates.map((c, i) => (
+            {visibleCandidates.map((c, i) => (
               <button
                 key={i}
                 type="button"

@@ -55,6 +55,11 @@ export default function LibraryBrowser() {
 
   useEffect(() => {
     if (isSearchMode) return;
+    // Faux positif connu de react-hooks/set-state-in-effect (voir
+    // react/react#34743) : marquer le chargement en cours avant de lancer
+    // le fetch est le seul moyen de piloter cet etat, indissociable du
+    // cycle de vie de la requete asynchrone -- rien a deriver au rendu.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setBrowsing(true);
     setBrowseError(null);
     setOpenId(null);
@@ -73,6 +78,10 @@ export default function LibraryBrowser() {
 
   useEffect(() => {
     if (!isSearchMode) return;
+    // Meme faux positif que ci-dessus (react/react#34743) : setSearching
+    // pilote l'etat du fetch debounce declenche juste apres, pas quelque
+    // chose de derivable au rendu.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOpenId(null);
     setSearching(true);
     const timeout = setTimeout(async () => {
