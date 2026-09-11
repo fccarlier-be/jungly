@@ -15,6 +15,7 @@ import { Prisma } from "@generated/prisma/client";
 import { isOpenPlantbookConfigured, findPlantbookImage } from "../src/server/openplantbook/client";
 import { findOpenLicensedPhoto as findINaturalistPhoto } from "../src/server/inaturalist/client";
 import { findOpenLicensedPhoto as findGbifPhoto } from "../src/server/gbif/client";
+import { mirrorLibraryImage } from "../src/server/libraryPhotos";
 import { db } from "../src/server/db";
 
 function sleep(ms: number) {
@@ -125,7 +126,12 @@ async function main() {
         if (found) break;
       }
       if (found) {
-        const careProfile = { ...(entry.careProfile as Record<string, unknown> | null), imageUrl: found.imageUrl };
+        // Mirroir local (voir libraryPhotos.ts) : sans ca, cette fiche
+        // hotlinkerait indefiniment iNaturalist/OpenPlantbook/GBIF -- garde
+        // imageSourceUrl (page d'attribution) intact, seul `imageUrl`
+        // (utilise pour l'affichage) devient local.
+        const mirroredUrl = (await mirrorLibraryImage(found.imageUrl)) ?? found.imageUrl;
+        const careProfile = { ...(entry.careProfile as Record<string, unknown> | null), imageUrl: mirroredUrl };
         await db.plantLibraryEntry.update({
           where: { id: entry.id },
           data: {

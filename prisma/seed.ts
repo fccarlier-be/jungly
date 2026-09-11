@@ -5,6 +5,7 @@ import { LIBRARY_SEED_ENTRIES } from "./librarySeed";
 import { mapPlantfolioEntry, type PlantfolioRawEntry } from "./plantfolioMapping";
 import plantfolioData from "./plantfolioData.json";
 import { buildTaskTitle } from "@/server/careEngine/taskGenerator";
+import { mirrorLibraryImage } from "@/server/libraryPhotos";
 import { db } from "@/server/db";
 
 function daysFromNow(days: number): Date {
@@ -51,13 +52,39 @@ async function seedLibrary() {
     let created = 0;
     let updated = 0;
     for (const entry of LIBRARY_SEED_ENTRIES) {
+      const existing = await db.plantLibraryEntry.findFirst({ where: { scientificName: entry.scientificName } });
+
+      // Mirroir local de la photo (voir libraryPhotos.ts) : sans ca, ces 120
+      // fiches hand-curated hotlinkaient Wikipedia indefiniment, jamais
+      // couvertes par le mirroring de /api/library/import (reserve aux
+      // fiches ajoutees via la recherche externe en direct). Ne re-mirroire
+      // pas si la source (imageSourceUrl, l'URL Wikipedia brute) n'a pas
+      // change depuis le dernier seed -- seedIfChanged() ne re-execute deja
+      // cette fonction que si LIBRARY_SEED_ENTRIES a change, mais une seule
+      // entree modifiee suffit a invalider l'empreinte globale.
+      const rawImageUrl = entry.careProfile.imageUrl ?? null;
+      let imageUrl = rawImageUrl;
+      // process.env.CI : GitHub Actions le pose automatiquement a "true"
+      // sur chaque job, sans configuration de notre part. La base de la CI
+      // est ephemere (jamais consultee par un vrai utilisateur, detruite a
+      // la fin du job) -- mirroirer 120 images Wikipedia a chaque run n'y
+      // apporte rien et ralentirait inutilement chaque pipeline.
+      if (rawImageUrl && process.env.CI !== "true") {
+        const existingCareProfile = existing?.careProfile as { imageUrl?: string } | null;
+        if (existing?.imageSourceUrl === rawImageUrl && existingCareProfile?.imageUrl?.startsWith("/library-photos/")) {
+          imageUrl = existingCareProfile.imageUrl;
+        } else {
+          imageUrl = (await mirrorLibraryImage(rawImageUrl)) ?? rawImageUrl;
+        }
+      }
+
       const data = {
         commonName: entry.commonName,
         scientificName: entry.scientificName,
         family: entry.family,
-        careProfile: entry.careProfile as unknown as Prisma.InputJsonValue,
+        careProfile: { ...entry.careProfile, imageUrl } as unknown as Prisma.InputJsonValue,
+        imageSourceUrl: rawImageUrl,
       };
-      const existing = await db.plantLibraryEntry.findFirst({ where: { scientificName: entry.scientificName } });
       if (existing) {
         await db.plantLibraryEntry.update({ where: { id: existing.id }, data });
         updated += 1;
