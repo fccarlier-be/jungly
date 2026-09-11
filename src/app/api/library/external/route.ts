@@ -23,7 +23,9 @@ export async function GET(request: NextRequest) {
     }
 
     const q = request.nextUrl.searchParams.get("q")?.trim();
-    if (!q || q.length < 2) {
+    // La borne haute evite de transmettre une chaine arbitrairement longue a
+    // OpenPlantbook/Perenual sans aucun benefice (audit14.md, #12).
+    if (!q || q.length < 2 || q.length > 120) {
       return NextResponse.json({ source: null, results: [] });
     }
 

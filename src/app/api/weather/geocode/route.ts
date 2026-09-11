@@ -8,7 +8,9 @@ export async function GET(request: NextRequest) {
   try {
     await requireUserId();
     const q = request.nextUrl.searchParams.get("q")?.trim();
-    if (!q || q.length < 2) {
+    // Meme raisonnement que la recherche d'especes (audit14.md, #12) : pas de
+    // benefice a transmettre une chaine arbitrairement longue a Open-Meteo.
+    if (!q || q.length < 2 || q.length > 120) {
       return NextResponse.json({ results: [] });
     }
     const results = await geocodeCity(q);
