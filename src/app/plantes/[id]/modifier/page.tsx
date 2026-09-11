@@ -15,16 +15,17 @@ export default async function EditPlantPage({ params }: { params: Promise<{ id: 
   });
   if (!plant) notFound();
 
-  const [locations, fertilizers] = await Promise.all([
+  const [locations, fertilizers, user] = await Promise.all([
     db.location.findMany({ where: { userId }, orderBy: { name: "asc" } }),
     db.fertilizer.findMany({ where: { userId }, orderBy: { name: "asc" } }),
+    db.user.findUniqueOrThrow({ where: { id: userId }, select: { unitSystem: true } }),
   ]);
 
   return (
     <div className="space-y-6">
       <h1 className="font-display text-2xl font-semibold">Modifier {plant.name}</h1>
 
-      <PlantForm mode="edit" initial={plant} locations={locations} fertilizers={fertilizers} />
+      <PlantForm mode="edit" initial={plant} locations={locations} fertilizers={fertilizers} unitSystem={user.unitSystem} />
 
       <section className="space-y-2">
         <h2 className="font-semibold">Règles d&apos;entretien</h2>

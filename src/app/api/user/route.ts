@@ -8,10 +8,10 @@ import { deleteAccount } from "@/server/account";
 export async function PATCH(request: NextRequest) {
   try {
     const userId = await requireUserId();
-    const { name } = updateUserSchema.parse(await request.json());
+    const { name, unitSystem } = updateUserSchema.parse(await request.json());
 
-    const user = await db.user.update({ where: { id: userId }, data: { name } });
-    return NextResponse.json({ name: user.name });
+    const user = await db.user.update({ where: { id: userId }, data: { name, unitSystem } });
+    return NextResponse.json({ name: user.name, unitSystem: user.unitSystem });
   } catch (error) {
     return handleApiError(error);
   }

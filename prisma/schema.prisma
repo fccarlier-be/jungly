@@ -11,17 +11,26 @@ datasource db {
 // Utilisateur
 // ---------------------------------------------------------------------------
 
+enum UnitSystem {
+  METRIC
+  IMPERIAL
+}
+
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String     @id @default(cuid())
+  email        String     @unique
   name         String?
   passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
   // Seul l'utilisateur seed (SEED_USER_EMAIL) l'est, voir prisma/seed.ts --
   // reserve les actions affectant les donnees GLOBALES partagees entre tous
   // les comptes (ex. resynchroniser une fiche de bibliotheque commune).
-  isAdmin      Boolean  @default(false)
+  isAdmin      Boolean    @default(false)
+  // Les valeurs restent stockees en unites standard (ml, mm) partout en base
+  // -- seul l'affichage/la saisie (src/lib/units.ts) convertit selon ce
+  // reglage, en vue notamment d'un futur public anglophone/imperial.
+  unitSystem   UnitSystem @default(METRIC)
 
   locations             Location[]
   plants                Plant[]

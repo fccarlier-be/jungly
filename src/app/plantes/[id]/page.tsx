@@ -26,6 +26,7 @@ const NOTE_CATEGORY_LABEL: Record<string, string> = {
 export default async function PlantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const userId = await requireSessionUserId();
+  const { unitSystem } = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { unitSystem: true } });
 
   const plant = await db.plant.findFirst({
     where: { id, userId },
@@ -70,7 +71,7 @@ export default async function PlantDetailPage({ params }: { params: Promise<{ id
   const infoRows: Array<{ label: string; value: string | null | undefined }> = [
     { label: "Exposition", value: plant.exposure },
     { label: "Substrat", value: plant.substrate },
-    { label: "Taille du pot", value: plant.potDiameterMm ? `${formatDistanceMm(plant.potDiameterMm)} de diamètre` : null },
+    { label: "Taille du pot", value: plant.potDiameterMm ? `${formatDistanceMm(plant.potDiameterMm, unitSystem)} de diamètre` : null },
     { label: "Matériau du pot", value: plant.potMaterial },
     { label: "Acquisition", value: plant.acquiredAt ? formatDate(plant.acquiredAt) : null },
   ].filter((row) => row.value);

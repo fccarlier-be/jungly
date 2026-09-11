@@ -8,14 +8,16 @@ import ExportImport from "@/components/ExportImport";
 import ThemeToggle from "@/components/ThemeToggle";
 import AccountSettings from "@/components/AccountSettings";
 import WeatherSettings from "@/components/WeatherSettings";
+import UnitSettings from "@/components/UnitSettings";
 
 export default async function SettingsPage() {
   const userId = await requireSessionUserId();
   const session = await auth();
 
-  const [preference, weatherProfile] = await Promise.all([
+  const [preference, weatherProfile, user] = await Promise.all([
     db.notificationPreference.upsert({ where: { userId }, update: {}, create: { userId } }),
     db.weatherProfile.findUnique({ where: { userId }, select: { city: true, wateringIntervalMultiplier: true } }),
+    db.user.findUniqueOrThrow({ where: { id: userId }, select: { unitSystem: true } }),
   ]);
 
   return (
@@ -62,6 +64,11 @@ export default async function SettingsPage() {
             Historique complet
           </Link>
         </div>
+      </section>
+
+      <section className="card p-4 space-y-2 text-sm">
+        <h2 className="font-semibold">Unités</h2>
+        <UnitSettings initial={user.unitSystem} />
       </section>
 
       <section className="card p-4 space-y-2 text-sm">

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sprout } from "lucide-react";
 import { CareTypeIcon } from "@/components/careIcons";
 import ExternalSpeciesSearch, { type ImportedLibraryEntry } from "@/components/ExternalSpeciesSearch";
+import { mmToInputUnit, inputUnitToMm, type UnitSystem } from "@/lib/units";
 
 export interface LocationOption {
   id: string;
@@ -62,13 +63,16 @@ export default function PlantForm({
   initial,
   locations,
   fertilizers,
+  unitSystem = "METRIC",
 }: {
   mode: "create" | "edit";
   initial?: PlantFormInitial;
   locations: LocationOption[];
   fertilizers: FertilizerOption[];
+  unitSystem?: UnitSystem;
 }) {
   const router = useRouter();
+  const distanceUnitLabel = unitSystem === "IMPERIAL" ? "in" : "mm";
 
   const [libraryQuery, setLibraryQuery] = useState("");
   const [libraryResults, setLibraryResults] = useState<LibraryEntry[]>([]);
@@ -82,8 +86,15 @@ export default function PlantForm({
   const [locationId, setLocationId] = useState(initial?.locationId ?? "");
   const [newLocationName, setNewLocationName] = useState("");
   const [acquiredAt, setAcquiredAt] = useState(toDateInputValue(initial?.acquiredAt));
-  const [potDiameterMm, setPotDiameterMm] = useState(initial?.potDiameterMm?.toString() ?? "");
-  const [potHeightMm, setPotHeightMm] = useState(initial?.potHeightMm?.toString() ?? "");
+  // Valeurs dans l'unite d'AFFICHAGE choisie par l'utilisateur (mm ou
+  // pouces) -- converties vers/depuis mm uniquement a la frontiere avec
+  // l'API (voir plantPayload plus bas), qui stocke toujours en mm.
+  const [potDiameterInput, setPotDiameterInput] = useState(
+    initial?.potDiameterMm != null ? mmToInputUnit(initial.potDiameterMm, unitSystem).toString() : "",
+  );
+  const [potHeightInput, setPotHeightInput] = useState(
+    initial?.potHeightMm != null ? mmToInputUnit(initial.potHeightMm, unitSystem).toString() : "",
+  );
   const [potMaterial, setPotMaterial] = useState(initial?.potMaterial ?? "");
   const [substrate, setSubstrate] = useState(initial?.substrate ?? "");
   const [exposure, setExposure] = useState(initial?.exposure ?? "");
@@ -242,8 +253,8 @@ export default function PlantForm({
         photoUrl: photoUrl || undefined,
         locationId: finalLocationId || undefined,
         acquiredAt: acquiredAt || undefined,
-        potDiameterMm: potDiameterMm ? Number(potDiameterMm) : undefined,
-        potHeightMm: potHeightMm ? Number(potHeightMm) : undefined,
+        potDiameterMm: potDiameterInput ? inputUnitToMm(Number(potDiameterInput), unitSystem) : undefined,
+        potHeightMm: potHeightInput ? inputUnitToMm(Number(potHeightInput), unitSystem) : undefined,
         potMaterial: potMaterial || undefined,
         substrate: substrate || undefined,
         exposure: exposure || undefined,
@@ -467,27 +478,29 @@ export default function PlantForm({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="potDiameterMm" className={labelClass}>
-              Diamètre du pot (mm)
+              Diamètre du pot ({distanceUnitLabel})
             </label>
             <input
               id="potDiameterMm"
               type="number"
-              min={1}
-              value={potDiameterMm}
-              onChange={(e) => setPotDiameterMm(e.target.value)}
+              min={unitSystem === "IMPERIAL" ? 0.1 : 1}
+              step={unitSystem === "IMPERIAL" ? 0.1 : 1}
+              value={potDiameterInput}
+              onChange={(e) => setPotDiameterInput(e.target.value)}
               className={inputClass}
             />
           </div>
           <div>
             <label htmlFor="potHeightMm" className={labelClass}>
-              Hauteur du pot (mm)
+              Hauteur du pot ({distanceUnitLabel})
             </label>
             <input
               id="potHeightMm"
               type="number"
-              min={1}
-              value={potHeightMm}
-              onChange={(e) => setPotHeightMm(e.target.value)}
+              min={unitSystem === "IMPERIAL" ? 0.1 : 1}
+              step={unitSystem === "IMPERIAL" ? 0.1 : 1}
+              value={potHeightInput}
+              onChange={(e) => setPotHeightInput(e.target.value)}
               className={inputClass}
             />
           </div>
