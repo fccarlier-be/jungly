@@ -9,6 +9,12 @@
  * meritent d'etre remarques : statut "a faire aujourd'hui", petits accents).
  */
 :root {
+  /* Sans ceci, Chrome sur Android considere que la page ne gere elle-meme
+     aucun theme et applique son propre "force dark" heuristique au contenu,
+     ce qui corrompt visuellement les petites icones vectorielles (lucide-react)
+     en un motif bruite -- alors que l'app gere deja elle-meme clair/sombre via
+     prefers-color-scheme et [data-theme] ci-dessous. */
+  color-scheme: light dark;
   --bg: #f6f2e8;
   --surface: #ffffff;
   --surface-alt: #efe9db;
@@ -69,8 +75,14 @@
   }
 }
 
+/* Force clair, meme si l'appareil est en mode sombre. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
 /* Force sombre, meme si l'appareil est en mode clair. */
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #12150f;
   --surface: #23281e;
   --surface-alt: #2f3526;
