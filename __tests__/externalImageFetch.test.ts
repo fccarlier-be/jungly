@@ -36,7 +36,22 @@ describe("isPrivateOrReservedIp", () => {
   });
 
   it("reconnait les plages privees/reservees IPv6", () => {
-    const privateIps = ["::1", "::", "fc00::1", "fd12:3456::1", "fe80::1", "ff02::1", "::ffff:127.0.0.1", "::ffff:10.0.0.1"];
+    const privateIps = [
+      "::1",
+      "::",
+      "fc00::1",
+      "fd12:3456::1",
+      "fe80::1",
+      "ff02::1",
+      "::ffff:127.0.0.1",
+      "::ffff:10.0.0.1",
+      // Forme hexadecimale equivalente de ::ffff:127.0.0.1 / ::ffff:10.0.0.1
+      // (audit12.md) : une regexp sur la forme decimale pointee seule ne la
+      // reconnaissait pas -- c'est precisement pour cette classe de trou que
+      // la classification delegue desormais a ipaddr.js.
+      "::ffff:7f00:1",
+      "::ffff:a00:1",
+    ];
     for (const ip of privateIps) {
       expect(isPrivateOrReservedIp(ip), ip).toBe(true);
     }

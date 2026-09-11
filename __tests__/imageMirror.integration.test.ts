@@ -44,6 +44,17 @@ describe("fetchWithSizeLimit (integration reelle, serveur HTTP local)", () => {
       } else if (req.url === "/too-big.jpg") {
         res.writeHead(200, { "Content-Type": "image/jpeg" });
         res.end(Buffer.alloc(20 * 1024 * 1024));
+      } else if (req.url === "/redirect.jpg") {
+        // Simule une cible publique qui redirige vers une adresse interne --
+        // audit12.md section 1 : sans redirect: "error", fetch() suivrait
+        // silencieusement cette redirection, contournant assertSafeExternalUrl()
+        // deja passee sur l'URL initiale.
+        res.writeHead(302, { Location: "http://169.254.169.254/latest/meta-data/" });
+        res.end();
+      } else if (req.url === "/slow.jpg") {
+        // N'envoie jamais la reponse : verifie que le timeout se declenche
+        // plutot que de laisser la requete pendre indefiniment.
+        // (aucun res.end() -- la connexion reste ouverte)
       } else {
         res.writeHead(404);
         res.end();
@@ -78,6 +89,14 @@ describe("fetchWithSizeLimit (integration reelle, serveur HTTP local)", () => {
   it("rejette une reponse 404", async () => {
     await expect(fetchWithSizeLimit(`${baseUrl}/absent.jpg`, 8 * 1024 * 1024)).rejects.toThrow(ExternalFetchError);
   });
+
+  it("refuse de suivre une redirection HTTP (contournement SSRF, audit12.md)", async () => {
+    await expect(fetchWithSizeLimit(`${baseUrl}/redirect.jpg`, 8 * 1024 * 1024)).rejects.toThrow(ExternalFetchError);
+  });
+
+  it("interrompt un telechargement qui ne repond jamais (timeout)", async () => {
+    await expect(fetchWithSizeLimit(`${baseUrl}/slow.jpg`, 8 * 1024 * 1024, 200)).rejects.toThrow(ExternalFetchError);
+  }, 2000);
 });
 
 describe("processAndStoreLibraryImage / processAndStoreUpload (integration reelle, vrai Sharp/DB/filesystem)", () => {
