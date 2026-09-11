@@ -3,6 +3,20 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-11 — Migration Tailwind CSS 4.3.3
+
+Suite à la PR Dependabot `tailwindcss` 3.4.17 → 4.3.3 (bloquée en CI, voir durcissement post-audit9). Tailwind v4 change le système de configuration (CSS-first via `@theme`, plus de `tailwind.config.js` détecté automatiquement) et renomme le plugin PostCSS.
+
+### Changé
+
+- **`postcss.config.mjs`** : plugin `tailwindcss` → `@tailwindcss/postcss` ; `autoprefixer` retiré (le préfixage vendor est géré nativement par v4, plus besoin d'un plugin séparé).
+- **`src/app/globals.css`** : `@tailwind base/components/utilities` → `@import "tailwindcss"`, avec un bloc `@theme` pour la seule vraie personnalisation encore utilisée dans le code (`--radius-lg/xl/2xl`, rayons de bordure custom). `font-display`/`font-sans` passés en classes utilitaires écrites à la main plutôt que via `@theme --font-*`, pour éviter une collision de nom entre la variable Tailwind et la variable CSS `--font-display` posée par `next/font` sur `<html>` (même nom, cascade ambiguë).
+- **`tailwind.config.ts`** supprimé : audit du reste de sa configuration (`colors.forest/sage/clay/sand/ink`, `boxShadow.soft/lift`, `keyframes`/`animation` rise-in/pop) a montré qu'aucune n'était réellement utilisée comme classe Tailwind dans le code — les couleurs passent par des variables CSS directes (`var(--primary)` etc.), les ombres pareil (`var(--shadow-soft)`), et `animate-rise-in`/`animate-pop` sont déjà définies en CSS pur dans `globals.css`, indépendamment du thème Tailwind. Rien à porter au-delà des rayons de bordure.
+
+### Vérifié
+
+Construit et testé sur une branche séparée, dans un **conteneur Docker de test persistant** (pas de conteneur de production touché), exposé temporairement sur `testplantes.fcold.org` (Cloudflare Tunnel, route retirée après validation) pour une vraie **revue visuelle par l'utilisateur** sur ses propres données (8 vraies plantes, photos) — le vrai risque de cette migration n'est pas détectable par lint/tests/build seuls. Un problème de configuration du conteneur de test (montage `data/uploads` manquant, distinct de `data` en prod) a été corrigé en cours de route ; une fois réglé, rendu confirmé identique à l'ancienne version par l'utilisateur. `npm run lint`, `npm test` (102 tests) et `npm run build` verts.
+
 ## [Post-MVP] - 2026-09-11 — Migration Prisma 7 (avec correctif suite à un vrai incident)
 
 Suite à la PR Dependabot `prisma` 6.19.3 → 7.10.0 (bloquée en CI, voir durcissement post-audit9). Prisma 7 supprime `datasource.url` de `schema.prisma` et requiert un "driver adapter" explicite pour toute connexion.
