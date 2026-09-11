@@ -18,3 +18,11 @@ updates:
     # automatique non revue serait risquee. Dependabot ouvre quand meme
     # une PR (utile pour etre notifie), mais ne merge jamais tout seul.
     open-pull-requests-limit: 5
+    ignore:
+      # TypeScript 7 = TypeScript-Go (nouveau compilateur, architecture
+      # differente) : typescript-eslint ne le supporte pas encore (voir
+      # typescript-eslint/typescript-eslint#10940), le lint casse
+      # immediatement. Bloque les montees majeures jusqu'a ce que
+      # l'ecosystem rattrape ; a retirer une fois le ticket resolu.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
