@@ -3,6 +3,30 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-11 — Migration Prisma 7 (avec correctif suite à un vrai incident)
+
+Suite à la PR Dependabot `prisma` 6.19.3 → 7.10.0 (bloquée en CI, voir durcissement post-audit9). Prisma 7 supprime `datasource.url` de `schema.prisma` et requiert un "driver adapter" explicite pour toute connexion.
+
+Un premier déploiement (même jour) a immédiatement révélé un bug réel en production : toutes les tâches remontaient comme "à faire aujourd'hui" sur le tableau de bord. Corrigé et re-déployé avec une migration de données dédiée (voir "Corrigé" ci-dessous) après investigation complète.
+
+### Changé
+
+- **`prisma.config.ts`** (nouveau, racine du dépôt) : remplace la configuration `datasource.url` et `package.json#prisma.seed`, désormais lus par le CLI Prisma depuis ce fichier.
+- **`prisma/schema.prisma`** : generator `prisma-client-js` → `prisma-client` avec sortie dans `./generated/prisma` (hors `node_modules`, gitignore) plutôt qu'importé via `@prisma/client` — tous les imports du dépôt basculés vers l'alias `@generated/prisma/client` (`tsconfig.json`/`vitest.config.ts`).
+- **`src/server/db.ts`** : le client est désormais construit avec un adapter (`@prisma/adapter-better-sqlite3`) portant l'URL de connexion, au lieu d'être lu depuis le schema. Même changement pour les scripts autonomes (`prisma/seed.ts`, `backfillImages.ts`, `backfillTaskTitles.ts`, `e2e/dbCleanup.ts`).
+- **`Dockerfile`** : `better-sqlite3` (dépendance de l'adapter) compile un binaire natif à l'installation — ajout de `python3 make g++` dans l'étape `deps` (Alpine) ; nouvelle étape `COPY` pour le dossier `generated/` (hors `node_modules`, non tracé automatiquement par le bundling standalone de Next.js).
+- **`next.config.ts`** : `serverExternalPackages: ["better-sqlite3", "@prisma/adapter-better-sqlite3", "bindings"]` — sans ça, le bundling webpack du build standalone casse la résolution du binding natif au runtime (`Could not locate the bindings file`), un module natif chargé dynamiquement (pas du code JS ordinaire) ne doit jamais être bundlé.
+
+### Corrigé
+
+- **Format de stockage des `DateTime` incompatible avec les données existantes.** Le nouvel adapter écrit désormais les `DateTime` en texte ISO-8601 (`"2026-09-11T08:15:16.797+00:00"`), alors que l'ancien moteur (`prisma-client-js`) les stockait en entier (epoch millisecondes) — SQLite n'imposant aucun type strict par colonne, les deux formats coexistaient sans erreur SQL, mais toute comparaison (`dueAt <= ?`) entre une valeur stockée en entier et une valeur de requête en texte était systématiquement fausse : SQLite considère tout entier comme "inférieur" à tout texte, quel que soit son contenu (règle de tri des classes de stockage SQLite : `NULL < INTEGER/REAL < TEXT < BLOB`). Conséquence réelle observée : les 22 tâches `PENDING`/`SNOOZED` (sur 8 vraies plantes) remontaient toutes comme dues, peu importe leur échéance réelle.
+  Nouvelle migration `20260911100000_convert_datetimes_to_text` : convertit en une fois toutes les colonnes `DateTime` existantes (16 tables) de l'entier vers le texte ISO, de façon idempotente (`WHERE typeof(...) = 'integer'`, ne touche jamais une valeur déjà au bon format).
+- Nouveau test d'intégration (`__tests__/dueTasks.integration.test.ts`, vraie base SQLite + vrai client Prisma, pas une simple fonction pure) : tâche en retard incluse, tâche future exclue, report (`snoozedUntil`) passé/futur, tâche déjà complétée jamais incluse. Un test qui se contente d'inspecter l'objet where-clause produit par `dueTasksWhere()` n'aurait pas détecté ce bug — seule l'exécution réelle contre SQLite le révèle.
+
+### Vérifié
+
+Migration construite et validée sur une branche séparée, dans un conteneur Docker isolé (jamais le conteneur de production) monté sur une **copie** des vraies données, migration de dates comprise : connexion/liste des plantes, écriture (création plante + règle de soin), suppression avec cascade, **et cette fois la page d'accueil réelle** ("Rien à faire aujourd'hui" correctement affiché, dates des prochaines échéances toutes dans le futur) — avant tout déploiement réel. `npm run lint`, `npm test` (102 tests dont les 3 nouveaux) et `npm run build` verts, sur base vierge et sur copie réelle.
+
 ## [Post-MVP] - 2026-09-11 — Durcissement post-audit9
 
 Suite à un audit Copilot (audit9.md), moins rigoureux que les audits GPT précédents (plusieurs affirmations vérifiées comme fausses/dépassées : les tests d'intrusion multi-tenant existaient déjà (`e2e/ownership.spec.ts`), la protection des uploads via nginx était déjà traitée plus rigoureusement que suggéré). Deux points étaient en revanche justes et absents jusqu'ici : lint et scan de dépendances.
