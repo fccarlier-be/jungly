@@ -6,6 +6,7 @@ import { handleApiError } from "@/lib/apiError";
 import { db } from "@/server/db";
 import { getExternalDetails } from "@/server/externalSpecies/providers";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { mirrorLibraryImage } from "@/server/libraryPhotos";
 
 const importSchema = z.object({ source: z.enum(["OPENPLANTBOOK", "PERENUAL"]), sourceId: z.string().min(1) });
 
@@ -34,11 +35,28 @@ export async function POST(request: NextRequest) {
     const details = await getExternalDetails(source, sourceId);
     const now = new Date();
 
+    // Mirroir local de la photo (voir libraryPhotos.ts) : sans ca, chaque
+    // affichage de /bibliotheque re-televerse l'image depuis la source
+    // externe indefiniment. Reimporter (idempotent, ex. depuis
+    // ExternalSpeciesSearch) ne re-telecharge pas si la source de l'image
+    // n'a pas change depuis le dernier import/resync -- reutilise alors le
+    // mirroir deja stocke plutot que d'en creer un nouveau orphelin.
+    const existing = await db.plantLibraryEntry.findUnique({ where: { source_sourceId: { source, sourceId } } });
+    const existingCareProfile = existing?.careProfile as { imageUrl?: string } | null;
+    let imageUrl = details.careProfile.imageUrl;
+    if (details.image.imageUrl) {
+      if (existing?.imageSourceUrl === details.image.imageSourceUrl && existingCareProfile?.imageUrl) {
+        imageUrl = existingCareProfile.imageUrl;
+      } else {
+        imageUrl = (await mirrorLibraryImage(details.image.imageUrl)) ?? details.image.imageUrl;
+      }
+    }
+
     const data = {
       commonName: details.commonName,
       scientificName: details.scientificName,
       family: details.family,
-      careProfile: details.careProfile as unknown as Prisma.InputJsonValue,
+      careProfile: { ...details.careProfile, imageUrl } as unknown as Prisma.InputJsonValue,
       source,
       sourceId,
       lastSyncedAt: now,

@@ -71,8 +71,10 @@ export const config = {
   // recevoir le nonce CSP.
   matcher: [
     // .well-known : verification de domaine pour le TWA (empaquetage
-    // Android), doit rester joignable sans session.
-    "/((?!api|_next/static|_next/image|favicon.ico|icons|uploads|manifest.json|sw.js|\\.well-known).*)",
+    // Android), doit rester joignable sans session. library-photos : mirroir
+    // public de la bibliotheque partagee (voir src/server/libraryPhotos.ts),
+    // aucune session necessaire pour ces fichiers, contrairement a uploads.
+    "/((?!api|_next/static|_next/image|favicon.ico|icons|uploads|library-photos|manifest.json|sw.js|\\.well-known).*)",
   ],
   // Next.js 16 : le runtime Node.js est desormais le seul possible pour
   // proxy.ts (ex-middleware.ts) -- fixer `runtime` dans la config leve une

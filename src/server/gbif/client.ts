@@ -9,7 +9,7 @@
  */
 
 const BASE_URL = "https://api.gbif.org/v1";
-const USER_AGENT = "PlantManagerHomelab/1.0 (self-hosted personal app, non-commercial; contact: fc.carlier@gmail.com)";
+const USER_AGENT = "PlantManagerHomelab/1.0 (self-hosted personal app, non-commercial)";
 const OPEN_LICENSE_PATTERN = /creativecommons\.org\/(licenses|publicdomain)/i;
 
 export interface GbifPhoto {

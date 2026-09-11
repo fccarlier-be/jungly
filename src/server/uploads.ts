@@ -1,9 +1,15 @@
-import { unlink } from "node:fs/promises";
+import { unlink, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
+import sharp from "sharp";
 import { db } from "@/server/db";
-import { BadRequestError } from "@/lib/apiError";
+import { BadRequestError } from "@/lib/errors";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+const ALLOWED_MIRROR_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const MAX_MIRROR_SIZE_BYTES = 8 * 1024 * 1024;
+const MAX_MIRROR_DIMENSION = 1600;
+const MIRROR_JPEG_QUALITY = 82;
 
 /** Chemin disque d'un fichier uploade a partir de son seul nom -- path.basename() empeche toute traversee de repertoire. */
 export function resolveUploadedFilePath(filename: string): string {
@@ -95,4 +101,74 @@ export async function assertOwnedUpload(userId: string, url: string | null | und
   }
 
   throw new BadRequestError("Fichier non reconnu.");
+}
+
+/**
+ * Telecharge une image externe (suggestion de la bibliotheque, source
+ * OpenPlantbook/Perenual pre-remplissant le champ photo d'une plante) et la
+ * stocke comme un upload possede par userId -- plutot que de laisser l'URL
+ * externe hotlinkee indefiniment sur la plante de l'utilisateur : fragile
+ * (casse si la source la deplace/supprime) et fuit son IP vers ce tiers a
+ * chaque affichage de sa propre plante. Best-effort : retourne l'URL
+ * d'origine inchangee en cas d'echec (reseau, format non supporte...),
+ * jamais bloquant pour la creation/modification de la ressource.
+ */
+async function mirrorExternalImageToUpload(url: string, userId: string): Promise<string> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return url;
+
+    const contentType = res.headers.get("content-type")?.split(";")[0]?.trim();
+    if (!contentType || !ALLOWED_MIRROR_TYPES.has(contentType)) return url;
+
+    const arrayBuffer = await res.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_MIRROR_SIZE_BYTES) return url;
+
+    const processed = await sharp(Buffer.from(arrayBuffer))
+      .rotate()
+      .resize({ width: MAX_MIRROR_DIMENSION, height: MAX_MIRROR_DIMENSION, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: MIRROR_JPEG_QUALITY })
+      .toBuffer();
+
+    await mkdir(UPLOAD_DIR, { recursive: true });
+    const filename = `${randomUUID()}.jpg`;
+    await writeFile(resolveUploadedFilePath(filename), processed);
+    try {
+      await db.upload.create({ data: { filename, userId } });
+    } catch (error) {
+      await unlink(resolveUploadedFilePath(filename)).catch(() => {});
+      throw error;
+    }
+    return `/uploads/${filename}`;
+  } catch (error) {
+    console.error("Echec du mirroring d'image externe, URL externe conservee", url, error);
+    return url;
+  }
+}
+
+/**
+ * Normalise une URL de photo fournie par le client avant ecriture en base,
+ * a appeler a la place d'assertOwnedUpload() partout ou le champ peut
+ * provenir d'une suggestion de bibliotheque (Plant.photoUrl,
+ * PlantPhoto.url, Note.photoUrl) :
+ * - /uploads/... -> verifie l'ownership (assertOwnedUpload), inchangee.
+ * - /library-photos/... -> deja un mirroir public local (voir
+ *   libraryPhotos.ts), inchangee, aucune verification necessaire.
+ * - URL externe (http/https) -> telechargee et mirroree dans /uploads
+ *   (voir mirrorExternalImageToUpload).
+ * - null/undefined -> inchangee.
+ */
+export async function resolvePhotoUrl(userId: string, url: string | null | undefined): Promise<string | null | undefined> {
+  if (!url) return url;
+  if (url.startsWith("/uploads/")) {
+    await assertOwnedUpload(userId, url);
+    return url;
+  }
+  if (url.startsWith("/library-photos/")) {
+    return url;
+  }
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return mirrorExternalImageToUpload(url, userId);
+  }
+  return url;
 }

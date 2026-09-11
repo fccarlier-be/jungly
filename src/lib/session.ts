@@ -1,13 +1,11 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
-import { ForbiddenError } from "@/lib/apiError";
+import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 
-export class UnauthorizedError extends Error {
-  constructor() {
-    super("Non authentifié.");
-  }
-}
+// Re-exportee pour compatibilite -- la definition vit desormais dans
+// errors.ts (voir ce fichier pour le detail).
+export { UnauthorizedError };
 
 /** À utiliser dans les route handlers API : lève UnauthorizedError si non connecté. */
 export async function requireUserId(): Promise<string> {

@@ -44,6 +44,7 @@ docker run -d --name jungly -p 3000:3000 \
   --env-file .env \
   -v "$(pwd)/data":/app/data \
   -v "$(pwd)/data/uploads":/app/public/uploads \
+  -v "$(pwd)/data/library-photos":/app/public/library-photos \
   jungly
 ```
 

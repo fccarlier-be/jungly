@@ -11,7 +11,7 @@
  */
 
 const BASE_URL = "https://api.inaturalist.org/v1";
-const USER_AGENT = "PlantManagerHomelab/1.0 (self-hosted personal app, non-commercial; contact: fc.carlier@gmail.com)";
+const USER_AGENT = "PlantManagerHomelab/1.0 (self-hosted personal app, non-commercial)";
 const OPEN_LICENSES = ["cc0", "cc-by", "cc-by-nc", "cc-by-sa", "cc-by-nc-sa", "cc-by-nd", "cc-by-nc-nd"];
 
 export interface INaturalistPhoto {

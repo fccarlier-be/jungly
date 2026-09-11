@@ -4,7 +4,7 @@ import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { getOwnedPlant, getOwnedLocation } from "@/server/ownership";
 import { updatePlantSchema } from "@/server/validation/plant";
-import { deleteUploadedFileIfUnreferenced, assertOwnedUpload } from "@/server/uploads";
+import { deleteUploadedFileIfUnreferenced, resolvePhotoUrl } from "@/server/uploads";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -43,9 +43,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (input.locationId) {
       await getOwnedLocation(userId, input.locationId);
     }
-    await assertOwnedUpload(userId, input.photoUrl);
+    const photoUrl = await resolvePhotoUrl(userId, input.photoUrl);
 
-    const plant = await db.plant.update({ where: { id }, data: input });
+    const plant = await db.plant.update({ where: { id }, data: { ...input, photoUrl } });
     return NextResponse.json(plant);
   } catch (error) {
     return handleApiError(error);

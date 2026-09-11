@@ -4,7 +4,7 @@ import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { getOwnedPlant } from "@/server/ownership";
 import { createNoteSchema } from "@/server/validation/note";
-import { assertOwnedUpload } from "@/server/uploads";
+import { resolvePhotoUrl } from "@/server/uploads";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
@@ -20,9 +20,9 @@ export async function POST(request: NextRequest) {
     const input = createNoteSchema.parse(body);
 
     await getOwnedPlant(userId, input.plantId);
-    await assertOwnedUpload(userId, input.photoUrl);
+    const photoUrl = await resolvePhotoUrl(userId, input.photoUrl);
 
-    const note = await db.note.create({ data: input });
+    const note = await db.note.create({ data: { ...input, photoUrl } });
     return NextResponse.json(note, { status: 201 });
   } catch (error) {
     return handleApiError(error);

@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/apiError";
 import { createPlantSchema } from "@/server/validation/plant";
 import { getOwnedLocation } from "@/server/ownership";
 import { effectiveDueDate } from "@/server/careEngine/dueTasks";
-import { assertOwnedUpload } from "@/server/uploads";
+import { resolvePhotoUrl } from "@/server/uploads";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 export async function GET(request: NextRequest) {
@@ -97,10 +97,10 @@ export async function POST(request: NextRequest) {
     if (input.locationId) {
       await getOwnedLocation(userId, input.locationId);
     }
-    await assertOwnedUpload(userId, input.photoUrl);
+    const photoUrl = await resolvePhotoUrl(userId, input.photoUrl);
 
     const plant = await db.plant.create({
-      data: { ...input, userId },
+      data: { ...input, photoUrl, userId },
     });
 
     return NextResponse.json(plant, { status: 201 });

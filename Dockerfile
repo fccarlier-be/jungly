@@ -1,7 +1,13 @@
 # Multi-stage : deps -> build (Next.js standalone) -> runtime.
 # Self-hosters n'ont pas besoin de Node en local, `docker compose up` construit tout.
 
-FROM node:22-alpine AS deps
+# Digest fige (node:22-alpine) : reproductibilite du build -- un tag mobile
+# pourrait sinon pointer vers une image differente d'un build a l'autre.
+# Mettre a jour manuellement (docker pull node:22-alpine puis docker inspect
+# --format '{{index .RepoDigests 0}}') lors d'une montee de version Node
+# deliberee, pas automatiquement par Dependabot (pas suivi sur les digests
+# Docker).
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS deps
 WORKDIR /app
 # better-sqlite3 (adapter Prisma 7, voir src/server/db.ts) compile un binaire
 # natif a l'installation (node-gyp) -- absent de l'image Alpine de base.
@@ -13,7 +19,7 @@ COPY package.json package-lock.json* ./
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm ci
 
-FROM node:22-alpine AS build
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS build
 WORKDIR /app
 # NEXT_PUBLIC_* est fige au moment du `next build`, jamais relu au runtime :
 # la cle VAPID publique doit donc passer en build arg (docker-compose.yml
@@ -38,7 +44,7 @@ RUN --mount=type=cache,target=/app/.next/cache npm run build
 # a l'entrypoint en production (migrations + seed).
 RUN npm prune --omit=dev
 
-FROM node:22-alpine AS runtime
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PATH="/app/node_modules/.bin:${PATH}"

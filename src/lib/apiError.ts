@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { Prisma } from "@generated/prisma/client";
-import { UnauthorizedError } from "@/lib/session";
+import { UnauthorizedError, NotFoundError, ConflictError, ForbiddenError, BadRequestError } from "@/lib/errors";
 import { PerenualError } from "@/server/perenual/client";
+
+// Re-exportees pour compatibilite -- la definition vit desormais dans
+// errors.ts (sans dependance next/server, importable depuis un module
+// teste directement sous Vitest). Ne pas dupliquer les classes ici.
+export { NotFoundError, ConflictError, ForbiddenError, BadRequestError };
 
 /**
  * Traduit une erreur en réponse HTTP compréhensible, sans jamais exposer de
@@ -54,31 +59,4 @@ export function handleApiError(error: unknown): NextResponse {
 
   console.error(error);
   return NextResponse.json({ error: "Une erreur inattendue est survenue." }, { status: 500 });
-}
-
-export class NotFoundError extends Error {
-  constructor(message = "Ressource introuvable.") {
-    super(message);
-  }
-}
-
-/** Action refusee a cause de l'etat actuel de la ressource (ex. tache deja completee). */
-export class ConflictError extends Error {
-  constructor(message = "Cette action n'est plus possible dans l'état actuel.") {
-    super(message);
-  }
-}
-
-/** Ressource existante et son id connu de l'appelant, mais action reservee (ex. administration). */
-export class ForbiddenError extends Error {
-  constructor(message = "Action non autorisée.") {
-    super(message);
-  }
-}
-
-/** Requête bien formée mais dont le contenu viole une contrainte métier hors du schéma Zod (ex. limite de taille détectée après décompression). */
-export class BadRequestError extends Error {
-  constructor(message = "Requête invalide.") {
-    super(message);
-  }
 }

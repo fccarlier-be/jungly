@@ -5,6 +5,7 @@ import { handleApiError, NotFoundError } from "@/lib/apiError";
 import { db } from "@/server/db";
 import { getExternalDetails } from "@/server/externalSpecies/providers";
 import type { ExternalSource } from "@/server/externalSpecies/types";
+import { mirrorLibraryImage } from "@/server/libraryPhotos";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -32,13 +33,26 @@ export async function POST(_request: Request, { params }: Params) {
 
     const details = await getExternalDetails(entry.source as ExternalSource, entry.sourceId);
 
+    // Mirroir local de la photo (voir libraryPhotos.ts, meme logique qu'a
+    // l'import) : ne re-telecharge que si la source de l'image a change
+    // depuis le dernier sync, reutilise sinon le mirroir deja stocke.
+    const existingCareProfile = entry.careProfile as { imageUrl?: string } | null;
+    let imageUrl = details.careProfile.imageUrl;
+    if (details.image.imageUrl) {
+      if (entry.imageSourceUrl === details.image.imageSourceUrl && existingCareProfile?.imageUrl) {
+        imageUrl = existingCareProfile.imageUrl;
+      } else {
+        imageUrl = (await mirrorLibraryImage(details.image.imageUrl)) ?? details.image.imageUrl;
+      }
+    }
+
     const updated = await db.plantLibraryEntry.update({
       where: { id },
       data: {
         commonName: details.commonName || entry.commonName,
         scientificName: details.scientificName ?? entry.scientificName,
         family: details.family ?? entry.family,
-        careProfile: details.careProfile as unknown as Prisma.InputJsonValue,
+        careProfile: { ...details.careProfile, imageUrl } as unknown as Prisma.InputJsonValue,
         lastSyncedAt: new Date(),
         imageSourceUrl: details.image.imageSourceUrl,
         imageLicense: details.image.imageLicense,

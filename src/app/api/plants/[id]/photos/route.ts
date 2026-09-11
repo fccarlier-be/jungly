@@ -4,7 +4,7 @@ import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { getOwnedPlant } from "@/server/ownership";
 import { addPlantPhotosSchema } from "@/server/validation/plant";
-import { assertOwnedUpload } from "@/server/uploads";
+import { resolvePhotoUrl } from "@/server/uploads";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,9 +17,11 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const body = await request.json();
     const { urls } = addPlantPhotosSchema.parse(body);
-    await Promise.all(urls.map((url) => assertOwnedUpload(userId, url)));
+    const resolvedUrls = await Promise.all(urls.map((url) => resolvePhotoUrl(userId, url)));
 
-    const photos = await db.$transaction(urls.map((url) => db.plantPhoto.create({ data: { plantId: id, url } })));
+    const photos = await db.$transaction(
+      resolvedUrls.map((url) => db.plantPhoto.create({ data: { plantId: id, url: url! } })),
+    );
 
     return NextResponse.json(photos, { status: 201 });
   } catch (error) {
