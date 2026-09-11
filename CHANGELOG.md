@@ -3,6 +3,22 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-11 — Migration Prisma 7
+
+Suite à la PR Dependabot `prisma` 6.19.3 → 7.10.0 (bloquée en CI, voir durcissement post-audit9). Prisma 7 supprime `datasource.url` de `schema.prisma` et requiert un "driver adapter" explicite pour toute connexion.
+
+### Changé
+
+- **`prisma.config.ts`** (nouveau, racine du dépôt) : remplace la configuration `datasource.url` et `package.json#prisma.seed`, désormais lus par le CLI Prisma depuis ce fichier.
+- **`prisma/schema.prisma`** : generator `prisma-client-js` → `prisma-client` avec sortie dans `./generated/prisma` (hors `node_modules`, gitignore) plutôt qu'importé via `@prisma/client` — tous les imports du dépôt basculés vers l'alias `@generated/prisma/client` (`tsconfig.json`/`vitest.config.ts`).
+- **`src/server/db.ts`** : le client est désormais construit avec un adapter (`@prisma/adapter-better-sqlite3`) portant l'URL de connexion, au lieu d'être lu depuis le schema. Même changement pour les scripts autonomes (`prisma/seed.ts`, `backfillImages.ts`, `backfillTaskTitles.ts`, `e2e/dbCleanup.ts`).
+- **`Dockerfile`** : `better-sqlite3` (dépendance de l'adapter) compile un binaire natif à l'installation — ajout de `python3 make g++` dans l'étape `deps` (Alpine) ; nouvelle étape `COPY` pour le dossier `generated/` (hors `node_modules`, non tracé automatiquement par le bundling standalone de Next.js).
+- **`next.config.ts`** : `serverExternalPackages: ["better-sqlite3", "@prisma/adapter-better-sqlite3", "bindings"]` — sans ça, le bundling webpack du build standalone casse la résolution du binding natif au runtime (`Could not locate the bindings file`), un module natif chargé dynamiquement (pas du code JS ordinaire) ne doit jamais être bundlé.
+
+### Vérifié
+
+Migration construite et validée sur une branche séparée, dans un conteneur Docker isolé (jamais le conteneur de production) monté sur une **copie** des vraies données : migrations appliquées, connexion/liste des plantes, écriture (création plante + règle de soin), suppression avec cascade — tous confirmés fonctionnels avant tout déploiement réel. `npm run lint`, `npm test` (99 tests) et `npm run build` verts.
+
 ## [Post-MVP] - 2026-09-11 — Durcissement post-audit9
 
 Suite à un audit Copilot (audit9.md), moins rigoureux que les audits GPT précédents (plusieurs affirmations vérifiées comme fausses/dépassées : les tests d'intrusion multi-tenant existaient déjà (`e2e/ownership.spec.ts`), la protection des uploads via nginx était déjà traitée plus rigoureusement que suggéré). Deux points étaient en revanche justes et absents jusqu'ici : lint et scan de dépendances.

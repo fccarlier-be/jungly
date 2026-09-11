@@ -1,4 +1,4 @@
-import type { Prisma, TaskStatus } from "@prisma/client";
+import type { Prisma, TaskStatus } from "@generated/prisma/client";
 
 export interface DueCheckable {
   status: TaskStatus;

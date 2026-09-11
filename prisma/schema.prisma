@@ -1,10 +1,13 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
 }
 
+// Prisma 7 : "url" n'est plus supporte ici, deplace vers prisma.config.ts.
+// Voir src/server/db.ts pour l'adapter (@prisma/adapter-better-sqlite3) qui
+// fournit desormais la connexion au PrismaClient lui-meme.
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 // ---------------------------------------------------------------------------

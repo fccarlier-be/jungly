@@ -1,4 +1,4 @@
-import type { RecurrenceType } from "@prisma/client";
+import type { RecurrenceType } from "@generated/prisma/client";
 
 export interface RecurrenceRule {
   recurrenceType: RecurrenceType;
