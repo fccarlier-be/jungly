@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -36,6 +37,48 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
   const [done, setDone] = useState(false);
   const [customDate, setCustomDate] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Le menu "Reporter" est portale dans document.body (voir plus bas) plutot
+  // que positionne en absolute dans la carte : SwipeableCard applique
+  // overflow:hidden + transform (necessaires a l'effet de swipe), qui
+  // rognent/emprisonnent un enfant absolute dans son propre contexte
+  // d'empilement -- le menu s'ouvrait alors sous la carte suivante au lieu
+  // de passer au premier plan, quel que soit son z-index (bug signale
+  // par l'utilisateur).
+  function toggleMenu() {
+    if (!menuOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPosition({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }
+    setMenuOpen((open) => !open);
+  }
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handlePointerDown(e: PointerEvent) {
+      const target = e.target as Node;
+      if (menuRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    }
+    // Fermeture plutot que repositionnement au scroll/resize : plus simple
+    // qu'un recalcul en continu pour un menu qui ne reste ouvert que
+    // quelques secondes.
+    function close() {
+      setMenuOpen(false);
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [menuOpen]);
 
   async function complete() {
     setPending(true);
@@ -82,6 +125,7 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
   function snoozeDays(days: number) {
     const until = new Date();
     until.setDate(until.getDate() + days);
+    setMenuOpen(false);
     void snooze(until);
   }
 
@@ -96,6 +140,7 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
   }
 
   return (
+    <>
     <SwipeableCard onSwipeLeft={complete} onSwipeRight={swipeSnooze} disabled={pending}>
     <div
       className="card p-4 transition-all duration-300"
@@ -143,35 +188,14 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
             {done ? <Check size={16} className="animate-pop" /> : null}
             {COMPLETE_LABEL[task.type]}
           </button>
-          <details className="relative">
-            <summary className="chip cursor-pointer list-none rounded-xl px-3 py-2.5 text-sm">Reporter</summary>
-            <div className="card absolute right-0 z-10 mt-1 w-48 space-y-1 p-2">
-              <button onClick={() => snoozeDays(1)} className="btn-ghost block w-full rounded-lg px-2 py-1.5 text-left text-sm">
-                Demain
-              </button>
-              <button onClick={() => snoozeDays(3)} className="btn-ghost block w-full rounded-lg px-2 py-1.5 text-left text-sm">
-                Dans 3 jours
-              </button>
-              <button onClick={() => snoozeDays(7)} className="btn-ghost block w-full rounded-lg px-2 py-1.5 text-left text-sm">
-                Dans 7 jours
-              </button>
-              <div className="flex gap-1 pt-1">
-                <input
-                  type="date"
-                  value={customDate}
-                  onChange={(e) => setCustomDate(e.target.value)}
-                  className="input w-full px-1.5 py-1 text-sm"
-                />
-                <button
-                  onClick={() => customDate && snooze(new Date(customDate))}
-                  disabled={!customDate}
-                  className="chip rounded-lg px-2 text-sm disabled:opacity-50"
-                >
-                  OK
-                </button>
-              </div>
-            </div>
-          </details>
+          <button
+            ref={buttonRef}
+            type="button"
+            onClick={toggleMenu}
+            className="chip cursor-pointer rounded-xl px-3 py-2.5 text-sm"
+          >
+            Reporter
+          </button>
         </div>
         {error && (
           <p role="alert" className="pt-2 text-sm" style={{ color: "var(--danger)" }}>
@@ -181,5 +205,45 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
       </div>
     </div>
     </SwipeableCard>
+    {menuOpen && menuPosition
+      ? createPortal(
+          <div
+            ref={menuRef}
+            className="card fixed z-50 w-48 space-y-1 p-2"
+            style={{ top: menuPosition.top, right: menuPosition.right }}
+          >
+            <button onClick={() => snoozeDays(1)} className="btn-ghost block w-full rounded-lg px-2 py-1.5 text-left text-sm">
+              Demain
+            </button>
+            <button onClick={() => snoozeDays(3)} className="btn-ghost block w-full rounded-lg px-2 py-1.5 text-left text-sm">
+              Dans 3 jours
+            </button>
+            <button onClick={() => snoozeDays(7)} className="btn-ghost block w-full rounded-lg px-2 py-1.5 text-left text-sm">
+              Dans 7 jours
+            </button>
+            <div className="flex gap-1 pt-1">
+              <input
+                type="date"
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                className="input w-full px-1.5 py-1 text-sm"
+              />
+              <button
+                onClick={() => {
+                  if (!customDate) return;
+                  setMenuOpen(false);
+                  void snooze(new Date(customDate));
+                }}
+                disabled={!customDate}
+                className="chip rounded-lg px-2 text-sm disabled:opacity-50"
+              >
+                OK
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null}
+    </>
   );
 }
