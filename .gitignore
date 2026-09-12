@@ -2,6 +2,7 @@ node_modules/
 .next/
 generated/
 data/
+data-test/
 .env
 *.db
 *.db-journal
