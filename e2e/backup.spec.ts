@@ -112,4 +112,30 @@ test.describe.serial("export/import backup", () => {
 
     await page.request.delete(`/api/plants/${restored.id}`);
   });
+
+  test("rejette un ZIP bomb (entree tres compressee) sans creer de plante", async () => {
+    // Une entree de zeros se compresse en DEFLATE a un ratio extreme -- 30
+    // Mio de zeros tiennent en quelques Ko compresses, tout en depassant
+    // largement MAX_UPLOAD_FILE_SIZE (8 Mio) une fois decompresses.
+    // readZipEntryWithLimit() doit interrompre la decompression en flux des
+    // que la limite est franchie, plutot que de bufferiser les 30 Mio en
+    // entier avant de constater le depassement (audit security1.md, P1).
+    const plantName = testPlantName("ZipBomb");
+    const zip = new JSZip();
+    zip.file("data.json", JSON.stringify({ version: 1, plants: [{ name: plantName }] }));
+    zip.file("uploads/bomb.jpg", Buffer.alloc(30 * 1024 * 1024, 0), { compression: "DEFLATE", compressionOptions: { level: 9 } });
+    const zipBuffer = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE", compressionOptions: { level: 9 } });
+    // L'archive compressee doit rester tres en dessous de MAX_ZIP_FILE_SIZE
+    // (10 Mio) -- sinon le test ne demontre rien de plus qu'un rejet sur la
+    // taille brute de l'archive, deja teste ailleurs.
+    expect(zipBuffer.length).toBeLessThan(1 * 1024 * 1024);
+
+    const importRes = await page.request.post("/api/import", {
+      multipart: { file: { name: "bomb.zip", mimeType: "application/zip", buffer: zipBuffer } },
+    });
+    expect(importRes.status()).toBe(400);
+
+    const afterImport = await (await page.request.get("/api/plants")).json();
+    expect(afterImport.some((p: { name: string }) => p.name === plantName)).toBe(false);
+  });
 });

@@ -11,6 +11,12 @@ const ALLOWED_MIRROR_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "
 const MAX_MIRROR_SIZE_BYTES = 8 * 1024 * 1024;
 const MAX_MIRROR_DIMENSION = 1600;
 const MIRROR_JPEG_QUALITY = 82;
+// Le decodage a lieu AVANT le resize() ci-dessous -- 1600px de sortie ne
+// protege donc pas contre un petit fichier annoncant des dimensions
+// d'entree enormes (audit security1.md, P2). 40 MP est tres au-dela de ce
+// qu'une vraie photo de plante peut necessiter, tout en restant nettement
+// sous la limite par defaut de Sharp (268 402 689 px).
+const MAX_INPUT_PIXELS = 40_000_000;
 
 /** Chemin disque d'un fichier uploade a partir de son seul nom -- path.basename() empeche toute traversee de repertoire. */
 export function resolveUploadedFilePath(filename: string): string {
@@ -112,7 +118,7 @@ export async function assertOwnedUpload(userId: string, url: string | null | und
  * __tests__/imageMirror.integration.test.ts).
  */
 export async function processAndStoreUpload(buffer: Buffer, userId: string): Promise<string> {
-  const processed = await sharp(buffer)
+  const processed = await sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS })
     .rotate()
     .resize({ width: MAX_MIRROR_DIMENSION, height: MAX_MIRROR_DIMENSION, fit: "inside", withoutEnlargement: true })
     .jpeg({ quality: MIRROR_JPEG_QUALITY })

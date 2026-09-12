@@ -5,12 +5,21 @@ import { handleApiError } from "@/lib/apiError";
 import { getOwnedPlant } from "@/server/ownership";
 import { repotEventSchema } from "@/server/validation/careEvent";
 import { recordStandaloneCareEvent } from "@/server/careEngine/service";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
     const userId = await requireUserId();
+
+    // Quota de ressources par compte (audit security1.md, P2), partage
+    // entre toutes les routes de creation d'evenement de soin.
+    const { allowed, retryAfterSeconds } = checkRateLimit(`care-event:${userId}`, 200, 60 * 60 * 1000);
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
+
     const { id } = await params;
     await getOwnedPlant(userId, id);
 

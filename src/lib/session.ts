@@ -7,10 +7,21 @@ import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 // errors.ts (voir ce fichier pour le detail).
 export { UnauthorizedError };
 
-/** À utiliser dans les route handlers API : lève UnauthorizedError si non connecté. */
+/**
+ * À utiliser dans les route handlers API : lève UnauthorizedError si non
+ * connecté. Verifie aussi que le compte existe toujours : un JWT reste
+ * valide jusqu'a 30 jours (session strategy "jwt", voir auth.ts)
+ * independamment d'une suppression de compte entre-temps -- sans cette
+ * verification, un ancien token continuait a passer requireUserId() apres
+ * DELETE /api/user (audit security1.md, P2).
+ */
 export async function requireUserId(): Promise<string> {
   const session = await auth();
   if (!session?.user?.id) {
+    throw new UnauthorizedError();
+  }
+  const user = await db.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
+  if (!user) {
     throw new UnauthorizedError();
   }
   return session.user.id;
@@ -39,6 +50,10 @@ export async function requireAdminUserId(): Promise<string> {
 export async function requireSessionUserId(): Promise<string> {
   const session = await auth();
   if (!session?.user?.id) {
+    redirect("/login");
+  }
+  const user = await db.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
+  if (!user) {
     redirect("/login");
   }
   return session.user.id;

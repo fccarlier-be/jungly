@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
+import type { Readable } from "node:stream";
 import JSZip from "jszip";
 import sharp from "sharp";
 import { Prisma } from "@generated/prisma/client";
@@ -22,10 +23,61 @@ import { resolveUploadedFilePath, deleteUploadedFile } from "@/server/uploads";
 import { generateSensorApiKey } from "@/server/sensorAuth";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
+/**
+ * Lit une entree ZIP en flux (JSZip.nodeStream(), qui decompresse au fur et
+ * a mesure -- contrairement a entry.async(), qui bufferise le resultat
+ * COMPLET avant de rendre la main) et interrompt la decompression des que
+ * maxBytes est depasse. Necessaire contre un ZIP bomb (audit security1.md,
+ * P1) : une archive DEFLATE de quelques centaines de Ko peut annoncer un
+ * ratio de compression extreme et decompresser en plusieurs centaines de Mo
+ * -- verifier `buffer.length` seulement APRES un entry.async("nodebuffer")
+ * complet, comme avant ce correctif, laissait deja se produire toute cette
+ * allocation memoire avant que la limite ne s'applique. stream.destroy()
+ * stoppe le worker de decompression interne des le seuil franchi : le
+ * pic memoire reste borne a maxBytes (+ la taille d'un seul chunk), jamais
+ * a la taille decompressee totale que l'attaquant visait.
+ */
+function readZipEntryWithLimit(entry: JSZip.JSZipObject, maxBytes: number, label: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    let settled = false;
+    // JSZip type nodeStream() en NodeJS.ReadableStream, une interface trop
+    // minimale (pas de destroy()) pour ce que la valeur reelle expose a
+    // l'execution (un vrai stream.Readable, cf. JSZip StreamHelper).
+    const stream = entry.nodeStream("nodebuffer") as unknown as Readable;
+    stream.on("data", (chunk: Buffer) => {
+      if (settled) return;
+      total += chunk.length;
+      if (total > maxBytes) {
+        settled = true;
+        stream.destroy();
+        reject(new BadRequestError(`Fichier trop volumineux dans l'archive : ${label}.`));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    stream.on("error", (err) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    });
+    stream.on("end", () => {
+      if (settled) return;
+      settled = true;
+      resolve(Buffer.concat(chunks));
+    });
+  });
+}
+
 // Meme recadrage que /api/uploads (photo affichee au plus en bandeau large) :
 // un import reste soumis aux memes bornes qu'un televersement normal.
 const MAX_IMPORTED_IMAGE_DIMENSION = 1600;
 const IMPORTED_IMAGE_JPEG_QUALITY = 82;
+// Le decodage a lieu AVANT le resize() ci-dessous -- 1600px de sortie ne
+// protege donc pas contre un fichier annoncant des dimensions d'entree
+// enormes (audit security1.md, P2).
+const MAX_INPUT_PIXELS = 40_000_000;
 
 /**
  * Restaure une sauvegarde (.zip produite par GET /api/export : data.json +
@@ -77,18 +129,8 @@ export async function POST(request: NextRequest) {
     if (!dataEntry) {
       return NextResponse.json({ error: "Archive invalide : data.json introuvable." }, { status: 400 });
     }
-    // Premier controle avant decompression, a partir des metadonnees du zip
-    // (taille annoncee) -- second controle sur la taille reelle apres coup,
-    // au cas ou l'en-tete mentirait sur la taille declaree.
-    const declaredSize = (dataEntry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize;
-    if (typeof declaredSize === "number" && declaredSize > MAX_DATA_JSON_SIZE) {
-      return NextResponse.json({ error: "data.json trop volumineux." }, { status: 400 });
-    }
-    const dataJsonString = await dataEntry.async("string");
-    if (dataJsonString.length > MAX_DATA_JSON_SIZE) {
-      return NextResponse.json({ error: "data.json trop volumineux." }, { status: 400 });
-    }
-    const rawData = JSON.parse(dataJsonString);
+    const dataJsonBuffer = await readZipEntryWithLimit(dataEntry, MAX_DATA_JSON_SIZE, "data.json");
+    const rawData = JSON.parse(dataJsonBuffer.toString("utf-8"));
     const data: BackupData = backupSchema.parse(rawData);
 
     // Nouveaux noms de fichiers (UUID frais) : evite toute collision avec
@@ -110,18 +152,10 @@ export async function POST(request: NextRequest) {
         const originalName = path.basename(entry.name);
         // Une entree a la fois (pas tout le zip decompresse en parallele) :
         // borne le pic memoire a la taille d'un seul fichier plutot qu'a la
-        // somme de toutes. JSZip decompresse entierement en memoire (pas de
-        // mode flux) -- dans le pire cas theorique (un seul fichier avec un
-        // ratio DEFLATE extreme), CETTE ligne peut encore consommer
-        // plusieurs centaines de Mo avant que le controle de taille
-        // ci-dessous ne s'applique. Residuel accepte pour un usage homelab :
-        // la taille de l'archive elle-meme reste plafonnee a 10 Mo par
-        // nginx (client_max_body_size), ce qui borne le nombre d'entrees
-        // pouvant chacune tenter ce pire cas.
-        const buffer = await entry.async("nodebuffer");
-        if (buffer.length > MAX_UPLOAD_FILE_SIZE) {
-          throw new BadRequestError(`Fichier trop volumineux dans l'archive : ${originalName}.`);
-        }
+        // somme de toutes. readZipEntryWithLimit() interrompt en plus la
+        // decompression elle-meme des que MAX_UPLOAD_FILE_SIZE est depasse
+        // (voir sa documentation plus haut, audit security1.md P1).
+        const buffer = await readZipEntryWithLimit(entry, MAX_UPLOAD_FILE_SIZE, originalName);
         totalDecompressedSize += buffer.length;
         if (totalDecompressedSize > MAX_TOTAL_DECOMPRESSED_SIZE) {
           throw new BadRequestError("Archive trop volumineuse une fois décompressée.");
@@ -132,7 +166,7 @@ export async function POST(request: NextRequest) {
           // Meme pipeline que /api/uploads : reoriente/recadre et rejette
           // tout ce qui n'est pas une image reellement decodable -- protege
           // aussi contre un fichier de contenu arbitraire deguise en .jpg.
-          processed = await sharp(buffer)
+          processed = await sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS })
             .rotate()
             .resize({
               width: MAX_IMPORTED_IMAGE_DIMENSION,

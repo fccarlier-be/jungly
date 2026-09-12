@@ -5,6 +5,7 @@ import { handleApiError } from "@/lib/apiError";
 import { getOwnedPlant } from "@/server/ownership";
 import { addPlantPhotosSchema } from "@/server/validation/plant";
 import { resolvePhotoUrl } from "@/server/uploads";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -12,6 +13,14 @@ type Params = { params: Promise<{ id: string }> };
 export async function POST(request: NextRequest, { params }: Params) {
   try {
     const userId = await requireUserId();
+
+    // Quota de ressources par compte (audit security1.md, P2) : chaque
+    // appel peut deja creer plusieurs PlantPhoto (urls est un tableau).
+    const { allowed, retryAfterSeconds } = checkRateLimit(`plant-photo:${userId}`, 100, 60 * 60 * 1000);
+    if (!allowed) {
+      return rateLimitResponse(retryAfterSeconds);
+    }
+
     const { id } = await params;
     await getOwnedPlant(userId, id);
 

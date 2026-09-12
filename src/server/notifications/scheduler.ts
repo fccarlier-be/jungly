@@ -142,17 +142,36 @@ export function startNotificationScheduler(): void {
 
   console.log("[notifications] scheduler demarre (verification immediate puis a chaque quart d'heure pile).");
 
+  // Verrou process-local (audit security1.md, P3) : les quatre verifications
+  // ne sont pas attendues avant de planifier le setTimeout suivant (pour ne
+  // jamais retarder les autres si l'une est lente) -- sans lui, un tick
+  // exceptionnellement long (beaucoup d'utilisateurs, beaucoup de push)
+  // pourrait encore tourner quand le suivant demarre. Un seul verrou partage
+  // plutot qu'un par fonction : simple, et ces quatre verifications sont de
+  // toute facon independantes de charge similaire.
+  let runningIteration = false;
+
+  function runIteration(): void {
+    if (runningIteration) {
+      console.warn("[scheduler] iteration precedente encore en cours, verification ignoree cette fois.");
+      return;
+    }
+    runningIteration = true;
+    Promise.allSettled([
+      tick().catch((error) => console.error("[notifications] verification echouee :", error)),
+      tickWeather().catch((error) => console.error("[weather] verification echouee :", error)),
+      tickSensorRetention().catch((error) => console.error("[sensors] verification echouee :", error)),
+      tickFileGc().catch((error) => console.error("[gc] verification echouee :", error)),
+    ]).finally(() => {
+      runningIteration = false;
+    });
+  }
+
   function loop(): void {
-    tick().catch((error) => console.error("[notifications] verification echouee :", error));
-    tickWeather().catch((error) => console.error("[weather] verification echouee :", error));
-    tickSensorRetention().catch((error) => console.error("[sensors] verification echouee :", error));
-    tickFileGc().catch((error) => console.error("[gc] verification echouee :", error));
+    runIteration();
     setTimeout(loop, delayToNextQuarterHour());
   }
 
-  tick().catch((error) => console.error("[notifications] première vérification échouée :", error));
-  tickWeather().catch((error) => console.error("[weather] première vérification échouée :", error));
-  tickSensorRetention().catch((error) => console.error("[sensors] première vérification échouée :", error));
-  tickFileGc().catch((error) => console.error("[gc] première vérification échouée :", error));
+  runIteration();
   setTimeout(loop, delayToNextQuarterHour());
 }

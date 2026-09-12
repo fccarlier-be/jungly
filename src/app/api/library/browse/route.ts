@@ -14,7 +14,10 @@ const PAGE_SIZE = 24;
 export async function GET(request: NextRequest) {
   try {
     await requireUserId();
-    const page = Math.max(1, Number(request.nextUrl.searchParams.get("page")) || 1);
+    // Plafond haut (audit security1.md, P3) : sans lui, un `page` absurde
+    // forcait quand meme un scan complet de la table (bornee par le nombre
+    // reel d'entrees, mais autant l'eviter).
+    const page = Math.min(1000, Math.max(1, Number(request.nextUrl.searchParams.get("page")) || 1));
 
     const [entries, total] = await Promise.all([
       db.plantLibraryEntry.findMany({

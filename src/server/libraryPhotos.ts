@@ -9,6 +9,12 @@ const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/g
 const MAX_SIZE_BYTES = 8 * 1024 * 1024;
 const MAX_DIMENSION = 1600;
 const JPEG_QUALITY = 82;
+// Le decodage a lieu AVANT le resize() ci-dessous -- 1600px de sortie ne
+// protege donc pas contre un fichier annoncant des dimensions d'entree
+// enormes (audit security1.md, P2). 40 MP est tres au-dela de ce qu'une
+// vraie photo de plante peut necessiter, tout en restant nettement sous la
+// limite par defaut de Sharp (268 402 689 px).
+const MAX_INPUT_PIXELS = 40_000_000;
 
 /**
  * Chemin disque d'un fichier de bibliotheque a partir de son seul nom --
@@ -31,7 +37,7 @@ export function resolveLibraryPhotoPath(filename: string): string {
 export async function processAndStoreLibraryImage(buffer: Buffer): Promise<string> {
   // .rotate() sans argument : reoriente selon l'EXIF puis le supprime,
   // meme traitement que /api/uploads pour la coherence d'affichage.
-  const processed = await sharp(buffer)
+  const processed = await sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS })
     .rotate()
     .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
     .jpeg({ quality: JPEG_QUALITY })

@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
     await requireUserId();
     const q = request.nextUrl.searchParams.get("q")?.trim();
 
-    if (!q || q.length < 2) {
+    // Meme raisonnement que /api/library/external et /api/weather/geocode
+    // (audit14.md #12, audit security1.md P3) : pas de benefice a traiter
+    // une chaine arbitrairement longue, meme pour une recherche locale.
+    if (!q || q.length < 2 || q.length > 120) {
       return NextResponse.json([]);
     }
 
