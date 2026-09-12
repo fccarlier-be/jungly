@@ -48,8 +48,24 @@ export async function GET(_request: NextRequest, { params }: Params) {
     });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return NextResponse.json({ error: "Ce fichier n'existe plus." }, { status: 404 });
+      return NextResponse.json(
+        { error: "Ce fichier n'existe plus." },
+        { status: 404, headers: { "Cache-Control": "private, no-store" } },
+      );
     }
-    return handleApiError(error);
+    // Sans Cache-Control explicite, Cloudflare injecte son propre defaut
+    // (constate : max-age=14400) et met ce 404 en cache d'edge -- alors que
+    // l'etat d'autorisation d'une URL /uploads/... change dans le temps
+    // (aperçu avant sauvegarde du formulaire -> pas encore attachee a une
+    // plante -> 404 legitime a cet instant ; une fois la plante sauvegardee,
+    // la meme URL devient legitimement accessible, mais le 404 perime reste
+    // servi depuis le cache jusqu'a expiration, verifie en direct sur
+    // plantes.fcold.org : security2.md). no-store ici seulement (pas dans
+    // handleApiError globalement) : ne doit pas changer la politique de
+    // cache des autres routes API, qui n'ont pas cette meme propriete
+    // d'etat changeant.
+    const response = handleApiError(error);
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
   }
 }

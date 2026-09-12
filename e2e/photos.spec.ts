@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { test, expect } from "@playwright/test";
 import { cleanupDb, cleanupE2eData, E2E_MARKER } from "./dbCleanup";
@@ -70,4 +71,40 @@ test("upload, galerie, couverture, suppression avec promotion, suppression de la
   // Suppression de la plante -> le fichier physique de la 2e photo doit aussi disparaitre.
   await page.request.delete(`/api/plants/${plant.id}`);
   expect(existsSync(filePathTwo)).toBe(false);
+});
+
+test("GET /uploads/... refuse la mise en cache d'un 404 (security2.md)", async ({ page }) => {
+  // Sans Cache-Control explicite sur ce 404, Cloudflare y injectait son
+  // propre defaut (max-age=14400, verifie en direct sur plantes.fcold.org)
+  // et le mettait en cache d'edge -- alors qu'une URL /uploads/... fraichement
+  // televersee mais pas encore attachee a une plante (cas normal : apercu
+  // avant sauvegarde du formulaire, voir PlantForm.tsx) redeviendrait
+  // legitimement accessible une fois la plante sauvegardee. private/no-store
+  // empeche tout cache (CDN ou navigateur) de servir cet etat perime.
+  await page.goto("/login");
+  await page.locator("#email").fill(email!);
+  await page.locator("#password").fill(password!);
+  await page.getByRole("button", { name: "Se connecter" }).click();
+  await page.waitForURL("/");
+
+  const uploadRes = await page.request.post("/api/uploads", {
+    multipart: { file: { name: "test.png", mimeType: "image/png", buffer: TEST_PNG } },
+  });
+  const { url } = await uploadRes.json();
+
+  // Jamais attachee a aucune plante : le fichier existe sur disque mais
+  // n'appartient encore a aucune ressource, exactement le 404 qui se
+  // faisait mettre en cache.
+  const getRes = await page.request.get(url);
+  expect(getRes.status()).toBe(404);
+  expect(getRes.headers()["cache-control"]).toBe("private, no-store");
+
+  // Nettoyage manuel : ce fichier n'est jamais attache a une plante, donc
+  // aucune des routes de suppression habituelles (photos/plantes) ne le
+  // supprimerait pour nous.
+  const filename = path.basename(url);
+  const filePath = `${UPLOADS_DIR}/${filename}`;
+  expect(existsSync(filePath)).toBe(true);
+  await unlink(filePath);
+  await cleanupDb.upload.deleteMany({ where: { filename } });
 });
