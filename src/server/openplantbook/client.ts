@@ -12,6 +12,7 @@
  * disponibles -- meme demarche que pour Perenual, ou ce genre d'hypothese
  * avait revele deux erreurs a la premiere vraie requete.
  */
+import { z } from "zod";
 
 const BASE_URL = "https://open.plantbook.io/api/v1";
 
@@ -64,7 +65,46 @@ async function getAccessToken(): Promise<string> {
   return tokenCache.accessToken;
 }
 
-async function plantbookFetch<T>(path: string): Promise<T> {
+// Validation minimale et permissive (audit security2.md/Copilot,
+// 2026-09-12), meme demarche que perenual/client.ts -- seulement les
+// champs lus par mapping.ts, tous optionnels/nullable sauf `pid` (deja
+// requis dans le contrat existant). D'autant plus justifie ici que les noms
+// de champs sont EUX-MEMES non confirmes (voir commentaire de fichier) :
+// mieux vaut echouer proprement sur une reponse qui ne colle pas du tout a
+// l'hypothese plutot que de laisser un mapping silencieusement incorrect.
+const plantbookSearchItemSchema = z.object({
+  pid: z.string().max(500),
+  display_pid: z.string().max(500).optional().nullable(),
+  alias: z.string().max(500).optional().nullable(),
+  category: z.string().max(500).optional().nullable(),
+});
+
+const plantbookSearchResponseSchema = z.object({
+  count: z.number(),
+  results: z.array(plantbookSearchItemSchema),
+});
+
+const plantbookDetailSchema = plantbookSearchItemSchema.extend({
+  max_light_mmol: z.number().optional().nullable(),
+  min_light_mmol: z.number().optional().nullable(),
+  max_light_lux: z.number().optional().nullable(),
+  min_light_lux: z.number().optional().nullable(),
+  max_temp: z.number().optional().nullable(),
+  min_temp: z.number().optional().nullable(),
+  max_env_humid: z.number().optional().nullable(),
+  min_env_humid: z.number().optional().nullable(),
+  max_soil_moist: z.number().optional().nullable(),
+  min_soil_moist: z.number().optional().nullable(),
+  max_soil_ec: z.number().optional().nullable(),
+  min_soil_ec: z.number().optional().nullable(),
+  image_url: z.string().max(2000).optional().nullable(),
+});
+
+export type PlantbookSearchItem = z.infer<typeof plantbookSearchItemSchema>;
+export type PlantbookSearchResponse = z.infer<typeof plantbookSearchResponseSchema>;
+export type PlantbookDetail = z.infer<typeof plantbookDetailSchema>;
+
+async function plantbookFetch<T>(path: string, schema: z.ZodType<T>): Promise<T> {
   const token = await getAccessToken();
   const res = await fetch(`${BASE_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } });
   if (res.status === 429) {
@@ -73,43 +113,21 @@ async function plantbookFetch<T>(path: string): Promise<T> {
   if (!res.ok) {
     throw new OpenPlantbookError(`OpenPlantbook a répondu ${res.status}.`, res.status);
   }
-  return (await res.json()) as T;
-}
-
-export interface PlantbookSearchItem {
-  pid: string;
-  display_pid?: string;
-  alias?: string;
-  category?: string;
-}
-
-export interface PlantbookSearchResponse {
-  count: number;
-  results: PlantbookSearchItem[];
-}
-
-export interface PlantbookDetail extends PlantbookSearchItem {
-  max_light_mmol?: number;
-  min_light_mmol?: number;
-  max_light_lux?: number;
-  min_light_lux?: number;
-  max_temp?: number;
-  min_temp?: number;
-  max_env_humid?: number;
-  min_env_humid?: number;
-  max_soil_moist?: number;
-  min_soil_moist?: number;
-  max_soil_ec?: number;
-  min_soil_ec?: number;
-  image_url?: string;
+  // Reponse validee avant de faire confiance a sa forme (audit security2.md).
+  const parsed = schema.safeParse(await res.json());
+  if (!parsed.success) {
+    console.error(`Reponse OpenPlantbook inattendue pour ${path} :`, parsed.error.flatten());
+    throw new OpenPlantbookError("Reponse OpenPlantbook invalide.");
+  }
+  return parsed.data;
 }
 
 export function searchPlantbookSpecies(query: string): Promise<PlantbookSearchResponse> {
-  return plantbookFetch<PlantbookSearchResponse>(`/plant/search?alias=${encodeURIComponent(query)}&limit=20`);
+  return plantbookFetch(`/plant/search?alias=${encodeURIComponent(query)}&limit=20`, plantbookSearchResponseSchema);
 }
 
 export function getPlantbookSpeciesDetails(pid: string): Promise<PlantbookDetail> {
-  return plantbookFetch<PlantbookDetail>(`/plant/detail/${encodeURIComponent(pid)}`);
+  return plantbookFetch(`/plant/detail/${encodeURIComponent(pid)}`, plantbookDetailSchema);
 }
 
 /** Cherche une photo OpenPlantbook pour un nom scientifique donne (recherche puis fiche detail), ou null. */

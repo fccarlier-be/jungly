@@ -27,7 +27,7 @@ export interface MappedImageMeta {
 }
 
 /** `category` est de la forme "Famille, Genre" -- on ne garde que la famille. */
-export function extractFamily(category?: string): string | null {
+export function extractFamily(category?: string | null): string | null {
   return category?.split(",")[0]?.trim() || null;
 }
 
