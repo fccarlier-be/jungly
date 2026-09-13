@@ -53,9 +53,13 @@ test("creer une plante, l'arroser, puis la supprimer", async ({ page }) => {
   await page.waitForTimeout(500);
 
   // 3. L'evenement d'arrosage doit avoir ete enregistre dans l'historique de la fiche.
+  // Scope au panneau actif du carrousel (PlantCarousel) : toutes les
+  // plantes sont montees simultanement pour le swipe, "Historique recent"
+  // est un intitule generique repete sur chaque fiche.
   await page.goto(`/plantes/${plantId}`);
-  await expect(page.getByText("Historique récent")).toBeVisible();
-  await expect(page.getByText("Aucun événement enregistré.")).toHaveCount(0);
+  const activePanel = page.getByTestId("active-plant-panel");
+  await expect(activePanel.getByText("Historique récent")).toBeVisible();
+  await expect(activePanel.getByText("Aucun événement enregistré.")).toHaveCount(0);
 
   // 4. Nettoyage via l'UI (pas seulement le filet de securite Prisma).
   page.once("dialog", (dialog) => dialog.accept());

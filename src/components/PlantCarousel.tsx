@@ -132,7 +132,12 @@ export default function PlantCarousel({ plants, initialId }: { plants: PlantDeta
     };
   }, [hasSiblings, n]);
 
-  if (!hasSiblings) return <PlantDetailView plant={plants[realIndex]} />;
+  if (!hasSiblings)
+    return (
+      <div data-testid="active-plant-panel">
+        <PlantDetailView plant={plants[realIndex]} />
+      </div>
+    );
 
   const slides = [
     { key: "clone-last", plant: plants[n - 1], interactive: false },
@@ -150,7 +155,13 @@ export default function PlantCarousel({ plants, initialId }: { plants: PlantDeta
         }}
       >
         {slides.map((slide) => (
-          <div key={slide.key} style={{ flex: "0 0 100%", minWidth: 0, pointerEvents: slide.interactive ? "auto" : "none" }}>
+          <div
+            key={slide.key}
+            style={{ flex: "0 0 100%", minWidth: 0, pointerEvents: slide.interactive ? "auto" : "none" }}
+            aria-hidden={!slide.interactive}
+            inert={!slide.interactive}
+            data-testid={slide.interactive ? "active-plant-panel" : undefined}
+          >
             <PlantDetailView plant={slide.plant} />
           </div>
         ))}
