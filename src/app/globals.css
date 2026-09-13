@@ -152,6 +152,10 @@ body {
      contenu qu'on y tape doit rester copiable/editable normalement. */
   -webkit-user-select: none;
   user-select: none;
+  /* Le swipe horizontal de la fiche plante (PlantCarousel) a toujours une
+     composante verticale legere ; sans ceci, Chrome/le TWA Android
+     l'interprete comme un pull-to-refresh des qu'on est en haut de page. */
+  overscroll-behavior-y: contain;
 }
 
 input,
