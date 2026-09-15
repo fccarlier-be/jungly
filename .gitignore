@@ -3,6 +3,7 @@ node_modules/
 generated/
 data/
 data-test/
+data-hosted/
 .env
 *.db
 *.db-journal

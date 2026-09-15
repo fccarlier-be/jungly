@@ -3,6 +3,20 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-16 — Config nginx dédiée pour l'instance hébergée (incident réel)
+
+En vérifiant le déploiement de l'instance hébergée (`jungly-app.fcold.org`) juste après sa mise en ligne, l'inscription y est apparue ouverte malgré `REGISTRATION_MODE=invite_only` correctement positionné dans le conteneur. Cause : `nginx-plantes-hosted` réutilisait tel quel `www/plantes/nginx/default.conf`, qui contient `proxy_pass http://plantes-app:3000` — le nom du conteneur de l'instance **personnelle**, en dur. Toutes les requêtes vers l'instance hébergée étaient donc silencieusement routées vers l'instance personnelle, qui a bien traité une inscription de vérification (compte `test@example.com`) — supprimé immédiatement une fois la cause identifiée. Ni cette instance ni ses vraies données n'ont subi d'autre impact.
+
+C'est exactement le piège déjà rencontré et corrigé une première fois pour le staging (`nginx/test.conf`, `proxy_pass http://plantes-app-test:3000`) — leçon qui aurait dû s'appliquer d'emblée à toute nouvelle instance plutôt que d'être redécouverte.
+
+### Ajouté
+
+- **`nginx/hosted.conf`** : config dédiée à `plantes-app-hosted`, sur le modèle de `test.conf`.
+
+### Vérifié
+
+Après correction : inscription confirmée fermée (403) sur `jungly-app.fcold.org` en conditions réelles (HTTPS public, pas seulement en interne), instance personnelle confirmée inchangée et ouverte, aucune donnée de test résiduelle sur aucune des deux instances.
+
 ## [Post-MVP] - 2026-09-16 — Verrouillage de l'inscription pour une instance hébergée
 
 Première brique de l'offre hébergée payante (à terme sur `app.jungly.fcold.org`, pour l'app Android) : une instance donnée peut désormais refuser l'inscription libre-service, condition nécessaire avant de pouvoir la réserver à un flux de paiement vérifié.
