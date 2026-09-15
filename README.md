@@ -50,6 +50,10 @@ docker run -d --name jungly -p 3000:3000 \
 
 Les migrations Prisma et le seed (compte admin + bibliothèque de plantes) s'exécutent automatiquement au démarrage du conteneur. Un reverse proxy est recommandé devant l'app (voir `nginx/default.conf` à titre d'exemple, à adapter à votre infrastructure).
 
+### App Android
+
+Une app Android (Trusted Web Activity) est en préparation et pourra pointer vers une instance auto-hébergée. La vérification de domaine nécessaire pour l'afficher en plein écran, sans barre d'adresse (`public/.well-known/assetlinks.json`), est déjà incluse dans ce dépôt et servie automatiquement — rien à configurer de votre côté, ni maintenant ni le jour où l'app sera publiée.
+
 ### Développement local
 
 ```bash
