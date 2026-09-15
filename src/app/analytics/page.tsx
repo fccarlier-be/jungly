@@ -97,7 +97,7 @@ export default async function AnalyticsPage() {
         <h2 className="font-semibold text-sm">Inscriptions à la bêta</h2>
         <div className="grid grid-cols-3 gap-3">
           <StatTile label="Confirmées" value={summary.betaSignups.confirmed} />
-          <StatTile label="En attente d'email" value={summary.betaSignups.pending} />
+          <StatTile label="En attente de confirmation" value={summary.betaSignups.pending} />
           <StatTile label="Liste d'attente" value={summary.betaSignups.waitlisted} />
         </div>
         <p className="text-muted text-sm">
