@@ -1,5 +1,6 @@
 import { requireAdminSessionUserId } from "@/lib/session";
 import { getAnalyticsSummary } from "@/server/analytics";
+import { formatDate } from "@/lib/units";
 
 const PATH_LABELS: Record<string, string> = {
   "/": "Accueil",
@@ -112,6 +113,19 @@ export default async function AnalyticsPage() {
             </>
           )}
         </p>
+        {summary.betaSignups.confirmedEmails.length > 0 && (
+          <div className="pt-2 border-t" style={{ borderColor: "var(--border)" }}>
+            <p className="text-muted text-xs uppercase tracking-wide mb-2">Emails confirmés</p>
+            <ul className="text-sm space-y-1.5">
+              {summary.betaSignups.confirmedEmails.map((s) => (
+                <li key={s.email} className="flex items-center justify-between gap-3">
+                  <span className="truncate">{s.email}</span>
+                  <span className="text-muted text-xs whitespace-nowrap">{formatDate(s.confirmedAt)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
     </div>
   );

@@ -15,6 +15,7 @@ export interface AnalyticsSummary {
     confirmed: number;
     waitlisted: number;
     total: number;
+    confirmedEmails: { email: string; confirmedAt: string }[];
   };
 }
 
@@ -28,7 +29,7 @@ export async function getAnalyticsSummary(now: Date = new Date()): Promise<Analy
   const since14 = new Date(now.getTime() - 14 * DAY_MS);
   const since30 = new Date(now.getTime() - 30 * DAY_MS);
 
-  const [total, last7Days, last30Days, byPathTotal, byPath7, byPath30, dailyRows, pending, confirmed, waitlisted] =
+  const [total, last7Days, last30Days, byPathTotal, byPath7, byPath30, dailyRows, pending, confirmed, waitlisted, confirmedRows] =
     await Promise.all([
       db.pageView.count(),
       db.pageView.count({ where: { createdAt: { gte: since7 } } }),
@@ -46,6 +47,11 @@ export async function getAnalyticsSummary(now: Date = new Date()): Promise<Analy
       db.betaSignup.count({ where: { status: "PENDING" } }),
       db.betaSignup.count({ where: { status: "CONFIRMED" } }),
       db.betaSignup.count({ where: { status: "WAITLISTED" } }),
+      db.betaSignup.findMany({
+        where: { status: "CONFIRMED" },
+        select: { email: true, confirmedAt: true },
+        orderBy: { confirmedAt: "desc" },
+      }),
     ]);
 
   const map7 = new Map(byPath7.map((r) => [r.path, r._count._all]));
@@ -68,6 +74,12 @@ export async function getAnalyticsSummary(now: Date = new Date()): Promise<Analy
       byPath,
       dailyLast14: dailyRows.map((r) => ({ day: r.day, count: Number(r.count) })),
     },
-    betaSignups: { pending, confirmed, waitlisted, total: pending + confirmed + waitlisted },
+    betaSignups: {
+      pending,
+      confirmed,
+      waitlisted,
+      total: pending + confirmed + waitlisted,
+      confirmedEmails: confirmedRows.map((r) => ({ email: r.email, confirmedAt: r.confirmedAt!.toISOString() })),
+    },
   };
 }

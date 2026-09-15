@@ -67,8 +67,8 @@ describe("getAnalyticsSummary (integration reelle SQLite)", () => {
   it("compte les inscriptions beta par statut", async () => {
     await db.betaSignup.createMany({
       data: [
-        { email: "a@example.com", token: "t1", status: "CONFIRMED" },
-        { email: "b@example.com", token: "t2", status: "CONFIRMED" },
+        { email: "a@example.com", token: "t1", status: "CONFIRMED", confirmedAt: daysAgo(3) },
+        { email: "b@example.com", token: "t2", status: "CONFIRMED", confirmedAt: daysAgo(1) },
         { email: "c@example.com", token: "t3", status: "PENDING" },
         { email: "d@example.com", token: "t4", status: "WAITLISTED" },
       ],
@@ -76,6 +76,11 @@ describe("getAnalyticsSummary (integration reelle SQLite)", () => {
 
     const summary = await getAnalyticsSummary(NOW);
 
-    expect(summary.betaSignups).toEqual({ pending: 1, confirmed: 2, waitlisted: 1, total: 4 });
+    expect(summary.betaSignups.pending).toBe(1);
+    expect(summary.betaSignups.confirmed).toBe(2);
+    expect(summary.betaSignups.waitlisted).toBe(1);
+    expect(summary.betaSignups.total).toBe(4);
+    // Plus recent d'abord.
+    expect(summary.betaSignups.confirmedEmails.map((e) => e.email)).toEqual(["b@example.com", "a@example.com"]);
   });
 });
