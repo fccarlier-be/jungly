@@ -5,10 +5,18 @@ import { db } from "@/server/db";
 import { handleApiError } from "@/lib/apiError";
 import { registerSchema } from "@/server/validation/auth";
 import { checkRateLimit, getClientIp, rateLimitResponse } from "@/lib/rateLimit";
+import { isRegistrationOpen } from "@/lib/registrationMode";
 
 /** Inscription en libre-service : cree un compte, ouvert a quiconque connait l'URL (pas de verification email pour l'instant). */
 export async function POST(request: NextRequest) {
   try {
+    if (!isRegistrationOpen()) {
+      return NextResponse.json(
+        { error: "L'inscription sur cette instance n'est pas en libre-service." },
+        { status: 403 },
+      );
+    }
+
     // Sans limite ici, un script pourrait tester des dizaines d'emails par
     // seconde -- la reponse 409 revele deja si un compte existe (impossible
     // a eviter pour une inscription, contrairement au login).

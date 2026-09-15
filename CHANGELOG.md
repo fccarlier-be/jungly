@@ -3,6 +3,19 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-16 — Verrouillage de l'inscription pour une instance hébergée
+
+Première brique de l'offre hébergée payante (à terme sur `app.jungly.fcold.org`, pour l'app Android) : une instance donnée peut désormais refuser l'inscription libre-service, condition nécessaire avant de pouvoir la réserver à un flux de paiement vérifié.
+
+### Ajouté
+
+- **`REGISTRATION_MODE`** (variable d'environnement, `open` par défaut) : à `invite_only`, `POST /api/register` répond `403` et `/inscription` affiche un message au lieu du formulaire — sans rien changer sur les instances existantes (plantes.fcold.org, staging), qui restent en libre-service.
+- **`docker-compose.yml`** : nouveaux services `plantes-app-hosted`/`nginx-plantes-hosted`, même image que `plantes-app` (pas de rebuild dupliqué), données/base/secrets entièrement séparés de l'instance personnelle. VAPID/OpenPlantbook/Perenual réutilisés tels quels (identifiants d'intégration tierce, pas de raison d'en gérer une deuxième paire) ; `AUTH_SECRET` et compte admin technique distincts.
+
+### Vérifié
+
+`npm run lint`, `npm test` (152 tests, dont 3 nouveaux sur `isRegistrationOpen()`) et `npm run build` verts. `docker compose config` validé après ajout des nouveaux services.
+
 ## [Post-MVP] - 2026-09-15 — Statistiques de fréquentation du site vitrine
 
 Le site vitrine (jungly.fcold.org) envoie désormais un signal de vue de page à chaque chargement, pour pouvoir distinguer un manque de visibilité (peu de vues) d'un problème de conversion (des vues, mais peu d'inscriptions bêta confirmées).
