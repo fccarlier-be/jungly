@@ -127,6 +127,44 @@ export default async function AnalyticsPage() {
           </div>
         )}
       </section>
+
+      <section className="card p-4 space-y-3">
+        <h2 className="font-semibold text-sm">Comptes Jungly ({summary.accounts.length})</h2>
+        {summary.accounts.length === 0 ? (
+          <p className="text-muted text-sm">Aucun compte pour l&apos;instant.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-muted text-xs text-left">
+                <th className="font-normal pb-2">Email</th>
+                <th className="font-normal pb-2">Nom</th>
+                <th className="font-normal pb-2 text-right">Plantes</th>
+                <th className="font-normal pb-2 text-right">Inscrit le</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.accounts.map((a) => (
+                <tr key={a.email} className="border-t" style={{ borderColor: "var(--border)" }}>
+                  <td className="py-2">
+                    <span className="truncate">{a.email}</span>
+                    {a.isAdmin && (
+                      <span
+                        className="ml-2 text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded"
+                        style={{ background: "var(--primary-soft)", color: "var(--primary-strong)" }}
+                      >
+                        Admin
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 text-muted">{a.name || "—"}</td>
+                  <td className="py-2 text-right">{a.plantCount}</td>
+                  <td className="py-2 text-right text-muted text-xs whitespace-nowrap">{formatDate(a.createdAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   );
 }

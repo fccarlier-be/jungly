@@ -83,4 +83,28 @@ describe("getAnalyticsSummary (integration reelle SQLite)", () => {
     // Plus recent d'abord.
     expect(summary.betaSignups.confirmedEmails.map((e) => e.email)).toEqual(["b@example.com", "a@example.com"]);
   });
+
+  it("liste les comptes Jungly avec leur nombre de plantes", async () => {
+    // Pas de nettoyage/isolation du modele User ici (partage avec d'autres
+    // fichiers de test) : on cherche notre propre compte dans la liste
+    // plutot que d'affirmer sa taille totale, qui varie selon ce que les
+    // autres tests ont deja cree.
+    const email = `analytics-account-${Date.now()}@example.com`;
+    const user = await db.user.create({ data: { email, passwordHash: "x", name: "Compte de test" } });
+    await db.plant.createMany({
+      data: [
+        { userId: user.id, name: "Plante 1" },
+        { userId: user.id, name: "Plante 2" },
+      ],
+    });
+
+    try {
+      const summary = await getAnalyticsSummary(NOW);
+      const account = summary.accounts.find((a) => a.email === email);
+
+      expect(account).toEqual({ email, name: "Compte de test", createdAt: user.createdAt.toISOString(), isAdmin: false, plantCount: 2 });
+    } finally {
+      await db.user.delete({ where: { id: user.id } });
+    }
+  });
 });

@@ -17,6 +17,7 @@ export interface AnalyticsSummary {
     total: number;
     confirmedEmails: { email: string; confirmedAt: string }[];
   };
+  accounts: { email: string; name: string | null; createdAt: string; isAdmin: boolean; plantCount: number }[];
 }
 
 /**
@@ -29,8 +30,20 @@ export async function getAnalyticsSummary(now: Date = new Date()): Promise<Analy
   const since14 = new Date(now.getTime() - 14 * DAY_MS);
   const since30 = new Date(now.getTime() - 30 * DAY_MS);
 
-  const [total, last7Days, last30Days, byPathTotal, byPath7, byPath30, dailyRows, pending, confirmed, waitlisted, confirmedRows] =
-    await Promise.all([
+  const [
+    total,
+    last7Days,
+    last30Days,
+    byPathTotal,
+    byPath7,
+    byPath30,
+    dailyRows,
+    pending,
+    confirmed,
+    waitlisted,
+    confirmedRows,
+    accountRows,
+  ] = await Promise.all([
       db.pageView.count(),
       db.pageView.count({ where: { createdAt: { gte: since7 } } }),
       db.pageView.count({ where: { createdAt: { gte: since30 } } }),
@@ -51,6 +64,16 @@ export async function getAnalyticsSummary(now: Date = new Date()): Promise<Analy
         where: { status: "CONFIRMED" },
         select: { email: true, confirmedAt: true },
         orderBy: { confirmedAt: "desc" },
+      }),
+      db.user.findMany({
+        select: {
+          email: true,
+          name: true,
+          createdAt: true,
+          isAdmin: true,
+          _count: { select: { plants: true } },
+        },
+        orderBy: { createdAt: "desc" },
       }),
     ]);
 
@@ -81,5 +104,12 @@ export async function getAnalyticsSummary(now: Date = new Date()): Promise<Analy
       total: pending + confirmed + waitlisted,
       confirmedEmails: confirmedRows.map((r) => ({ email: r.email, confirmedAt: r.confirmedAt!.toISOString() })),
     },
+    accounts: accountRows.map((r) => ({
+      email: r.email,
+      name: r.name,
+      createdAt: r.createdAt.toISOString(),
+      isAdmin: r.isAdmin,
+      plantCount: r._count.plants,
+    })),
   };
 }
