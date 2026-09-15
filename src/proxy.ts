@@ -6,7 +6,9 @@ import { auth } from "@/server/auth";
 // propre rendu (le script d'initialisation du theme dans layout.tsx
 // s'applique a toutes les pages) -- l'exclusion se fait donc ici, dans le
 // corps de la fonction, plutot que dans le matcher comme avant Next.js 16.
-const PUBLIC_PATHS = ["/login", "/inscription"];
+// /beta/confirmation meme raison : le lien de confirmation par email est
+// suivi par des visiteurs sans compte Jungly.
+const PUBLIC_PATHS = ["/login", "/inscription", "/beta/confirmation"];
 
 export default auth((req) => {
   const isDev = process.env.NODE_ENV === "development";

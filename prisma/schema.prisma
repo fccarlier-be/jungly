@@ -395,6 +395,30 @@ model SensorReading {
   @@index([sensorId, recordedAt])
 }
 
+enum BetaSignupStatus {
+  PENDING
+  CONFIRMED
+  WAITLISTED
+}
+
+/**
+ * Inscription a la liste d'attente de la beta Android (site vitrine, page
+ * publique sans compte Jungly). Double opt-in classique : PENDING des la
+ * soumission du formulaire (email de confirmation envoye avec `token` dans
+ * le lien), CONFIRMED si une des 12 places etait encore libre au moment du
+ * clic, WAITLISTED sinon (les places s'etant remplies entre la soumission
+ * et la confirmation). Le compteur public (GET /api/beta/count) ne compte
+ * que les CONFIRMED.
+ */
+model BetaSignup {
+  id          String           @id @default(cuid())
+  email       String           @unique
+  token       String           @unique
+  status      BetaSignupStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  confirmedAt DateTime?
+}
+
 /**
  * Trace qui a physiquement televerse un fichier via POST /api/uploads,
  * avant meme qu'il soit attache a une plante/note -- necessaire pour

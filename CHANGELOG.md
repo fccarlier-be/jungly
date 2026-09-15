@@ -3,6 +3,22 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-15 — Liste d'attente bêta Android (site vitrine)
+
+Le futur site vitrine (pas encore public) propose une section d'inscription à la bêta Android, à double opt-in, limitée à 12 places.
+
+### Ajouté
+
+- **`prisma/schema.prisma`** : modèle `BetaSignup` (email, jeton, statut `PENDING`/`CONFIRMED`/`WAITLISTED`, horodatages) — migration `20260915161801_add_beta_signup`.
+- **`POST /api/beta/signup`** (publique, CORS ouvert, limitée à 5 requêtes/15 min/IP) : crée l'inscription si l'email est nouveau (ou renvoie le même email de confirmation si elle est encore `PENDING`), toujours une réponse générique identique pour ne jamais révéler si un email est déjà inscrit.
+- **`GET /api/beta/confirm?token=...`** : confirme le double opt-in. La place est attribuée à la confirmation (premier arrivé, premier servi), pas à l'ordre d'inscription — `src/server/betaSignup.ts#confirmBetaSignupByToken()` compte les `CONFIRMED` et met à jour le statut dans une même transaction, pour qu'une 13e confirmation simultanée ne s'attribue jamais la 12e place. Redirige vers `/beta/confirmation?status=...`, une page publique (ajoutée aux `PUBLIC_PATHS` de `src/proxy.ts` — sans ça, un visiteur sans compte Jungly suivant le lien de l'email se retrouvait redirigé vers `/login`, repéré en vérification staging).
+- **`GET /api/beta/count`** (publique, CORS ouvert) : nombre de `CONFIRMED` et limite, pour l'affichage d'un compteur en temps réel côté site vitrine.
+- **`src/lib/email.ts`** : envoi via [Resend](https://resend.com) (`RESEND_API_KEY`, `BETA_SIGNUP_FROM_EMAIL` — voir `.env.example`) ; sans clé configurée, journalise au lieu d'échouer (utilisable en dev/CI sans compte Resend).
+
+### Vérifié
+
+`npm run lint`, `npm test` (149 tests, dont un nouveau test d'intégration réelle SQLite couvrant la limite des 12 places et le cas de course) et `npm run build` verts. Déployé sur `testplantes.fcold.org` et parcours complet vérifié en conditions réelles (`curl`) : inscription, lecture directe du jeton en base, confirmation, compteur incrémenté, ré-inscription et re-confirmation idempotentes, page `/beta/confirmation` publique. Bug de redirection interne (`request.url` résolvait vers le nom d'hôte interne du conteneur Docker plutôt que le domaine public) détecté et corrigé pendant cette vérification, avant tout envoi réel d'email.
+
 ## [Post-MVP] - 2026-09-11 — Migration Tailwind CSS 4.3.3
 
 Suite à la PR Dependabot `tailwindcss` 3.4.17 → 4.3.3 (bloquée en CI, voir durcissement post-audit9). Tailwind v4 change le système de configuration (CSS-first via `@theme`, plus de `tailwind.config.js` détecté automatiquement) et renomme le plugin PostCSS.
