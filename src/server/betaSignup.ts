@@ -60,7 +60,13 @@ function emailShell(title: string, bodyHtml: string): string {
 </html>`;
 }
 
-export function confirmationRequestEmail(confirmUrl: string): { subject: string; html: string } {
+export interface EmailContent {
+  subject: string;
+  html: string;
+  text: string;
+}
+
+export function confirmationRequestEmail(confirmUrl: string): EmailContent {
   return {
     subject: "Confirmez votre inscription à la bêta Jungly",
     html: emailShell(
@@ -69,25 +75,37 @@ export function confirmationRequestEmail(confirmUrl: string): { subject: string;
        <p style="margin:28px 0;"><a href="${confirmUrl}" style="background:#22361a;color:#f5f2e6;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Confirmer mon inscription</a></p>
        <p style="font-size:0.82rem;color:#6f7566;">Vous n'êtes pas à l'origine de cette demande ? Ignorez simplement ce message, il ne se passera rien.</p>`,
     ),
+    text: `Merci de votre intérêt pour la bêta Android de Jungly !
+
+Confirmez votre adresse pour rejoindre la liste (il ne reste que ${BETA_SIGNUP_LIMIT} places) en ouvrant ce lien :
+${confirmUrl}
+
+Vous n'êtes pas à l'origine de cette demande ? Ignorez simplement ce message, il ne se passera rien.`,
   };
 }
 
-export function confirmedWelcomeEmail(): { subject: string; html: string } {
+export function confirmedWelcomeEmail(): EmailContent {
   return {
     subject: "Vous êtes inscrit·e à la bêta Jungly !",
     html: emailShell(
       "Votre place est réservée",
       `<p style="font-size:0.95rem;line-height:1.6;">Votre inscription à la bêta Android de Jungly est confirmée. Vous recevrez un email avec le lien d'invitation dès que la bêta ouvrira — aucune autre action n'est nécessaire pour l'instant.</p>`,
     ),
+    text: `Votre inscription à la bêta Android de Jungly est confirmée.
+
+Vous recevrez un email avec le lien d'invitation dès que la bêta ouvrira — aucune autre action n'est nécessaire pour l'instant.`,
   };
 }
 
-export function waitlistedEmail(): { subject: string; html: string } {
+export function waitlistedEmail(): EmailContent {
   return {
     subject: "Vous êtes sur liste d'attente pour la bêta Jungly",
     html: emailShell(
       "Liste d'attente",
       `<p style="font-size:0.95rem;line-height:1.6;">Les ${BETA_SIGNUP_LIMIT} places de la bêta ont trouvé preneur entre votre inscription et votre confirmation — vous êtes désormais sur liste d'attente. Si une place se libère, vous serez contacté·e par email en priorité.</p>`,
     ),
+    text: `Les ${BETA_SIGNUP_LIMIT} places de la bêta ont trouvé preneur entre votre inscription et votre confirmation — vous êtes désormais sur liste d'attente.
+
+Si une place se libère, vous serez contacté·e par email en priorité.`,
   };
 }

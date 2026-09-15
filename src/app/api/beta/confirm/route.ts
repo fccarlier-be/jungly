@@ -24,11 +24,11 @@ export async function GET(request: NextRequest) {
   const result = await confirmBetaSignupByToken(token);
 
   if (result.outcome === "confirmed") {
-    const { subject, html } = confirmedWelcomeEmail();
-    await sendEmail(result.email, subject, html);
+    const { subject, html, text } = confirmedWelcomeEmail();
+    await sendEmail(result.email, subject, html, text);
   } else if (result.outcome === "waitlisted") {
-    const { subject, html } = waitlistedEmail();
-    await sendEmail(result.email, subject, html);
+    const { subject, html, text } = waitlistedEmail();
+    await sendEmail(result.email, subject, html, text);
   }
 
   return redirectToStatus(result.outcome);

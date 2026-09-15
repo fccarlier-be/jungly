@@ -35,14 +35,14 @@ export async function POST(request: NextRequest) {
       const token = generateBetaToken();
       await db.betaSignup.create({ data: { email, token } });
       const confirmUrl = `${process.env.NEXTAUTH_URL}/api/beta/confirm?token=${token}`;
-      const { subject, html } = confirmationRequestEmail(confirmUrl);
-      await sendEmail(email, subject, html);
+      const { subject, html, text } = confirmationRequestEmail(confirmUrl);
+      await sendEmail(email, subject, html, text);
     } else if (existing.status === "PENDING") {
       // Renvoie le meme lien plutot que d'en regenerer un : evite d'invalider
       // silencieusement un email de confirmation deja recu et pas encore ouvert.
       const confirmUrl = `${process.env.NEXTAUTH_URL}/api/beta/confirm?token=${existing.token}`;
-      const { subject, html } = confirmationRequestEmail(confirmUrl);
-      await sendEmail(email, subject, html);
+      const { subject, html, text } = confirmationRequestEmail(confirmUrl);
+      await sendEmail(email, subject, html, text);
     }
     // CONFIRMED / WAITLISTED : rien a renvoyer, l'utilisateur a deja recu son email.
 
