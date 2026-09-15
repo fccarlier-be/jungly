@@ -17,7 +17,7 @@ export default async function SettingsPage() {
   const [preference, weatherProfile, user] = await Promise.all([
     db.notificationPreference.upsert({ where: { userId }, update: {}, create: { userId } }),
     db.weatherProfile.findUnique({ where: { userId }, select: { city: true, wateringIntervalMultiplier: true } }),
-    db.user.findUniqueOrThrow({ where: { id: userId }, select: { unitSystem: true } }),
+    db.user.findUniqueOrThrow({ where: { id: userId }, select: { unitSystem: true, isAdmin: true } }),
   ]);
 
   return (
@@ -80,6 +80,15 @@ export default async function SettingsPage() {
         <h2 className="font-semibold">À propos</h2>
         <p className="text-muted">Jungly - suivi et entretien de vos plantes.</p>
       </section>
+
+      {user.isAdmin && (
+        <section className="card p-4 space-y-2 text-sm">
+          <h2 className="font-semibold">Administration</h2>
+          <Link href="/analytics" className="chip inline-block rounded-lg py-2 px-4">
+            Statistiques du site vitrine
+          </Link>
+        </section>
+      )}
 
       <LogoutButton />
     </div>

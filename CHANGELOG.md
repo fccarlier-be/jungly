@@ -3,6 +3,21 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-15 — Statistiques de fréquentation du site vitrine
+
+Le site vitrine (jungly.fcold.org) envoie désormais un signal de vue de page à chaque chargement, pour pouvoir distinguer un manque de visibilité (peu de vues) d'un problème de conversion (des vues, mais peu d'inscriptions bêta confirmées).
+
+### Ajouté
+
+- **`prisma/schema.prisma`** : modèle `PageView` (chemin, referrer réduit au nom d'hôte seul, horodatage) — aucun identifiant de visiteur stocké (pas d'IP, de cookie ni de user-agent), cohérent avec la promesse de confidentialité du produit. Migration `20260915183735_add_page_view`.
+- **`POST /api/analytics/pageview`** (publique, CORS ouvert, limitée à 60 req/min/IP) : enregistre une vue. Appelée par `assets/analytics.js` (site vitrine, `navigator.sendBeacon`) sur les 4 pages.
+- **`GET /api/analytics/summary`** (réservée à l'administrateur, `requireAdminUserId`) : totaux et fenêtres 7/14/30 jours, par page, plus les inscriptions bêta par statut pour le calcul du taux de conversion.
+- **`/analytics`** (page, réservée à l'administrateur — `requireAdminSessionUserId`, nouveau dans `src/lib/session.ts`) : tendance 14 jours, détail par page, comparaison vues/inscriptions confirmées. Lien depuis `/parametres` (section "Administration", visible uniquement si `user.isAdmin`).
+
+### Vérifié
+
+`npm run lint`, `npm test` (148 tests, dont 3 nouveaux tests d'intégration réelle SQLite sur l'agrégation par fenêtre temporelle et par jour calendaire) et `npm run build` verts. Déployé sur `testplantes.fcold.org` : ingestion vérifiée (`curl`, referrer bien réduit au nom d'hôte en base), accès sans session confirmé refusé (401) sur `/api/analytics/summary`.
+
 ## [Post-MVP] - 2026-09-15 — Liste d'attente bêta Android (site vitrine)
 
 Le futur site vitrine (pas encore public) propose une section d'inscription à la bêta Android, à double opt-in, limitée à 12 places.

@@ -420,6 +420,24 @@ model BetaSignup {
 }
 
 /**
+ * Vue de page cote site vitrine (jungly.fcold.org), pour comparer le trafic
+ * aux inscriptions BetaSignup confirmees (page /analytics, reservee a
+ * l'administrateur) -- repondre a "les gens visitent sans s'inscrire" vs
+ * "pas assez de visibilite" ne demande qu'un compte par page et par jour,
+ * jamais un identifiant de visiteur : aucune IP, cookie ou user-agent n'est
+ * stocke ici, coherent avec la promesse de confidentialite du produit
+ * lui-meme.
+ */
+model PageView {
+  id        String   @id @default(cuid())
+  path      String
+  referrer  String?
+  createdAt DateTime @default(now())
+
+  @@index([path, createdAt])
+}
+
+/**
  * Trace qui a physiquement televerse un fichier via POST /api/uploads,
  * avant meme qu'il soit attache a une plante/note -- necessaire pour
  * verifier l'ownership d'une URL /uploads/... fournie par le client sur les

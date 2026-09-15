@@ -58,3 +58,17 @@ export async function requireSessionUserId(): Promise<string> {
   }
   return session.user.id;
 }
+
+/**
+ * Comme requireSessionUserId, mais redirige vers l'accueil (pas /login,
+ * l'utilisateur EST bien connecte) si le compte n'est pas administrateur --
+ * pour une page (ex. /analytics), pas une route API (voir requireAdminUserId).
+ */
+export async function requireAdminSessionUserId(): Promise<string> {
+  const userId = await requireSessionUserId();
+  const user = await db.user.findUnique({ where: { id: userId }, select: { isAdmin: true } });
+  if (!user?.isAdmin) {
+    redirect("/");
+  }
+  return userId;
+}
