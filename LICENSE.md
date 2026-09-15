@@ -2,7 +2,7 @@
 
 <https://polyformproject.org/licenses/noncommercial/1.0.0>
 
-Required Notice: Copyright Franky Carlier (https://github.com/fccarlier-be/jungly)
+Required Notice: Copyright François Carlier (https://github.com/fccarlier-be/jungly)
 
 ## Acceptance
 
