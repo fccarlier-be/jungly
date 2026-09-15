@@ -152,6 +152,13 @@ export default function PlantCarousel({ plants, initialId }: { plants: PlantDeta
           display: "flex",
           transform: `translateX(calc(${-visualPosition * 100}% + ${dragX}px))`,
           transition: transitioning ? `transform ${TRANSITION_MS}ms ease-out` : "none",
+          // Sans ceci, Chrome ne promeut cette rangee sur son propre calque
+          // GPU qu'au tout debut de l'animation transform -- cette
+          // promotion tardive laisse un fantome d'un volet adjacent
+          // (aria-hidden) brievement visible a la jointure, y compris une
+          // fois la transition terminee (constate sur "Photos"/bouton
+          // "Ajouter" pendant le swipe).
+          willChange: "transform",
         }}
       >
         {slides.map((slide) => (
