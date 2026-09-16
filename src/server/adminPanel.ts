@@ -2,6 +2,7 @@ import { db } from "@/server/db";
 import { sendEmail } from "@/lib/email";
 import { NotFoundError, ConflictError } from "@/lib/errors";
 import {
+  generateBetaToken,
   confirmationRequestEmail,
   confirmedWelcomeEmail,
   waitlistedEmail,
@@ -57,6 +58,37 @@ export async function listAccounts(): Promise<AccountSummary[]> {
     disabledAt: r.disabledAt ? r.disabledAt.toISOString() : null,
     plantCount: r._count.plants,
   }));
+}
+
+/**
+ * Ajoute manuellement une adresse a la liste d'attente beta depuis le panel
+ * (invitation directe, sans passer par le formulaire public du site
+ * vitrine) -- meme flux que POST /api/beta/signup (PENDING + mail de
+ * confirmation), pas de confirmation automatique : la personne doit tout de
+ * meme cliquer le lien, pour la meme raison que le formulaire public
+ * (consentement reel, coherence avec la limite de places/liste d'attente).
+ */
+export async function createBetaSignupAndInvite(email: string): Promise<BetaSignupDetail> {
+  const existing = await db.betaSignup.findUnique({ where: { email } });
+  if (existing) {
+    throw new ConflictError(`Cette adresse est déjà inscrite (statut : ${existing.status}).`);
+  }
+
+  const token = generateBetaToken();
+  const signup = await db.betaSignup.create({ data: { email, token } });
+
+  const confirmUrl = `${process.env.NEXTAUTH_URL}/api/beta/confirm?token=${token}`;
+  const { subject, html, text } = confirmationRequestEmail(confirmUrl);
+  await sendEmail(email, subject, html, text);
+
+  return {
+    id: signup.id,
+    email: signup.email,
+    status: signup.status,
+    createdAt: signup.createdAt.toISOString(),
+    confirmedAt: null,
+    invitedAt: null,
+  };
 }
 
 export type ResendTemplate = "confirmation" | "welcome" | "waitlisted";

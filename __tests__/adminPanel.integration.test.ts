@@ -5,7 +5,7 @@ import { NotFoundError, ConflictError } from "@/lib/errors";
 vi.mock("@/lib/email", () => ({ sendEmail: vi.fn() }));
 
 import { sendEmail } from "@/lib/email";
-import { resendBetaEmail, sendBetaInvite, listBetaSignupsDetailed } from "@/server/adminPanel";
+import { resendBetaEmail, sendBetaInvite, listBetaSignupsDetailed, createBetaSignupAndInvite } from "@/server/adminPanel";
 
 /**
  * Integration reelle (vraie base SQLite) -- meme pattern que
@@ -170,5 +170,45 @@ describe("listBetaSignupsDetailed (integration reelle SQLite)", () => {
     const rows = await listBetaSignupsDetailed();
     const found = rows.find((r) => r.id === signup.id);
     expect(found?.invitedAt).not.toBeNull();
+  });
+});
+
+describe("createBetaSignupAndInvite (integration reelle SQLite)", () => {
+  const createdEmails: string[] = [];
+
+  afterEach(async () => {
+    vi.clearAllMocks();
+    if (createdEmails.length) {
+      await db.betaSignup.deleteMany({ where: { email: { in: createdEmails } } });
+      createdEmails.length = 0;
+    }
+  });
+
+  afterAll(async () => {
+    await db.$disconnect();
+  });
+
+  it("cree l'inscription PENDING et envoie le mail de confirmation", async () => {
+    const email = `admin-add-${Date.now()}@example.com`;
+    createdEmails.push(email);
+
+    const signup = await createBetaSignupAndInvite(email);
+
+    expect(signup.status).toBe("PENDING");
+    expect(signup.email).toBe(email);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(sendEmail).mock.calls[0][0]).toBe(email);
+
+    const inDb = await db.betaSignup.findUnique({ where: { email } });
+    expect(inDb?.status).toBe("PENDING");
+  });
+
+  it("refuse une adresse deja inscrite, sans renvoyer de mail", async () => {
+    const email = `admin-dup-${Date.now()}@example.com`;
+    createdEmails.push(email);
+    await db.betaSignup.create({ data: { email, token: `tok-${Date.now()}`, status: "CONFIRMED", confirmedAt: new Date() } });
+
+    await expect(createBetaSignupAndInvite(email)).rejects.toThrow(ConflictError);
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });

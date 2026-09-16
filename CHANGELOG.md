@@ -3,6 +3,15 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-16 — Invitation directe à la bêta depuis le panel d'administration
+
+Le panel `jungly-admin` (phase 2/3, service séparé) ne permettait que d'agir sur des inscriptions déjà créées via le formulaire public. Ajout demandé : pouvoir ajouter directement une adresse depuis le panel, comme si la personne avait rempli le formulaire elle-même.
+
+### Ajouté
+
+- **`createBetaSignupAndInvite`** (`src/server/adminPanel.ts`) : crée l'inscription en `PENDING` et envoie le même mail de confirmation que le formulaire public — la personne doit toujours cliquer pour confirmer (cohérence avec la limite de places/liste d'attente, pas de contournement du consentement).
+- **`POST /api/internal/admin/beta-signups`** : refuse une adresse déjà inscrite (409, statut actuel dans le message) sans jamais renvoyer de mail dans ce cas.
+
 ## [Post-MVP] - 2026-09-16 — API interne pour un panel d'administration séparé (phase 1/3)
 
 `/analytics` vit aujourd'hui dans le dépôt public de Jungly : chaque self-hoster qui clone le projet reçoit ce lien admin, alors que ses tables `PageView`/`BetaSignup` sont vides et n'ont aucun sens pour lui. Décision (discutée le 2026-09-16) : sortir tout l'outillage d'administration marketing/bêta dans un service séparé, `jungly-admin` (`jungly-admin.fcold.org`, protégé par Cloudflare Access, pas de compte Jungly propre) — cette entrée couvre uniquement la nouvelle API interne côté Jungly ; le service `jungly-admin` lui-même et le retrait de `/analytics` du produit sont les phases suivantes.
