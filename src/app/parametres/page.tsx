@@ -78,7 +78,22 @@ export default async function SettingsPage() {
 
       <section className="card p-4 space-y-2 text-sm">
         <h2 className="font-semibold">À propos</h2>
-        <p className="text-muted">Jungly - suivi et entretien de vos plantes.</p>
+        <p className="text-muted">Jungly — suivi et entretien de vos plantes.</p>
+        <p className="text-muted text-xs">
+          © {new Date().getFullYear()} François Carlier — distribué sous licence{" "}
+          <a
+            href="https://polyformproject.org/licenses/noncommercial/1.0.0"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2"
+          >
+            PolyForm Noncommercial 1.0.0
+          </a>{" "}
+          (usage commercial non autorisé sans accord).
+        </p>
+        {process.env.NEXT_PUBLIC_GIT_SHA && (
+          <p className="text-muted text-xs">Version {process.env.NEXT_PUBLIC_GIT_SHA}</p>
+        )}
       </section>
 
       {user.isAdmin && (

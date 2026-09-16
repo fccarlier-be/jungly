@@ -26,6 +26,13 @@ WORKDIR /app
 # build.args), pas seulement en variable d'environnement du conteneur.
 ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
 ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+# Identifie la revision exacte a l'origine d'un deploiement (affiche dans
+# Parametres > A propos) : utile pour situer une instance dans l'historique
+# du projet (support, ou comparaison en cas de reutilisation commerciale non
+# autorisee du code -- voir LICENSE.md). Sans valeur passee, reste vide plutot
+# que d'echouer le build.
+ARG GIT_SHA=""
+ENV NEXT_PUBLIC_GIT_SHA=${GIT_SHA}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # `prisma generate` n'a besoin d'aucune connexion reelle (il ne fait
