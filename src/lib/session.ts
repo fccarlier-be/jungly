@@ -9,19 +9,24 @@ export { UnauthorizedError };
 
 /**
  * À utiliser dans les route handlers API : lève UnauthorizedError si non
- * connecté. Verifie aussi que le compte existe toujours : un JWT reste
- * valide jusqu'a 30 jours (session strategy "jwt", voir auth.ts)
- * independamment d'une suppression de compte entre-temps -- sans cette
- * verification, un ancien token continuait a passer requireUserId() apres
- * DELETE /api/user (audit security1.md, P2).
+ * connecté. Verifie aussi que le compte existe toujours et n'est pas
+ * desactive : un JWT reste valide jusqu'a 30 jours (session strategy "jwt",
+ * voir auth.ts) independamment d'une suppression de compte ou d'une
+ * revocation (remboursement Google Play, voir User.disabledAt) survenue
+ * entre-temps -- sans cette verification, un ancien token continuait a
+ * passer requireUserId() apres DELETE /api/user (audit security1.md, P2)
+ * ou apres desactivation d'un compte hebergee rembourse.
  */
 export async function requireUserId(): Promise<string> {
   const session = await auth();
   if (!session?.user?.id) {
     throw new UnauthorizedError();
   }
-  const user = await db.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
-  if (!user) {
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, disabledAt: true },
+  });
+  if (!user || user.disabledAt) {
     throw new UnauthorizedError();
   }
   return session.user.id;
@@ -52,8 +57,11 @@ export async function requireSessionUserId(): Promise<string> {
   if (!session?.user?.id) {
     redirect("/login");
   }
-  const user = await db.user.findUnique({ where: { id: session.user.id }, select: { id: true } });
-  if (!user) {
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, disabledAt: true },
+  });
+  if (!user || user.disabledAt) {
     redirect("/login");
   }
   return session.user.id;
