@@ -1,0 +1,9 @@
+# Image de l'environnement de developpement Android (Bubblewrap/TWA),
+# destinee a un conteneur PERMANENT (voir android-dev dans docker-compose.yml
+# a la racine du serveur) -- jamais un `docker run --rm` jetable, dont
+# l'image finissait reguliement purgee par le cron de nettoyage Docker
+# hebdomadaire, forcant une redecouverte complete a chaque session
+# (voir docs/android-apk-build.md).
+FROM node:20-bookworm
+RUN apt-get update && apt-get install -y expect && rm -rf /var/lib/apt/lists/*
+RUN npm install -g @bubblewrap/cli

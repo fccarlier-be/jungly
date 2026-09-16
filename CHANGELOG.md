@@ -3,6 +3,21 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-16 — Wizard Android natif (auto-hébergement vs offre hébergée)
+
+Troisième brique de l'offre hébergée : le projet Android (TWA/Bubblewrap), jusqu'ici jamais conservé d'une session à l'autre (dossier `output/` éphémère, image Docker reconstruite à chaque fois puis purgée par le cron de nettoyage), vit désormais dans ce dépôt (`android/`), avec un vrai écran de premier lancement.
+
+### Ajouté
+
+- **`android/`** : projet Android généré par Bubblewrap, committé (hors builds/`*.apk`/`*.aab`, régénérés à la demande — voir `android/.gitignore`).
+- **`SetupActivity.java`** : écran de premier lancement — choix entre auto-hébergement (saisie d'URL) et offre hébergée (achat Google Play unique via Play Billing Library, `BillingHelper.java`). `LauncherActivity.java` redirige vers cet écran tant qu'aucune instance n'est configurée (`InstancePrefs.java`, SharedPreferences), puis charge l'URL choisie au lieu de celle, fixe, du manifeste TWA.
+- **`ApiClient.java`** : appelle `POST /api/billing/verify-purchase` (déjà en prod) après un achat réussi pour créer le compte sur l'offre hébergée.
+- **`android-dev`** (nouveau service `docker-compose.yml`, permanent, `restart: unless-stopped`) : remplace les images Docker jetables utilisées jusqu'ici pour Bubblewrap/Gradle — le JDK/SDK restent dans le volume déjà existant (`bubblewrap-cache`), mais l'outillage ne se reconstruit plus à chaque session.
+
+### Vérifié
+
+Build réel réussi (`bubblewrap build`, APK signé + AAB générés) via le nouveau conteneur permanent — deux vraies erreurs trouvées et corrigées au passage (un champ manquant dans `twa-manifest.json` cassant le `build.gradle` généré, un `--` invalide dans un commentaire XML, une signature d'API Play Billing 7.1.1 différente de ce qui avait été écrit au premier jet). **Pas encore testé sur appareil réel ni via Play Console** (compte développeur pas encore actif) — seule la compilation est vérifiée à ce stade.
+
 ## [Post-MVP] - 2026-09-16 — Vérification d'achat Google Play (offre hébergée)
 
 Deuxième brique de l'offre hébergée payante : la création de compte sur l'instance verrouillée (`REGISTRATION_MODE=invite_only`) ne peut désormais se faire que via un achat Google Play vérifié côté serveur. Le compte développeur Google Play n'étant pas encore actif, l'appel réel à l'API Play Developer reste à brancher (`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`) — toute la logique métier autour est déjà écrite et testée contre une vraie base.

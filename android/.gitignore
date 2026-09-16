@@ -1,0 +1,10 @@
+# Sorties de build (regenerees a chaque `bubblewrap build`, voir docs/android-apk-build.md)
+*.apk
+*.apk.idsig
+*.aab
+build/
+.gradle/
+local.properties
+
+# Jamais le keystore ici -- vit hors depot (voir docs/android-apk-build.md).
+*.keystore

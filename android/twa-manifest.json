@@ -1,0 +1,21 @@
+{
+  "packageId": "org.fcold.plantes.twa",
+  "host": "plantes.fcold.org",
+  "name": "Jungly",
+  "launcherName": "Jungly",
+  "display": "standalone",
+  "themeColor": "#B3684A",
+  "backgroundColor": "#F7F4EE",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://plantes.fcold.org/icons/icon-512.png",
+  "maskableIconUrl": "https://plantes.fcold.org/icons/icon-512.png",
+  "signingKey": { "path": "/keystore/jungly-release.keystore", "alias": "jungly" },
+  "appVersionName": "1",
+  "appVersionCode": 1,
+  "webManifestUrl": "https://plantes.fcold.org/manifest.json",
+  "fallbackType": "customtabs",
+  "minSdkVersion": 21,
+  "orientation": "default",
+  "splashScreenFadeOutDuration": 300
+}
