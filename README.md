@@ -2,6 +2,8 @@
 
 Application de suivi et d'entretien des plantes : arrosage, fertilisation, rempotage, tâches, historique, notifications push, bibliothèque de plantes, export/import, capteurs IoT. Multi-utilisateur (inscription en libre-service), avec isolation stricte entre comptes.
 
+Jungly est et restera gratuit pour quiconque héberge sa propre instance avec ce dépôt — aucune fonctionnalité limitée, aucune inscription requise ailleurs. Une offre hébergée payante (achat unique, à bas prix) est en préparation pour celles et ceux qui préfèrent ne pas gérer leur propre serveur ; elle n'est pas encore disponible.
+
 ## Stack
 
 - Next.js 16 (App Router) + React 19 + TypeScript
