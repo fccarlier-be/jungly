@@ -3,6 +3,14 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-16 — Correctif : graphique "Tendance" invisible sur /analytics
+
+L'encart "Tendance (14 derniers jours)" semblait vide alors que des vues étaient bien enregistrées (60 en base, dont 26 le 15/09 et 34 le 16/09). Bug CSS : le conteneur du graphique (`items-end`) ne donne pas de hauteur explicite à chaque colonne journalière, qui ne fait donc que la taille de son contenu (`height: auto`) ; la barre colorée à l'intérieur utilise `height: X%`, or un pourcentage de hauteur ne se calcule que par rapport à un ancêtre à hauteur explicite — ignoré ici, chaque barre s'affichait à 0px.
+
+### Corrigé
+
+- `src/app/analytics/page.tsx` : ajout de `h-full` sur la colonne journalière, pour qu'elle hérite bien de la hauteur du conteneur (`h-28`) et que les pourcentages de hauteur des barres puissent enfin se calculer.
+
 ## [Post-MVP] - 2026-09-16 — Correctif : récupération d'achat cassée par la liaison achat/compte
 
 La liaison achat ↔ compte ajoutée juste avant (`obfuscatedExternalAccountId`, voir entrée suivante) introduisait elle-même une régression, repérée non pas en vérification mais par une relecture attentive du scénario : `recoverExistingPurchaseOrLaunchNew()` appelait `getOrCreatePendingProvisioningId()`, qui *fabrique* un nouvel identifiant si les `SharedPreferences` sont vides — donc paiement → app désinstallée/données effacées → réinstallation → l'identifiant régénéré ne correspond plus jamais à celui enregistré chez Google au moment de l'achat, et la récupération d'un achat pourtant légitime échouait systématiquement.

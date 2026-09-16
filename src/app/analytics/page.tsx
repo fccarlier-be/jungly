@@ -51,7 +51,7 @@ export default async function AnalyticsPage() {
         ) : (
           <div className="flex items-end gap-1.5 h-28">
             {summary.pageViews.dailyLast14.map((d) => (
-              <div key={d.day} className="flex-1 flex flex-col items-center justify-end gap-1" title={`${d.day} : ${d.count}`}>
+              <div key={d.day} className="flex-1 flex flex-col items-center justify-end gap-1 h-full" title={`${d.day} : ${d.count}`}>
                 <div
                   className="w-full rounded-t"
                   style={{
