@@ -3,6 +3,21 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-16 — Vérification d'achat Google Play (offre hébergée)
+
+Deuxième brique de l'offre hébergée payante : la création de compte sur l'instance verrouillée (`REGISTRATION_MODE=invite_only`) ne peut désormais se faire que via un achat Google Play vérifié côté serveur. Le compte développeur Google Play n'étant pas encore actif, l'appel réel à l'API Play Developer reste à brancher (`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`) — toute la logique métier autour est déjà écrite et testée contre une vraie base.
+
+### Ajouté
+
+- **`ConsumedPurchase`** (modèle Prisma) : trace chaque jeton d'achat vérifié, contrainte d'unicité anti-rejeu (un même achat ne peut provisionner qu'un seul compte).
+- **`POST /api/billing/verify-purchase`** : vérifie le jeton auprès de l'API Google Play Developer (`src/server/googlePlayBilling.ts`), l'acquitte si nécessaire (Google rembourse automatiquement un achat non acquitté sous 3 jours — piège classique de Play Billing), puis crée le compte dans une transaction unique avec la consommation du jeton.
+- **`ServiceUnavailableError`** (`src/lib/errors.ts`, 503) : distingue un achat réellement invalide (409) d'une vérification impossible à faire (clé absente, panne côté Google) — évite de laisser croire à l'app qu'il faut recommencer l'achat alors que le problème est chez nous.
+- Dépendance **`googleapis`** (client officiel Google, API Play Developer).
+
+### Vérifié
+
+`npm run lint`, `npm test` (160 tests, dont 8 nouveaux : logique pure de validation d'achat, et anti-rejeu/unicité email/atomicité de la transaction contre une vraie base SQLite, appel Google simulé) et `npm run build` verts.
+
 ## [Post-MVP] - 2026-09-16 — Config nginx dédiée pour l'instance hébergée (incident réel)
 
 En vérifiant le déploiement de l'instance hébergée (`jungly-app.fcold.org`) juste après sa mise en ligne, l'inscription y est apparue ouverte malgré `REGISTRATION_MODE=invite_only` correctement positionné dans le conteneur. Cause : `nginx-plantes-hosted` réutilisait tel quel `www/plantes/nginx/default.conf`, qui contient `proxy_pass http://plantes-app:3000` — le nom du conteneur de l'instance **personnelle**, en dur. Toutes les requêtes vers l'instance hébergée étaient donc silencieusement routées vers l'instance personnelle, qui a bien traité une inscription de vérification (compte `test@example.com`) — supprimé immédiatement une fois la cause identifiée. Ni cette instance ni ses vraies données n'ont subi d'autre impact.

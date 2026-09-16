@@ -23,6 +23,7 @@
     "bcryptjs": "2.4.3",
     "better-sqlite3": "13.0.3",
     "dotenv": "17.4.2",
+    "googleapis": "^181.0.0",
     "ipaddr.js": "2.5.0",
     "jszip": "^3.10.1",
     "lucide-react": "^1.42.0",

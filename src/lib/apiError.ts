@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { Prisma } from "@generated/prisma/client";
-import { UnauthorizedError, NotFoundError, ConflictError, ForbiddenError, BadRequestError } from "@/lib/errors";
+import { UnauthorizedError, NotFoundError, ConflictError, ForbiddenError, BadRequestError, ServiceUnavailableError } from "@/lib/errors";
 import { PerenualError } from "@/server/perenual/client";
 
 // Re-exportees pour compatibilite -- la definition vit desormais dans
 // errors.ts (sans dependance next/server, importable depuis un module
 // teste directement sous Vitest). Ne pas dupliquer les classes ici.
-export { NotFoundError, ConflictError, ForbiddenError, BadRequestError };
+export { NotFoundError, ConflictError, ForbiddenError, BadRequestError, ServiceUnavailableError };
 
 /**
  * Traduit une erreur en réponse HTTP compréhensible, sans jamais exposer de
@@ -17,6 +17,10 @@ export { NotFoundError, ConflictError, ForbiddenError, BadRequestError };
 export function handleApiError(error: unknown): NextResponse {
   if (error instanceof UnauthorizedError) {
     return NextResponse.json({ error: "Vous devez être connecté." }, { status: 401 });
+  }
+
+  if (error instanceof ServiceUnavailableError) {
+    return NextResponse.json({ error: error.message }, { status: 503 });
   }
 
   if (error instanceof ZodError) {

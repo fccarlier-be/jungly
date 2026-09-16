@@ -40,3 +40,10 @@ export class UnauthorizedError extends Error {
     super("Non authentifié.");
   }
 }
+
+/** Une integration externe requise n'est pas configuree ou injoignable (ex. cle API absente, panne cote fournisseur) -- pas une erreur du client. */
+export class ServiceUnavailableError extends Error {
+  constructor(message = "Service temporairement indisponible.") {
+    super(message);
+  }
+}

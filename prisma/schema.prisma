@@ -438,6 +438,24 @@ model PageView {
 }
 
 /**
+ * Trace chaque jeton d'achat Google Play une fois verifie aupres de l'API
+ * Play Developer, sur CETTE instance uniquement (l'offre hebergee,
+ * jungly-app.fcold.org) : la contrainte d'unicite sur `purchaseToken`
+ * empeche qu'un meme achat serve a provisionner plusieurs comptes en le
+ * rejouant (POST /api/billing/verify-purchase). `email` est l'email du
+ * compte cree a partir de cet achat -- pas de relation formelle vers User
+ * pour rester independant du cycle de vie du compte (suppression de compte
+ * possible sans perdre la trace qu'un achat a bien ete consomme).
+ */
+model ConsumedPurchase {
+  id            String   @id @default(cuid())
+  purchaseToken String   @unique
+  productId     String
+  email         String
+  verifiedAt    DateTime @default(now())
+}
+
+/**
  * Trace qui a physiquement televerse un fichier via POST /api/uploads,
  * avant meme qu'il soit attache a une plante/note -- necessaire pour
  * verifier l'ownership d'une URL /uploads/... fournie par le client sur les
