@@ -3,6 +3,23 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-16 — API interne pour un panel d'administration séparé (phase 1/3)
+
+`/analytics` vit aujourd'hui dans le dépôt public de Jungly : chaque self-hoster qui clone le projet reçoit ce lien admin, alors que ses tables `PageView`/`BetaSignup` sont vides et n'ont aucun sens pour lui. Décision (discutée le 2026-09-16) : sortir tout l'outillage d'administration marketing/bêta dans un service séparé, `jungly-admin` (`jungly-admin.fcold.org`, protégé par Cloudflare Access, pas de compte Jungly propre) — cette entrée couvre uniquement la nouvelle API interne côté Jungly ; le service `jungly-admin` lui-même et le retrait de `/analytics` du produit sont les phases suivantes.
+
+### Ajouté
+
+- **`BetaSignup.invitedAt`** (migration `20260916164740_add_beta_signup_invited_at`) : distinct de `confirmedAt`, rempli à l'envoi d'une invitation au programme de test Google Play.
+- **`src/lib/internalAuth.ts`** : authentification par secret partagé (`JUNGLY_ADMIN_INTERNAL_SECRET`, header `X-Internal-Secret`, comparaison à temps constant) — mêmes routes jamais accessibles par session utilisateur, seul `jungly-admin` les appelle.
+- **Cinq routes `/api/internal/admin/*`** : `GET stats` (réutilise `getAnalyticsSummary`), `GET accounts`, `GET beta-signups` (liste détaillée, statut + dates), `POST beta-signups/:id/resend` (renvoie confirmation/bienvenue/liste d'attente — corrige l'absence de solution pour un mail supprimé par erreur, rencontrée deux fois cette semaine), `POST beta-signups/:id/invite` (nouveau template d'email, lien du programme de test fourni à l'envoi puisqu'il n'existe pas encore).
+- **`src/server/adminPanel.ts`** : logique métier (garde de statut par template — impossible de renvoyer un mail de bienvenue à une inscription encore `PENDING`, etc.), testée contre une vraie base SQLite.
+
+### Décisions notables
+
+- Invitation sans intégration à l'API Google Play Developer pour l'instant (ajout manuel du testeur en Play Console, volume de 12 personnes) — réévaluable si le volume grossit.
+- Pas de garde bloquante sur un second envoi d'invitation (`invitedAt` déjà renseigné) : un renvoi volontaire depuis le panel doit rester possible.
+- Comptes affichés : personnelle et hébergée toutes deux interrogées par `jungly-admin` (deux bases séparées), avec filtre côté panel — pas d'agrégation côté Jungly lui-même.
+
 ## [Post-MVP] - 2026-09-16 — Correctif : graphique "Tendance" invisible sur /analytics
 
 L'encart "Tendance (14 derniers jours)" semblait vide alors que des vues étaient bien enregistrées (60 en base, dont 26 le 15/09 et 34 le 16/09). Bug CSS : le conteneur du graphique (`items-end`) ne donne pas de hauteur explicite à chaque colonne journalière, qui ne fait donc que la taille de son contenu (`height: auto`) ; la barre colorée à l'intérieur utilise `height: X%`, or un pourcentage de hauteur ne se calcule que par rapport à un ancêtre à hauteur explicite — ignoré ici, chaque barre s'affichait à 0px.

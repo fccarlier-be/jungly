@@ -423,6 +423,11 @@ model BetaSignup {
   status      BetaSignupStatus @default(PENDING)
   createdAt   DateTime         @default(now())
   confirmedAt DateTime?
+  // Rempli quand une invitation (lien de test ferme Play Console) a ete
+  // envoyee -- distinct de confirmedAt : sert au panel d'administration
+  // separe (jungly-admin) pour reperer qui a deja ete invite, sans empecher
+  // un renvoi volontaire (pas de contrainte bloquante cote serveur).
+  invitedAt   DateTime?
 }
 
 /**

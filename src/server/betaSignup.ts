@@ -97,6 +97,29 @@ Vous recevrez un email avec le lien d'invitation dès que la bêta ouvrira — a
   };
 }
 
+/**
+ * `playConsoleUrl` est fourni a l'envoi (pas une constante) : le lien
+ * d'inscription au test ferme Google Play n'existe qu'une fois le compte
+ * developpeur valide et l'app soumise -- inconnu au moment d'ecrire ce
+ * template.
+ */
+export function invitationEmail(playConsoleUrl: string): EmailContent {
+  return {
+    subject: "La bêta Android de Jungly est ouverte !",
+    html: emailShell(
+      "C'est ouvert !",
+      `<p style="font-size:0.95rem;line-height:1.6;">Bonne nouvelle : la bêta Android de Jungly est maintenant ouverte, et vous en faites partie. Deux étapes rapides pour l'installer :</p>
+       <p style="margin:28px 0;"><a href="${playConsoleUrl}" style="background:#22361a;color:#f5f2e6;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Rejoindre le programme de test</a></p>
+       <p style="font-size:0.95rem;line-height:1.6;">Ce lien vous ajoute au groupe de testeurs sur le Play Store. Une fois rejoint, l'app Jungly devient installable normalement depuis le Play Store, avec le choix entre auto-hébergement gratuit et offre hébergée.</p>`,
+    ),
+    text: `Bonne nouvelle : la bêta Android de Jungly est maintenant ouverte, et vous en faites partie.
+
+Rejoignez le programme de test ici : ${playConsoleUrl}
+
+Ce lien vous ajoute au groupe de testeurs sur le Play Store. Une fois rejoint, l'app Jungly devient installable normalement depuis le Play Store, avec le choix entre auto-hébergement gratuit et offre hébergée.`,
+  };
+}
+
 export function waitlistedEmail(): EmailContent {
   return {
     subject: "Vous êtes sur liste d'attente pour la bêta Jungly",
