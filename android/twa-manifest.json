@@ -15,7 +15,7 @@
   "appVersionCode": 1,
   "webManifestUrl": "https://plantes.fcold.org/manifest.json",
   "fallbackType": "customtabs",
-  "minSdkVersion": 21,
+  "minSdkVersion": 23,
   "orientation": "default",
   "splashScreenFadeOutDuration": 300
 }

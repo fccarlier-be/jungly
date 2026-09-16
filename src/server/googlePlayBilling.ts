@@ -25,7 +25,9 @@ export function evaluatePurchaseState(
   return acknowledgementState === 0 ? "valid_needs_ack" : "valid_acknowledged";
 }
 
-export type PurchaseVerification = { ok: true } | { ok: false; reason: "not_configured" | "not_purchased" | "api_error" };
+export type PurchaseVerification =
+  | { ok: true; obfuscatedExternalAccountId: string | null | undefined }
+  | { ok: false; reason: "not_configured" | "not_purchased" | "api_error" };
 
 function getClient() {
   const credentialsJson = process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON;
@@ -72,9 +74,38 @@ export async function verifyAndAcknowledgePurchase(productId: string, purchaseTo
       });
     }
 
-    return { ok: true };
+    return { ok: true, obfuscatedExternalAccountId: data.obfuscatedExternalAccountId };
   } catch (error) {
     console.error("[billing] Échec de vérification auprès de Google Play :", error);
     return { ok: false, reason: "api_error" };
+  }
+}
+
+/**
+ * Version allegee de verifyAndAcknowledgePurchase(), pour la verification
+ * periodique post-achat (voir tickPurchaseRevocationCheck) : ne fait que
+ * lire l'etat actuel, ne l'acquitte jamais (deja fait a la creation du
+ * compte). Un achat rembourse/annule apres coup repasse purchaseState a
+ * une valeur differente de 0 -- c'est le seul signal qu'on utilise ici,
+ * pas de webhook RTDN pour l'instant (voir CHANGELOG : volume de depart
+ * trop faible pour justifier l'infra Pub/Sub tout de suite).
+ */
+export async function isPurchaseStillValid(productId: string, purchaseToken: string): Promise<boolean | null> {
+  const client = getClient();
+  if (!client) {
+    console.warn("[billing] GOOGLE_PLAY_SERVICE_ACCOUNT_JSON absente, verification periodique impossible");
+    return null;
+  }
+
+  try {
+    const { data } = await client.purchases.products.get({
+      packageName: PACKAGE_NAME,
+      productId,
+      token: purchaseToken,
+    });
+    return data.purchaseState === 0;
+  } catch (error) {
+    console.error("[billing] Échec de la vérification périodique auprès de Google Play :", error);
+    return null;
   }
 }

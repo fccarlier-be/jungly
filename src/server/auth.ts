@@ -49,6 +49,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        // Compte de l'offre hebergee dont l'achat a ete rembourse/annule
+        // apres coup (voir tickPurchaseRevocationCheck, User.disabledAt) --
+        // meme reponse generique qu'un mauvais mot de passe, pour ne pas
+        // laisser deviner l'existence/l'etat d'un compte (coherent avec
+        // DUMMY_PASSWORD_HASH ci-dessus).
+        if (user.disabledAt) {
+          return null;
+        }
+
         return { id: user.id, email: user.email, name: user.name ?? undefined, isAdmin: user.isAdmin };
       },
     }),

@@ -27,6 +27,7 @@ public class SetupActivity extends Activity {
     private LinearLayout root;
     private BillingHelper billingHelper;
     private String pendingPurchaseToken;
+    private String pendingProvisioningId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -133,8 +134,9 @@ public class SetupActivity extends Activity {
 
         billingHelper = new BillingHelper(this, new BillingHelper.Listener() {
             @Override
-            public void onPurchaseObtained(String purchaseToken) {
+            public void onPurchaseObtained(String purchaseToken, String provisioningId) {
                 pendingPurchaseToken = purchaseToken;
+                pendingProvisioningId = provisioningId;
                 showAccountScreen();
             }
 
@@ -177,6 +179,7 @@ public class SetupActivity extends Activity {
         try {
             payload.put("purchaseToken", pendingPurchaseToken);
             payload.put("productId", AppConfig.HOSTED_PRODUCT_ID);
+            payload.put("provisioningId", pendingProvisioningId);
             payload.put("email", email);
             payload.put("password", password);
         } catch (JSONException e) {
@@ -188,6 +191,7 @@ public class SetupActivity extends Activity {
             @Override
             public void onSuccess(int statusCode, JSONObject body) {
                 if (statusCode == 201) {
+                    InstancePrefs.clearPendingProvisioningId(SetupActivity.this);
                     InstancePrefs.setTargetUrl(SetupActivity.this, AppConfig.HOSTED_URL);
                     launchMainActivity();
                 } else {

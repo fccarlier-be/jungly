@@ -55,7 +55,7 @@ android {
     namespace "org.fcold.plantes.twa"
     defaultConfig {
         applicationId "org.fcold.plantes.twa"
-        minSdkVersion 21
+        minSdkVersion 23
         targetSdkVersion 36
         versionCode 1
         versionName ""
@@ -205,10 +205,13 @@ repositories {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
 
-        implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.6.2'
+        implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.3'
 
     // Achat unique (offre hebergee) -- voir BillingHelper/SetupActivity.
-    implementation 'com.android.billingclient:billing:7.1.1'
+    // 7.1.1 est hors delai Google depuis le 31 aout 2026 (verifie sur
+    // developer.android.com/google/play/billing/deprecation-faq le
+    // 2026-09-16) -- 9.1.0 est la derniere version stable a cette date.
+    implementation 'com.android.billingclient:billing:9.1.0'
     // JSON (payload de POST /api/billing/verify-purchase) -- deja fourni par
     // la plateforme Android (org.json), pas une dependance externe.
 }

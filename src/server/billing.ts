@@ -1,13 +1,14 @@
 import bcrypt from "bcryptjs";
 import { Prisma } from "@generated/prisma/client";
 import { db } from "@/server/db";
-import { verifyAndAcknowledgePurchase } from "@/server/googlePlayBilling";
+import { verifyAndAcknowledgePurchase, isPurchaseStillValid } from "@/server/googlePlayBilling";
 import { HOSTED_ACCESS_PRODUCT_ID } from "@/server/billingProducts";
 import { ConflictError, BadRequestError, ServiceUnavailableError } from "@/lib/errors";
 
 export interface ProvisionHostedAccountInput {
   purchaseToken: string;
   productId: string;
+  provisioningId: string;
   email: string;
   password: string;
 }
@@ -26,7 +27,7 @@ export interface ProvisionedAccount {
  * jeton marque consomme sans compte cree, ni l'inverse.
  */
 export async function provisionHostedAccount(input: ProvisionHostedAccountInput): Promise<ProvisionedAccount> {
-  const { purchaseToken, productId, email, password } = input;
+  const { purchaseToken, productId, provisioningId, email, password } = input;
 
   if (productId !== HOSTED_ACCESS_PRODUCT_ID) {
     throw new BadRequestError("Produit inconnu.");
@@ -57,6 +58,15 @@ export async function provisionHostedAccount(input: ProvisionHostedAccountInput)
     throw new ServiceUnavailableError("Vérification de l'achat momentanément indisponible, réessayez plus tard.");
   }
 
+  // Empeche qu'un jeton d'achat, a lui seul, ne suffise a revendiquer un
+  // compte (voir androidsecu.md #3) : l'app transmet a Google le meme
+  // identifiant qu'elle nous envoie ici (setObfuscatedAccountId), donc
+  // seul l'appelant ayant reellement initie CET achat precis peut les
+  // faire correspondre.
+  if (verification.obfuscatedExternalAccountId !== provisioningId) {
+    throw new ConflictError("Cet achat ne correspond pas à cette tentative d'inscription.");
+  }
+
   const passwordHash = await bcrypt.hash(password, 10);
   try {
     return await db.$transaction(async (tx) => {
@@ -72,4 +82,42 @@ export async function provisionHostedAccount(input: ProvisionHostedAccountInput)
     }
     throw error;
   }
+}
+
+export interface RevocationCheckResult {
+  checked: number;
+  revoked: number;
+}
+
+/**
+ * Version allegee d'une revocation en temps reel (RTDN/Pub-Sub) : re-verifie
+ * chaque achat encore actif aupres de Google, desactive le compte associe si
+ * l'achat n'est plus dans l'etat "achete" (rembourse/annule). Suffisant tant
+ * que le volume d'achats reste faible (voir androidsecu.md #2 et CHANGELOG) --
+ * a remplacer par de vraies notifications temps reel si ca grossit.
+ *
+ * Jamais de suppression automatique du compte : seulement un blocage de
+ * connexion (User.disabledAt), reversible a la main si un remboursement est
+ * lui-meme conteste/annule.
+ */
+export async function revokeExpiredPurchases(): Promise<RevocationCheckResult> {
+  const activePurchases = await db.consumedPurchase.findMany({ where: { revokedAt: null } });
+
+  let revoked = 0;
+  for (const purchase of activePurchases) {
+    const stillValid = await isPurchaseStillValid(purchase.productId, purchase.purchaseToken);
+    // null = cle absente ou API Google injoignable : on ne desactive jamais
+    // sur une incertitude, seulement sur un "non" explicite de Google.
+    if (stillValid !== false) {
+      continue;
+    }
+
+    await db.$transaction([
+      db.consumedPurchase.update({ where: { id: purchase.id }, data: { revokedAt: new Date() } }),
+      db.user.updateMany({ where: { email: purchase.email }, data: { disabledAt: new Date() } }),
+    ]);
+    revoked++;
+  }
+
+  return { checked: activePurchases.length, revoked };
 }

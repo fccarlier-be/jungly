@@ -34,6 +34,12 @@ model User {
   // -- seul l'affichage/la saisie (src/lib/units.ts) convertit selon ce
   // reglage, en vue notamment d'un futur public anglophone/imperial.
   unitSystem   UnitSystem @default(METRIC)
+  // Non-null seulement pour un compte de l'offre hebergee dont l'achat a ete
+  // rembourse/annule apres coup (voir tickPurchaseRevocationCheck) --
+  // bloque la connexion (auth.ts) sans supprimer les donnees, au cas ou le
+  // remboursement serait lui-meme conteste/annule. Toujours null pour un
+  // compte auto-heberge (aucun achat associe).
+  disabledAt   DateTime?
 
   locations             Location[]
   plants                Plant[]
@@ -448,11 +454,16 @@ model PageView {
  * possible sans perdre la trace qu'un achat a bien ete consomme).
  */
 model ConsumedPurchase {
-  id            String   @id @default(cuid())
-  purchaseToken String   @unique
+  id            String    @id @default(cuid())
+  purchaseToken String    @unique
   productId     String
   email         String
-  verifiedAt    DateTime @default(now())
+  verifiedAt    DateTime  @default(now())
+  // Renseigne par la verification periodique (tickPurchaseRevocationCheck)
+  // si l'achat n'est plus dans l'etat "achete" aupres de Google
+  // (rembourse/annule) -- le compte User correspondant est alors desactive
+  // (voir User.disabledAt), jamais supprime automatiquement.
+  revokedAt     DateTime?
 }
 
 /**

@@ -2,6 +2,7 @@ import { db } from "@/server/db";
 import { sendDailyDigest } from "./notificationService";
 import { refreshWeatherProfile } from "@/server/weather/refresh";
 import { collectOrphanFiles } from "@/server/fileGarbageCollector";
+import { revokeExpiredPurchases } from "@/server/billing";
 
 const QUARTER_HOUR_MS = 15 * 60 * 1000;
 
@@ -113,6 +114,30 @@ async function tickFileGc(): Promise<void> {
   }
 }
 
+// Re-verification legere des achats de l'offre hebergee (androidsecu.md #2) :
+// un remboursement/annulation cote Google n'a aucun effet immediat sur
+// l'acces Jungly sans ca. Quotidien, comme la purge capteurs/le GC fichiers
+// -- un remboursement n'est pas un evenement frequent, pas besoin de plus
+// reactif tant que le volume reste faible (RTDN si ca change, voir
+// revokeExpiredPurchases()).
+let lastPurchaseCheckDay: Date | null = null;
+
+async function tickPurchaseRevocationCheck(): Promise<void> {
+  const now = new Date();
+  if (lastPurchaseCheckDay && isSameDay(lastPurchaseCheckDay, now)) {
+    return;
+  }
+  try {
+    const { checked, revoked } = await revokeExpiredPurchases();
+    if (revoked > 0) {
+      console.log(`[billing] verification periodique : ${revoked}/${checked} achat(s) révoqué(s) (remboursement/annulation).`);
+    }
+    lastPurchaseCheckDay = now;
+  } catch (error) {
+    console.error("[billing] verification periodique des achats echouee :", error);
+  }
+}
+
 let started = false;
 
 /**
@@ -162,6 +187,7 @@ export function startNotificationScheduler(): void {
       tickWeather().catch((error) => console.error("[weather] verification echouee :", error)),
       tickSensorRetention().catch((error) => console.error("[sensors] verification echouee :", error)),
       tickFileGc().catch((error) => console.error("[gc] verification echouee :", error)),
+      tickPurchaseRevocationCheck(),
     ]).finally(() => {
       runningIteration = false;
     });

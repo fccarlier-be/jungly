@@ -3,6 +3,25 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-16 — Corrections suite à un audit de sécurité Android (androidsecu.md)
+
+Un audit externe du commit `74596f8` (wizard + Play Billing) a trouvé 4 points réels à corriger avant publication. Vérifiés puis corrigés (avec une nuance : la révocation est traitée en vérification périodique légère plutôt qu'en notifications temps réel, disproportionné vu le volume de départ).
+
+### Corrigé
+
+- **Play Billing 7.1.1 → 9.1.0** : 7.1.1 est hors délai Google depuis le 31 août 2026 (vérifié directement sur `developer.android.com/google/play/billing/deprecation-faq`, pas pris sur la foi de l'audit). Migration réelle, pas juste un numéro de version : `enablePendingPurchases()` sans argument est retiré (→ `PendingPurchasesParams`), `queryProductDetailsAsync()` renvoie désormais un `QueryProductDetailsResult` au lieu d'une liste brute. `androidbrowserhelper` 2.6.2 → 2.7.3 au passage — qui exige `minSdkVersion` 23 (Android 6.0), relevé de 21.
+- **Récupération d'achat interrompu** (`BillingHelper.recoverExistingPurchaseOrLaunchNew()`, `queryPurchasesAsync`) : un achat payé alors que l'app est tuée ou hors-ligne n'était auparavant jamais rattrapé, laissant l'utilisateur payé sans compte créé.
+- **Liaison achat ↔ compte** (`setObfuscatedAccountId`) : un identifiant de provisioning est généré côté app *avant* l'achat (persisté, survit à un redémarrage de process), transmis à Google puis renvoyé par l'API Play Developer (`obfuscatedExternalAccountId`) — `provisionHostedAccount` refuse désormais si l'email/mot de passe fournis ne correspondent pas à l'achat réellement initié, un jeton d'achat seul ne suffit plus à revendiquer un compte.
+- **Révocation après remboursement** (`revokeExpiredPurchases`, nouveau tick quotidien du scheduler) : un achat remboursé/annulé après coup désactive désormais le compte associé (`User.disabledAt`, vérifié à la connexion) — jamais de suppression automatique, réversible à la main. Choix délibéré : vérification périodique légère plutôt que RTDN/Pub-Sub dès le lancement, réévaluable si le volume grossit.
+
+### Nuance assumée face à l'audit
+
+Le rapport classait la révocation en priorité n°1 côté billing ; les deux corrections sont faites, mais avec une architecture de révocation volontairement plus simple que ce qui était suggéré (pas de webhook temps réel dès le jour 1).
+
+### Vérifié
+
+Build Android réel réussi après chaque changement (APK+AAB générés, via le conteneur `android-dev`). `npm run lint`, `npm test` (165 tests, dont 6 nouveaux sur la liaison achat/compte et la révocation, contre une vraie base SQLite) et `npm run build` verts.
+
 ## [Post-MVP] - 2026-09-16 — Wizard Android natif (auto-hébergement vs offre hébergée)
 
 Troisième brique de l'offre hébergée : le projet Android (TWA/Bubblewrap), jusqu'ici jamais conservé d'une session à l'autre (dossier `output/` éphémère, image Docker reconstruite à chaque fois puis purgée par le cron de nettoyage), vit désormais dans ce dépôt (`android/`), avec un vrai écran de premier lancement.
