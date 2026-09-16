@@ -55,6 +55,12 @@ FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a55
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PATH="/app/node_modules/.bin:${PATH}"
+# ENV ne traverse pas les etages d'un build multi-stage -- necessaire ici
+# (contrairement a NEXT_PUBLIC_VAPID_PUBLIC_KEY) car Parametres > A propos le
+# lit via process.env dans un Server Component, execute par ce conteneur
+# runtime, pas au moment du `next build` de l'etage precedent.
+ARG GIT_SHA=""
+ENV NEXT_PUBLIC_GIT_SHA=${GIT_SHA}
 # Le scheduler (src/server/notifications/scheduler.ts) calcule les
 # echeances/le digest quotidien avec des methodes Date locales
 # (getHours/setHours/...) -- sans fuseau explicite, un conteneur tournerait
