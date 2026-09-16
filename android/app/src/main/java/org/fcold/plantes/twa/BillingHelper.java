@@ -32,7 +32,14 @@ import java.util.List;
 final class BillingHelper implements PurchasesUpdatedListener {
 
     interface Listener {
-        /** provisioningId : a renvoyer tel quel au backend avec purchaseToken (voir POST /api/billing/verify-purchase). */
+        /**
+         * provisioningId : a renvoyer tel quel au backend avec purchaseToken
+         * (voir POST /api/billing/verify-purchase). Peut etre null lors
+         * d'une recuperation d'achat (queryPurchasesAsync) si les donnees
+         * locales ont ete effacees entre le paiement et la creation du
+         * compte -- le backend accepte ce cas avec une garantie legerement
+         * plus faible plutot que de bloquer la recuperation.
+         */
         void onPurchaseObtained(String purchaseToken, String provisioningId);
         void onError(String message);
         void onCancelled();
@@ -88,9 +95,11 @@ final class BillingHelper implements PurchasesUpdatedListener {
                     boolean isOurProduct = purchase.getProducts().contains(AppConfig.HOSTED_PRODUCT_ID);
                     boolean isUsable = purchase.getPurchaseState() == Purchase.PurchaseState.PURCHASED;
                     if (isOurProduct && isUsable) {
-                        // provisioningId deja persiste lors du lancement d'achat qui a produit
-                        // celui-ci (meme apres redemarrage de process, voir InstancePrefs).
-                        String provisioningId = InstancePrefs.getOrCreatePendingProvisioningId(activity);
+                        // Lecture seule ici (jamais getOrCreate) : cet achat a pu etre fait
+                        // lors d'une installation precedente dont les SharedPreferences ont
+                        // disparu -- fabriquer un nouvel identifiant ferait a coup sur
+                        // echouer la verification cote serveur (voir InstancePrefs).
+                        String provisioningId = InstancePrefs.getPendingProvisioningIdOrNull(activity);
                         listener.onPurchaseObtained(purchase.getPurchaseToken(), provisioningId);
                         return;
                     }

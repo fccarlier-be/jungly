@@ -62,6 +62,24 @@ describe("provisionHostedAccount (integration reelle SQLite)", () => {
     expect(consumed?.revokedAt).toBeNull();
   });
 
+  it("cree le compte meme sans provisioningId (recuperation d'achat, donnees locales perdues)", async () => {
+    vi.mocked(verifyAndAcknowledgePurchase).mockResolvedValue({ ok: true, obfuscatedExternalAccountId: PROVISIONING_ID });
+    const email = `billing-recovery-${Date.now()}@example.com`;
+    const purchaseToken = `tok-recovery-${Date.now()}`;
+    createdEmails.push(email);
+
+    const account = await provisionHostedAccount({
+      purchaseToken,
+      productId: HOSTED_ACCESS_PRODUCT_ID,
+      // provisioningId omis volontairement : simule une app reinstallee
+      // entre le paiement et la creation du compte.
+      email,
+      password: "password123",
+    });
+
+    expect(account.email).toBe(email);
+  });
+
   it("refuse quand le provisioningId ne correspond pas a celui renvoye par Google", async () => {
     vi.mocked(verifyAndAcknowledgePurchase).mockResolvedValue({ ok: true, obfuscatedExternalAccountId: "un-autre-id" });
     const email = `billing-mismatch-${Date.now()}@example.com`;

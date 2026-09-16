@@ -8,5 +8,9 @@ export const verifyPurchaseSchema = registerSchema.pick({ email: true, password:
   // setObfuscatedAccountId() -- permet de verifier que celui qui appelle
   // cette route est bien celui qui a initie CET achat precis, pas
   // seulement quelqu'un en possession du jeton (voir provisionHostedAccount).
-  provisioningId: z.string().trim().min(1).max(64),
+  // Optionnel : absent lors de la recuperation d'un achat dont les donnees
+  // locales (SharedPreferences) ont ete effacees entre le paiement et la
+  // creation du compte -- fabriquer une valeur dans ce cas ferait echouer
+  // a coup sur une recuperation pourtant legitime.
+  provisioningId: z.string().trim().min(1).max(64).optional(),
 });

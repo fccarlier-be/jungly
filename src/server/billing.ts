@@ -8,7 +8,10 @@ import { ConflictError, BadRequestError, ServiceUnavailableError } from "@/lib/e
 export interface ProvisionHostedAccountInput {
   purchaseToken: string;
   productId: string;
-  provisioningId: string;
+  // Absent lors de la recuperation d'un achat dont les donnees locales ont
+  // ete effacees entre le paiement et la creation du compte -- voir la
+  // verification plus bas, qui ne s'applique que si fourni.
+  provisioningId?: string;
   email: string;
   password: string;
 }
@@ -62,8 +65,11 @@ export async function provisionHostedAccount(input: ProvisionHostedAccountInput)
   // compte (voir androidsecu.md #3) : l'app transmet a Google le meme
   // identifiant qu'elle nous envoie ici (setObfuscatedAccountId), donc
   // seul l'appelant ayant reellement initie CET achat precis peut les
-  // faire correspondre.
-  if (verification.obfuscatedExternalAccountId !== provisioningId) {
+  // faire correspondre. Verifie seulement si fourni : absent, c'est une
+  // recuperation d'achat (queryPurchasesAsync) dont les donnees locales ont
+  // ete perdues -- l'anti-rejeu (purchaseToken unique) et la verification
+  // Google ci-dessus restent le filet de securite dans ce cas plus rare.
+  if (provisioningId !== undefined && verification.obfuscatedExternalAccountId !== provisioningId) {
     throw new ConflictError("Cet achat ne correspond pas à cette tentative d'inscription.");
   }
 

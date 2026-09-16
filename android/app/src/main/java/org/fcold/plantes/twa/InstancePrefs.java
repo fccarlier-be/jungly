@@ -50,6 +50,20 @@ final class InstancePrefs {
         prefs(context).edit().remove(KEY_PENDING_PROVISIONING_ID).apply();
     }
 
+    /**
+     * Lecture seule, contrairement a getOrCreatePendingProvisioningId() --
+     * pour la recuperation d'un achat deja effectue (queryPurchasesAsync) :
+     * si les donnees locales ont ete effacees (app reinstallee/donnees
+     * effacees entre le paiement et la creation du compte), il ne faut
+     * surtout pas en fabriquer un nouveau ici, il ne correspondrait jamais
+     * a celui que Google a enregistre au moment de l'achat -- ca ferait
+     * echouer la recuperation au lieu de simplement l'affaiblir legerement
+     * (voir provisionHostedAccount cote serveur, provisioningId optionnel).
+     */
+    static String getPendingProvisioningIdOrNull(Context context) {
+        return prefs(context).getString(KEY_PENDING_PROVISIONING_ID, null);
+    }
+
     private static SharedPreferences prefs(Context context) {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }

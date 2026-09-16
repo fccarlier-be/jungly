@@ -3,6 +3,20 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-16 — Correctif : récupération d'achat cassée par la liaison achat/compte
+
+La liaison achat ↔ compte ajoutée juste avant (`obfuscatedExternalAccountId`, voir entrée suivante) introduisait elle-même une régression, repérée non pas en vérification mais par une relecture attentive du scénario : `recoverExistingPurchaseOrLaunchNew()` appelait `getOrCreatePendingProvisioningId()`, qui *fabrique* un nouvel identifiant si les `SharedPreferences` sont vides — donc paiement → app désinstallée/données effacées → réinstallation → l'identifiant régénéré ne correspond plus jamais à celui enregistré chez Google au moment de l'achat, et la récupération d'un achat pourtant légitime échouait systématiquement.
+
+### Corrigé
+
+- **`InstancePrefs.java`** : nouvelle méthode `getPendingProvisioningIdOrNull()`, strictement en lecture (contrairement à `getOrCreatePendingProvisioningId()`).
+- **`BillingHelper.java`** : le chemin de récupération (`recoverExistingPurchaseOrLaunchNew`) utilise désormais cette lecture seule ; seul le chemin d'achat neuf (qui va *initier* un achat, donc a besoin d'un identifiant à transmettre à Google) continue à en créer un.
+- **`provisionHostedAccount`** (`src/server/billing.ts`) et `verifyPurchaseSchema` (`src/server/validation/billing.ts`) : `provisioningId` devient optionnel — absent, c'est cette récupération après perte des données locales ; la vérification de correspondance ne s'applique que s'il est fourni. L'anti-rejeu (jeton d'achat unique) et la vérification Google restent le filet de sécurité dans ce cas plus rare.
+
+### Vérifié
+
+Build Android réel réussi (APK+AAB) via `android-dev`. Nouveau test d'intégration (`billing.integration.test.ts`, vraie base SQLite) couvrant explicitement la création de compte sans `provisioningId`. Suite complète : 166 tests, 23 fichiers, verts.
+
 ## [Post-MVP] - 2026-09-16 — Corrections suite à un audit de sécurité Android (androidsecu.md)
 
 Un audit externe du commit `74596f8` (wizard + Play Billing) a trouvé 4 points réels à corriger avant publication. Vérifiés puis corrigés (avec une nuance : la révocation est traitée en vérification périodique légère plutôt qu'en notifications temps réel, disproportionné vu le volume de départ).
