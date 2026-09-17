@@ -24,7 +24,10 @@ export const fertilizeEventSchema = z.object({
 export const repotEventSchema = z.object({
   performedAt: z.coerce.date().optional(),
   oldPotDiameterMm: z.coerce.number().int().positive().optional(),
-  newPotDiameterMm: z.coerce.number().int().positive().optional(),
+  newPotShape: z.enum(["ROUND", "RECTANGULAR"]).optional(),
+  newPotDiameterMm: z.coerce.number().int().positive().nullable().optional(),
+  newPotLengthMm: z.coerce.number().int().positive().nullable().optional(),
+  newPotWidthMm: z.coerce.number().int().positive().nullable().optional(),
   newPotHeightMm: z.coerce.number().int().positive().optional(),
   substrate: z.string().trim().max(200).optional(),
   note: z.string().trim().max(1000).optional(),

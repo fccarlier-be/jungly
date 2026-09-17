@@ -3,6 +3,21 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-17 — Forme du pot (rond ou rectangulaire)
+
+Premier retour d'un·e testeur·euse de la bêta : le formulaire ne prévoyait qu'un diamètre, impossible à renseigner pour une jardinière/pot rectangulaire.
+
+### Ajouté
+
+- **`Plant.potShape`** (`ROUND` par défaut, ou `RECTANGULAR`), `potLengthMm`/`potWidthMm` en plus de `potDiameterMm` existant (migration `20260917084941_add_pot_shape`).
+- Formulaire plante et dialogue rapide "Rempoter" : sélecteur de forme, champs adaptés (diamètre pour un pot rond, longueur + largeur pour une jardinière). La dimension de l'ancienne forme est explicitement effacée (`null`) au changement, pour ne pas laisser une valeur périmée en base.
+- Fiche plante, export/import de sauvegarde : la nouvelle forme est prise en compte partout où la taille du pot apparaissait déjà.
+
+### Décisions notables
+
+- Champs shape-agnostiques (hauteur, matériau) inchangés — seule la mesure "au sol" dépend de la forme.
+- Pas de garde bloquante sur la cohérence forme/dimensions côté serveur au-delà de la validation de type : un formulaire mal rempli produit un champ manquant à l'affichage, pas une erreur — cohérent avec le reste des champs optionnels de la fiche plante.
+
 ## [Post-MVP] - 2026-09-16 — Invitation directe à la bêta depuis le panel d'administration
 
 Le panel `jungly-admin` (phase 2/3, service séparé) ne permettait que d'agir sur des inscriptions déjà créées via le formulaire public. Ajout demandé : pouvoir ajouter directement une adresse depuis le panel, comme si la personne avait rempli le formulaire elle-même.

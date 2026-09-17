@@ -97,7 +97,11 @@ export default function PlantDetailView({ plant }: { plant: PlantDetailData }) {
 
       <section className="animate-rise-in space-y-2">
         <h2 className="text-lg font-semibold">Actions rapides</h2>
-        <QuickActions plantId={plant.id} careRules={plant.careRules.map((r) => ({ id: r.id, type: r.type, configuration: r.configuration }))} />
+        <QuickActions
+          plantId={plant.id}
+          careRules={plant.careRules.map((r) => ({ id: r.id, type: r.type, configuration: r.configuration }))}
+          potShape={plant.potShape}
+        />
       </section>
 
       <section className="animate-rise-in space-y-2">

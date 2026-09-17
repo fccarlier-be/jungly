@@ -43,7 +43,10 @@ export interface PlantFormInitial {
   photoUrl?: string | null;
   locationId?: string | null;
   acquiredAt?: string | Date | null;
+  potShape?: "ROUND" | "RECTANGULAR" | null;
   potDiameterMm?: number | null;
+  potLengthMm?: number | null;
+  potWidthMm?: number | null;
   potHeightMm?: number | null;
   potMaterial?: string | null;
   substrate?: string | null;
@@ -90,8 +93,15 @@ export default function PlantForm({
   // Valeurs dans l'unite d'AFFICHAGE choisie par l'utilisateur (mm ou
   // pouces) -- converties vers/depuis mm uniquement a la frontiere avec
   // l'API (voir plantPayload plus bas), qui stocke toujours en mm.
+  const [potShape, setPotShape] = useState<"ROUND" | "RECTANGULAR">(initial?.potShape ?? "ROUND");
   const [potDiameterInput, setPotDiameterInput] = useState(
     initial?.potDiameterMm != null ? mmToInputUnit(initial.potDiameterMm, unitSystem).toString() : "",
+  );
+  const [potLengthInput, setPotLengthInput] = useState(
+    initial?.potLengthMm != null ? mmToInputUnit(initial.potLengthMm, unitSystem).toString() : "",
+  );
+  const [potWidthInput, setPotWidthInput] = useState(
+    initial?.potWidthMm != null ? mmToInputUnit(initial.potWidthMm, unitSystem).toString() : "",
   );
   const [potHeightInput, setPotHeightInput] = useState(
     initial?.potHeightMm != null ? mmToInputUnit(initial.potHeightMm, unitSystem).toString() : "",
@@ -257,7 +267,16 @@ export default function PlantForm({
         photoUrl: photoUrl || undefined,
         locationId: finalLocationId || undefined,
         acquiredAt: acquiredAt || undefined,
-        potDiameterMm: potDiameterInput ? inputUnitToMm(Number(potDiameterInput), unitSystem) : undefined,
+        potShape,
+        // null (pas undefined) sur la dimension de l'AUTRE forme : evite de
+        // laisser trainer, par ex., un diametre perime une fois passe a un
+        // pot rectangulaire (voir validation/plant.ts).
+        potDiameterMm:
+          potShape === "ROUND" ? (potDiameterInput ? inputUnitToMm(Number(potDiameterInput), unitSystem) : undefined) : null,
+        potLengthMm:
+          potShape === "RECTANGULAR" ? (potLengthInput ? inputUnitToMm(Number(potLengthInput), unitSystem) : undefined) : null,
+        potWidthMm:
+          potShape === "RECTANGULAR" ? (potWidthInput ? inputUnitToMm(Number(potWidthInput), unitSystem) : undefined) : null,
         potHeightMm: potHeightInput ? inputUnitToMm(Number(potHeightInput), unitSystem) : undefined,
         potMaterial: potMaterial || undefined,
         substrate: substrate || undefined,
@@ -483,21 +502,68 @@ export default function PlantForm({
 
       <section className="card p-4 space-y-4">
         <h2 className="font-semibold">Informations</h2>
+        <div>
+          <label htmlFor="potShape" className={labelClass}>
+            Forme du pot
+          </label>
+          <select
+            id="potShape"
+            value={potShape}
+            onChange={(e) => setPotShape(e.target.value as "ROUND" | "RECTANGULAR")}
+            className={inputClass}
+          >
+            <option value="ROUND">Rond</option>
+            <option value="RECTANGULAR">Rectangulaire / jardinière</option>
+          </select>
+        </div>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="potDiameterMm" className={labelClass}>
-              Diamètre du pot ({distanceUnitLabel})
-            </label>
-            <input
-              id="potDiameterMm"
-              type="number"
-              min={unitSystem === "IMPERIAL" ? 0.1 : 1}
-              step={unitSystem === "IMPERIAL" ? 0.1 : 1}
-              value={potDiameterInput}
-              onChange={(e) => setPotDiameterInput(e.target.value)}
-              className={inputClass}
-            />
-          </div>
+          {potShape === "ROUND" ? (
+            <div>
+              <label htmlFor="potDiameterMm" className={labelClass}>
+                Diamètre du pot ({distanceUnitLabel})
+              </label>
+              <input
+                id="potDiameterMm"
+                type="number"
+                min={unitSystem === "IMPERIAL" ? 0.1 : 1}
+                step={unitSystem === "IMPERIAL" ? 0.1 : 1}
+                value={potDiameterInput}
+                onChange={(e) => setPotDiameterInput(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          ) : (
+            <>
+              <div>
+                <label htmlFor="potLengthMm" className={labelClass}>
+                  Longueur ({distanceUnitLabel})
+                </label>
+                <input
+                  id="potLengthMm"
+                  type="number"
+                  min={unitSystem === "IMPERIAL" ? 0.1 : 1}
+                  step={unitSystem === "IMPERIAL" ? 0.1 : 1}
+                  value={potLengthInput}
+                  onChange={(e) => setPotLengthInput(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="potWidthMm" className={labelClass}>
+                  Largeur ({distanceUnitLabel})
+                </label>
+                <input
+                  id="potWidthMm"
+                  type="number"
+                  min={unitSystem === "IMPERIAL" ? 0.1 : 1}
+                  step={unitSystem === "IMPERIAL" ? 0.1 : 1}
+                  value={potWidthInput}
+                  onChange={(e) => setPotWidthInput(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            </>
+          )}
           <div>
             <label htmlFor="potHeightMm" className={labelClass}>
               Hauteur du pot ({distanceUnitLabel})

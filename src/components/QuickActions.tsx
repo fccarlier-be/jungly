@@ -13,7 +13,15 @@ interface CareRuleLite {
 
 const inputClass = "input w-full px-3 py-2";
 
-export default function QuickActions({ plantId, careRules }: { plantId: string; careRules: CareRuleLite[] }) {
+export default function QuickActions({
+  plantId,
+  careRules,
+  potShape: initialPotShape = "ROUND",
+}: {
+  plantId: string;
+  careRules: CareRuleLite[];
+  potShape?: "ROUND" | "RECTANGULAR";
+}) {
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -29,7 +37,12 @@ export default function QuickActions({ plantId, careRules }: { plantId: string; 
   const [fertQty, setFertQty] = useState("");
   const [fertNote, setFertNote] = useState("");
 
+  // Preremplie avec la forme actuelle de la plante, modifiable au cas ou le
+  // rempotage change aussi le type de contenant (pot -> jardiniere).
+  const [repotShape, setRepotShape] = useState<"ROUND" | "RECTANGULAR">(initialPotShape);
   const [repotDiameter, setRepotDiameter] = useState("");
+  const [repotLength, setRepotLength] = useState("");
+  const [repotWidth, setRepotWidth] = useState("");
   const [repotSubstrate, setRepotSubstrate] = useState("");
   const [repotNote, setRepotNote] = useState("");
 
@@ -102,7 +115,13 @@ export default function QuickActions({ plantId, careRules }: { plantId: string; 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          newPotDiameterMm: repotDiameter ? Number(repotDiameter) : undefined,
+          newPotShape: repotShape,
+          // null (pas undefined) sur la dimension de l'autre forme : sinon
+          // JSON.stringify omet la cle et une ancienne valeur reste en base
+          // apres un changement de forme (voir PlantForm pour le meme motif).
+          newPotDiameterMm: repotShape === "ROUND" ? (repotDiameter ? Number(repotDiameter) : undefined) : null,
+          newPotLengthMm: repotShape === "RECTANGULAR" ? (repotLength ? Number(repotLength) : undefined) : null,
+          newPotWidthMm: repotShape === "RECTANGULAR" ? (repotWidth ? Number(repotWidth) : undefined) : null,
           substrate: repotSubstrate || undefined,
           note: repotNote || undefined,
         }),
@@ -204,14 +223,39 @@ export default function QuickActions({ plantId, careRules }: { plantId: string; 
 
       {open === "repot" && (
         <div className="card p-3 space-y-2">
-          <input
-            type="number"
-            min={1}
-            placeholder="Nouveau diamètre (mm)"
-            value={repotDiameter}
-            onChange={(e) => setRepotDiameter(e.target.value)}
-            className={inputClass}
-          />
+          <select value={repotShape} onChange={(e) => setRepotShape(e.target.value as "ROUND" | "RECTANGULAR")} className={inputClass}>
+            <option value="ROUND">Pot rond</option>
+            <option value="RECTANGULAR">Jardinière / pot rectangulaire</option>
+          </select>
+          {repotShape === "ROUND" ? (
+            <input
+              type="number"
+              min={1}
+              placeholder="Nouveau diamètre (mm)"
+              value={repotDiameter}
+              onChange={(e) => setRepotDiameter(e.target.value)}
+              className={inputClass}
+            />
+          ) : (
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={1}
+                placeholder="Longueur (mm)"
+                value={repotLength}
+                onChange={(e) => setRepotLength(e.target.value)}
+                className={inputClass}
+              />
+              <input
+                type="number"
+                min={1}
+                placeholder="Largeur (mm)"
+                value={repotWidth}
+                onChange={(e) => setRepotWidth(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          )}
           <input
             placeholder="Nouveau substrat"
             value={repotSubstrate}

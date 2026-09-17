@@ -39,7 +39,10 @@ export async function POST(request: NextRequest, { params }: Params) {
           note: input.note,
           metadata: {
             oldPotDiameterMm: input.oldPotDiameterMm,
+            newPotShape: input.newPotShape,
             newPotDiameterMm: input.newPotDiameterMm,
+            newPotLengthMm: input.newPotLengthMm,
+            newPotWidthMm: input.newPotWidthMm,
             newPotHeightMm: input.newPotHeightMm,
             substrate: input.substrate,
           },
@@ -51,7 +54,10 @@ export async function POST(request: NextRequest, { params }: Params) {
       await tx.plant.update({
         where: { id },
         data: {
-          potDiameterMm: input.newPotDiameterMm ?? undefined,
+          potShape: input.newPotShape ?? undefined,
+          potDiameterMm: input.newPotDiameterMm,
+          potLengthMm: input.newPotLengthMm,
+          potWidthMm: input.newPotWidthMm,
           potHeightMm: input.newPotHeightMm ?? undefined,
           substrate: input.substrate ?? undefined,
         },

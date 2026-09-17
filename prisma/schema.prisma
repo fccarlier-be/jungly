@@ -19,6 +19,13 @@ enum UnitSystem {
   IMPERIAL
 }
 
+// Retour beta (2026-09-17) : le formulaire ne prevoyait que le diametre
+// (pot rond) -- une jardiniere/pot rectangulaire n'a pas de diametre.
+enum PotShape {
+  ROUND
+  RECTANGULAR
+}
+
 model User {
   id           String     @id @default(cuid())
   email        String     @unique
@@ -77,7 +84,10 @@ model Plant {
   photoUrl        String?
   locationId      String?
   acquiredAt      DateTime?
+  potShape        PotShape  @default(ROUND)
   potDiameterMm   Int?
+  potLengthMm     Int?
+  potWidthMm      Int?
   potHeightMm     Int?
   potMaterial     String?
   substrate       String?

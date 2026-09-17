@@ -49,6 +49,7 @@ export interface PlantDetailData {
   locationName: string | null;
   photoUrl: string | null;
   fallbackImageUrl: string | null;
+  potShape: "ROUND" | "RECTANGULAR";
   photos: { id: string; url: string }[];
   status: PlantStatus;
   careRules: CareRuleView[];
@@ -140,7 +141,17 @@ export async function getAllPlantDetails(userId: string): Promise<PlantDetailDat
     const infoRows: Array<{ label: string; value: string }> = [
       { label: "Exposition", value: plant.exposure },
       { label: "Substrat", value: plant.substrate },
-      { label: "Taille du pot", value: plant.potDiameterMm ? `${formatDistanceMm(plant.potDiameterMm, unitSystem)} de diamètre` : null },
+      {
+        label: "Taille du pot",
+        value:
+          plant.potShape === "RECTANGULAR"
+            ? plant.potLengthMm && plant.potWidthMm
+              ? `${formatDistanceMm(plant.potLengthMm, unitSystem)} x ${formatDistanceMm(plant.potWidthMm, unitSystem)}`
+              : null
+            : plant.potDiameterMm
+              ? `${formatDistanceMm(plant.potDiameterMm, unitSystem)} de diamètre`
+              : null,
+      },
       { label: "Matériau du pot", value: plant.potMaterial },
       { label: "Acquisition", value: plant.acquiredAt ? formatDate(plant.acquiredAt) : null },
     ].filter((row): row is { label: string; value: string } => Boolean(row.value));
@@ -176,6 +187,7 @@ export async function getAllPlantDetails(userId: string): Promise<PlantDetailDat
       photoUrl: plant.photoUrl,
       fallbackImageUrl:
         plant.photoUrl || !plant.scientificName ? null : (fallbackImageMap.get(plant.scientificName) ?? null),
+      potShape: plant.potShape,
       photos: plant.photos.map((p) => ({ id: p.id, url: p.url })),
       status,
       careRules,

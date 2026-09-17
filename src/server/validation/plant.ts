@@ -7,7 +7,14 @@ export const createPlantSchema = z.object({
   photoUrl: z.string().trim().max(500).optional(),
   locationId: z.string().trim().min(1).optional(),
   acquiredAt: z.coerce.date().optional(),
-  potDiameterMm: z.coerce.number().int().positive().optional(),
+  potShape: z.enum(["ROUND", "RECTANGULAR"]).optional(),
+  // Nullable (pas seulement optionnel) : en changeant de forme, le
+  // formulaire envoie explicitement null sur l'ancienne dimension (ex.
+  // potDiameterMm) pour ne pas laisser une valeur perimee en base une fois
+  // passe a un pot rectangulaire.
+  potDiameterMm: z.coerce.number().int().positive().nullable().optional(),
+  potLengthMm: z.coerce.number().int().positive().nullable().optional(),
+  potWidthMm: z.coerce.number().int().positive().nullable().optional(),
   potHeightMm: z.coerce.number().int().positive().optional(),
   potMaterial: z.string().trim().max(80).optional(),
   substrate: z.string().trim().max(200).optional(),
