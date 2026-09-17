@@ -4,6 +4,7 @@ import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { createPlantSchema } from "@/server/validation/plant";
 import { getOwnedLocation } from "@/server/ownership";
+import { resolveContainerFields } from "@/server/containerAssignment";
 import { effectiveDueDate } from "@/server/careEngine/dueTasks";
 import { resolvePhotoUrl } from "@/server/uploads";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
@@ -97,10 +98,11 @@ export async function POST(request: NextRequest) {
     if (input.locationId) {
       await getOwnedLocation(userId, input.locationId);
     }
+    const containerFields = await resolveContainerFields(userId, input);
     const photoUrl = await resolvePhotoUrl(userId, input.photoUrl);
 
     const plant = await db.plant.create({
-      data: { ...input, photoUrl, userId },
+      data: { ...input, ...containerFields, photoUrl, userId },
     });
 
     return NextResponse.json(plant, { status: 201 });

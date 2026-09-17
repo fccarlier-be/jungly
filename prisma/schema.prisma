@@ -49,6 +49,7 @@ model User {
   disabledAt   DateTime?
 
   locations             Location[]
+  containers            Container[]
   plants                Plant[]
   fertilizers           Fertilizer[]
   notificationPreference NotificationPreference?
@@ -72,6 +73,37 @@ model Location {
 }
 
 // ---------------------------------------------------------------------------
+// Jardiniere (contenant partage par plusieurs plantes)
+// ---------------------------------------------------------------------------
+
+// Retour beta (2026-09-17) : certains utilisateurs ont plusieurs plantes
+// dans une meme jardiniere/tourbiere -- avant cette table, "un pot" etait
+// necessairement attache a UNE SEULE plante (champs pot* sur Plant), pas
+// representable. Une plante non rattachee a un Container garde son pot
+// individuel exactement comme avant (les deux modeles coexistent).
+model Container {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  // Rectangulaire par defaut (jardiniere) plutot que ROUND comme sur Plant
+  // (pot individuel) : le cas d'usage principal remonte par les retours
+  // beta est la jardiniere, pas le grand pot rond partage.
+  potShape      PotShape @default(RECTANGULAR)
+  potDiameterMm Int?
+  potLengthMm   Int?
+  potWidthMm    Int?
+  potHeightMm   Int?
+  potMaterial   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plants Plant[]
+
+  @@unique([userId, name])
+}
+
+// ---------------------------------------------------------------------------
 // Plante
 // ---------------------------------------------------------------------------
 
@@ -83,6 +115,13 @@ model Plant {
   scientificName  String?
   photoUrl        String?
   locationId      String?
+  containerId     String?
+  // Coordonnees normalisees (0.0-1.0) dans le contenant partage -- pas des
+  // mm : independantes de l'unite d'affichage et de la taille reelle du
+  // contenant, plus simples pour le schema/glisser-deposer (phase 2).
+  // Sans signification tant que containerId est vide.
+  positionX       Float?
+  positionY       Float?
   acquiredAt      DateTime?
   potShape        PotShape  @default(ROUND)
   potDiameterMm   Int?
@@ -100,6 +139,7 @@ model Plant {
 
   user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   location      Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  container     Container?         @relation(fields: [containerId], references: [id], onDelete: SetNull)
   libraryEntry  PlantLibraryEntry? @relation(fields: [libraryEntryId], references: [id], onDelete: SetNull)
   careRules     PlantCareRule[]
   tasks         Task[]

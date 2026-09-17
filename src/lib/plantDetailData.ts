@@ -75,6 +75,7 @@ export async function getAllPlantDetails(userId: string): Promise<PlantDetailDat
     where: { userId },
     include: {
       location: true,
+      container: true,
       careRules: { orderBy: { createdAt: "asc" } },
       // SNOOZED inclus (voir #9/#10) : sans ca, une tache reportee
       // disparaissait de la fiche plante (ligne de regle "Manuel", statut
@@ -141,18 +142,23 @@ export async function getAllPlantDetails(userId: string): Promise<PlantDetailDat
     const infoRows: Array<{ label: string; value: string }> = [
       { label: "Exposition", value: plant.exposure },
       { label: "Substrat", value: plant.substrate },
-      {
-        label: "Taille du pot",
-        value:
-          plant.potShape === "RECTANGULAR"
-            ? plant.potLengthMm && plant.potWidthMm
-              ? `${formatDistanceMm(plant.potLengthMm, unitSystem)} x ${formatDistanceMm(plant.potWidthMm, unitSystem)}`
-              : null
-            : plant.potDiameterMm
-              ? `${formatDistanceMm(plant.potDiameterMm, unitSystem)} de diamètre`
-              : null,
-      },
-      { label: "Matériau du pot", value: plant.potMaterial },
+      // Jardiniere partagee : les dimensions individuelles n'ont plus de
+      // sens (masquees aussi dans le formulaire, voir PlantForm.tsx), on
+      // affiche le nom du contenant partage a la place.
+      plant.container
+        ? { label: "Jardinière", value: plant.container.name }
+        : {
+            label: "Taille du pot",
+            value:
+              plant.potShape === "RECTANGULAR"
+                ? plant.potLengthMm && plant.potWidthMm
+                  ? `${formatDistanceMm(plant.potLengthMm, unitSystem)} x ${formatDistanceMm(plant.potWidthMm, unitSystem)}`
+                  : null
+                : plant.potDiameterMm
+                  ? `${formatDistanceMm(plant.potDiameterMm, unitSystem)} de diamètre`
+                  : null,
+          },
+      { label: "Matériau du pot", value: plant.container ? plant.container.potMaterial : plant.potMaterial },
       { label: "Acquisition", value: plant.acquiredAt ? formatDate(plant.acquiredAt) : null },
     ].filter((row): row is { label: string; value: string } => Boolean(row.value));
 

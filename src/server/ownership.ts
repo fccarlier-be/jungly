@@ -53,6 +53,14 @@ export async function getOwnedLocation(userId: string, locationId: string) {
   return location;
 }
 
+export async function getOwnedContainer(userId: string, containerId: string) {
+  const container = await db.container.findFirst({ where: { id: containerId, userId } });
+  if (!container) {
+    throw new NotFoundError("Cette jardinière n'existe plus.");
+  }
+  return container;
+}
+
 /**
  * plantId est verifie en plus de l'ownership utilisateur : sans lui, un
  * utilisateur pouvait supprimer une photo d'une de ses AUTRES plantes en

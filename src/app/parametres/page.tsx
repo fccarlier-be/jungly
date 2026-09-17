@@ -60,6 +60,9 @@ export default async function SettingsPage() {
           <Link href="/engrais" className="chip flex-1 rounded-lg py-2 text-center min-w-[8rem]">
             Mes engrais
           </Link>
+          <Link href="/jardinieres" className="chip flex-1 rounded-lg py-2 text-center min-w-[8rem]">
+            Mes jardinières
+          </Link>
           <Link href="/historique" className="chip flex-1 rounded-lg py-2 text-center min-w-[8rem]">
             Historique complet
           </Link>

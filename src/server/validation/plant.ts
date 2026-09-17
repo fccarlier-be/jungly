@@ -6,6 +6,15 @@ export const createPlantSchema = z.object({
   libraryEntryId: z.string().trim().min(1).optional(),
   photoUrl: z.string().trim().max(500).optional(),
   locationId: z.string().trim().min(1).optional(),
+  // Nullable : detacher explicitement une plante de sa jardiniere (retour a
+  // un pot individuel) doit pouvoir envoyer null, pas juste omettre le champ.
+  containerId: z.string().trim().min(1).nullable().optional(),
+  // Position dans le contenant partage (0.0-1.0) -- sans signification si
+  // containerId est vide. Centree par defaut si absente a l'assignation
+  // (voir provisionnement cote route), affinable ensuite sur le schema
+  // (phase 2).
+  positionX: z.number().min(0).max(1).nullable().optional(),
+  positionY: z.number().min(0).max(1).nullable().optional(),
   acquiredAt: z.coerce.date().optional(),
   potShape: z.enum(["ROUND", "RECTANGULAR"]).optional(),
   // Nullable (pas seulement optionnel) : en changeant de forme, le

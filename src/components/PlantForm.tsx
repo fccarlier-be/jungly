@@ -13,6 +13,11 @@ export interface LocationOption {
   name: string;
 }
 
+export interface ContainerOption {
+  id: string;
+  name: string;
+}
+
 export interface FertilizerOption {
   id: string;
   name: string;
@@ -42,6 +47,7 @@ export interface PlantFormInitial {
   scientificName?: string | null;
   photoUrl?: string | null;
   locationId?: string | null;
+  containerId?: string | null;
   acquiredAt?: string | Date | null;
   potShape?: "ROUND" | "RECTANGULAR" | null;
   potDiameterMm?: number | null;
@@ -66,12 +72,14 @@ export default function PlantForm({
   mode,
   initial,
   locations,
+  containers,
   fertilizers,
   unitSystem = "METRIC",
 }: {
   mode: "create" | "edit";
   initial?: PlantFormInitial;
   locations: LocationOption[];
+  containers: ContainerOption[];
   fertilizers: FertilizerOption[];
   unitSystem?: UnitSystem;
 }) {
@@ -89,6 +97,7 @@ export default function PlantForm({
   const [uploading, setUploading] = useState(false);
   const [locationId, setLocationId] = useState(initial?.locationId ?? "");
   const [newLocationName, setNewLocationName] = useState("");
+  const [containerId, setContainerId] = useState(initial?.containerId ?? "");
   const [acquiredAt, setAcquiredAt] = useState(toDateInputValue(initial?.acquiredAt));
   // Valeurs dans l'unite d'AFFICHAGE choisie par l'utilisateur (mm ou
   // pouces) -- converties vers/depuis mm uniquement a la frontiere avec
@@ -266,6 +275,10 @@ export default function PlantForm({
         libraryEntryId: libraryEntryId || undefined,
         photoUrl: photoUrl || undefined,
         locationId: finalLocationId || undefined,
+        // null (pas undefined) si aucune jardiniere n'est selectionnee : un
+        // detachement volontaire doit etre envoye explicitement, sinon un
+        // PATCH partiel ne toucherait jamais au rattachement existant.
+        containerId: containerId || null,
         acquiredAt: acquiredAt || undefined,
         potShape,
         // null (pas undefined) sur la dimension de l'AUTRE forme : evite de
@@ -503,6 +516,34 @@ export default function PlantForm({
       <section className="card p-4 space-y-4">
         <h2 className="font-semibold">Informations</h2>
         <div>
+          <label htmlFor="containerId" className={labelClass}>
+            Jardinière partagée
+          </label>
+          <select
+            id="containerId"
+            value={containerId}
+            onChange={(e) => setContainerId(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">Aucune (pot individuel)</option>
+            {containers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          {containerId && (
+            <p className="text-muted text-xs mt-1">
+              Forme et dimensions du pot gérées depuis{" "}
+              <a href="/jardinieres" className="underline">
+                Mes jardinières
+              </a>
+              .
+            </p>
+          )}
+        </div>
+        {!containerId && (
+        <div>
           <label htmlFor="potShape" className={labelClass}>
             Forme du pot
           </label>
@@ -516,6 +557,8 @@ export default function PlantForm({
             <option value="RECTANGULAR">Rectangulaire / jardinière</option>
           </select>
         </div>
+        )}
+        {!containerId && (
         <div className="grid grid-cols-2 gap-3">
           {potShape === "ROUND" ? (
             <div>
@@ -579,6 +622,8 @@ export default function PlantForm({
             />
           </div>
         </div>
+        )}
+        {!containerId && (
         <div>
           <label htmlFor="potMaterial" className={labelClass}>
             Matériau du pot
@@ -590,6 +635,7 @@ export default function PlantForm({
             className={inputClass}
           />
         </div>
+        )}
         <div>
           <label htmlFor="substrate" className={labelClass}>
             Substrat

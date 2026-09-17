@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { getOwnedPlant, getOwnedLocation } from "@/server/ownership";
+import { resolveContainerFields } from "@/server/containerAssignment";
 import { updatePlantSchema } from "@/server/validation/plant";
 import { deleteUploadedFileIfUnreferenced, resolvePhotoUrl } from "@/server/uploads";
 
@@ -43,9 +44,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (input.locationId) {
       await getOwnedLocation(userId, input.locationId);
     }
+    const containerFields = await resolveContainerFields(userId, input);
     const photoUrl = await resolvePhotoUrl(userId, input.photoUrl);
 
-    const plant = await db.plant.update({ where: { id }, data: { ...input, photoUrl } });
+    const plant = await db.plant.update({ where: { id }, data: { ...input, ...containerFields, photoUrl } });
     return NextResponse.json(plant);
   } catch (error) {
     return handleApiError(error);

@@ -3,6 +3,21 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-17 — Jardinières partagées (phase 1/2)
+
+Deuxième retour bêta après la forme du pot : plusieurs plantes peuvent vivre dans une même jardinière/tourbière, un cas non représentable tant que le pot était un attribut de la plante elle-même. Cette entrée couvre le modèle de données et la gestion des jardinières ; le schéma visuel interactif (glisser-déposer pour indiquer où chaque plante se trouve dans le contenant) est la phase suivante.
+
+### Ajouté
+
+- **`Container`** (migration `20260917100025_add_container`) : nom, forme, dimensions, matériau — les mêmes informations que le pot individuel, mais partagées entre plusieurs plantes. `Plant.containerId` (+ `positionX`/`positionY`, coordonnées normalisées 0-1 en prévision du schéma de la phase 2) rattache une plante à une jardinière ; une plante non rattachée garde son pot individuel exactement comme avant.
+- **`/jardinieres`** (lien depuis Paramètres) : gestion des jardinières (créer, modifier, supprimer), même patron que la page Engrais.
+- Fiche plante : menu déroulant pour rattacher/détacher une jardinière ; les champs de pot individuel se masquent dès qu'une jardinière est sélectionnée (la fiche affiche alors son nom à la place).
+
+### Décisions notables
+
+- Suppression d'une jardinière : les plantes qu'elle contenait sont automatiquement dérattachées (`onDelete: SetNull`, vérifié en intégration réelle) plutôt que bloquée ou destructive — cohérent avec le reste de l'app (comptes désactivés plutôt que supprimés, tâches `SKIPPED` plutôt que perdues).
+- Coordonnées normalisées (0.0-1.0) plutôt qu'en mm : indépendantes de l'unité d'affichage et de la taille réelle du contenant, pensées pour le glisser-déposer de la phase 2. Centrées par défaut (0.5, 0.5) tant qu'aucune position réelle n'a été choisie.
+
 ## [Post-MVP] - 2026-09-17 — Forme du pot (rond ou rectangulaire)
 
 Premier retour d'un·e testeur·euse de la bêta : le formulaire ne prévoyait qu'un diamètre, impossible à renseigner pour une jardinière/pot rectangulaire.
