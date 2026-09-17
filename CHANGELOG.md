@@ -3,6 +3,19 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-17 — Schéma interactif des jardinières (phase 2/2)
+
+### Ajouté
+
+- **`/jardinieres/[id]`** : schéma SVG à l'échelle réelle de la jardinière (rectangle ou cercle selon sa forme), un marqueur nommé par plante rattachée. Glisser un marqueur le repositionne (Pointer Events — souris et tactile traités de façon identique, contrairement au Drag and Drop HTML5 natif mal supporté sur mobile) ; la nouvelle position est enregistrée au relâchement.
+- Assignation d'une plante non rattachée : sélection dans la liste puis clic/tap sur le schéma à l'endroit voulu — plus fiable sur tactile qu'un glisser-déposer entre deux zones séparées de l'écran.
+- Détacher une plante depuis sa jardinière est possible directement depuis cette page (bouton "Détacher"), en plus du menu déroulant de la fiche plante.
+
+### Décisions notables
+
+- Position d'un marqueur sur un pot rond bornée au cercle inscrit (pas au carré englobant) : sans ça, une plante glissée dans un coin du schéma se serait visuellement retrouvée hors du pot.
+- Pas de vraie bibliothèque de drag-and-drop ajoutée au projet — Pointer Events suffisent pour ce besoin précis (un seul type d'élément déplaçable, pas de tri de liste ni de zones de dépôt multiples).
+
 ## [Post-MVP] - 2026-09-17 — Jardinières partagées (phase 1/2)
 
 Deuxième retour bêta après la forme du pot : plusieurs plantes peuvent vivre dans une même jardinière/tourbière, un cas non représentable tant que le pot était un attribut de la plante elle-même. Cette entrée couvre le modèle de données et la gestion des jardinières ; le schéma visuel interactif (glisser-déposer pour indiquer où chaque plante se trouve dans le contenant) est la phase suivante.

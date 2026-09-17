@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export interface ContainerRecord {
@@ -167,6 +168,9 @@ export default function ContainerManager({ containers }: { containers: Container
               <p className="text-muted text-xs">{describe(c)}</p>
             </div>
             <div className="flex gap-2">
+              <Link href={`/jardinieres/${c.id}`} className="chip rounded-lg px-2.5 py-1 text-xs">
+                Schéma
+              </Link>
               <button onClick={() => startEdit(c)} className="chip rounded-lg px-2.5 py-1 text-xs">
                 Modifier
               </button>

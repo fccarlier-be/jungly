@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { Sprout } from "lucide-react";
 import { CareTypeIcon } from "@/components/careIcons";
 import ExternalSpeciesSearch from "@/components/ExternalSpeciesSearch";
@@ -535,9 +536,9 @@ export default function PlantForm({
           {containerId && (
             <p className="text-muted text-xs mt-1">
               Forme et dimensions du pot gérées depuis{" "}
-              <a href="/jardinieres" className="underline">
+              <Link href="/jardinieres" className="underline">
                 Mes jardinières
-              </a>
+              </Link>
               .
             </p>
           )}
