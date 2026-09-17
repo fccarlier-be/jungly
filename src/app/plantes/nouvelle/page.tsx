@@ -1,5 +1,6 @@
 import { requireSessionUserId } from "@/lib/session";
 import { db } from "@/server/db";
+import { listContainerOptionsForUser } from "@/server/containerAssignment";
 import PlantForm from "@/components/PlantForm";
 
 export default async function NewPlantPage() {
@@ -7,7 +8,7 @@ export default async function NewPlantPage() {
 
   const [locations, containers, fertilizers, user] = await Promise.all([
     db.location.findMany({ where: { userId }, orderBy: { name: "asc" } }),
-    db.container.findMany({ where: { userId }, orderBy: { name: "asc" } }),
+    listContainerOptionsForUser(userId),
     db.fertilizer.findMany({ where: { userId }, orderBy: { name: "asc" } }),
     db.user.findUniqueOrThrow({ where: { id: userId }, select: { unitSystem: true } }),
   ]);

@@ -4,6 +4,9 @@ import { formatDate, formatDistanceMm, formatRelativeDueDate } from "@/lib/units
 import { effectiveDueDate } from "@/server/careEngine/dueTasks";
 import { getLibraryImageMap } from "@/lib/libraryImages";
 import { RULE_LABEL } from "@/lib/careRuleLabels";
+import { SUBSTRATE_TYPE_OPTIONS } from "@/lib/containerCompatibility";
+
+const SUBSTRATE_TYPE_LABEL = Object.fromEntries(SUBSTRATE_TYPE_OPTIONS.map((o) => [o.value, o.label]));
 
 const NOTE_CATEGORY_LABEL: Record<string, string> = {
   OBSERVATION: "Observation",
@@ -142,6 +145,7 @@ export async function getAllPlantDetails(userId: string): Promise<PlantDetailDat
     const infoRows: Array<{ label: string; value: string }> = [
       { label: "Exposition", value: plant.exposure },
       { label: "Substrat", value: plant.substrate },
+      { label: "Type de substrat", value: plant.substrateType ? SUBSTRATE_TYPE_LABEL[plant.substrateType] : null },
       // Jardiniere partagee : les dimensions individuelles n'ont plus de
       // sens (masquees aussi dans le formulaire, voir PlantForm.tsx), on
       // affiche le nom du contenant partage a la place.

@@ -26,6 +26,21 @@ enum PotShape {
   RECTANGULAR
 }
 
+// Retour beta (2026-09-17) : rien n'empechait de regrouper des plantes aux
+// besoins incompatibles (ex. origan + begonia) dans la meme jardiniere.
+// Optionnel : le substrat existant reste du texte libre (non comparable),
+// cette etiquette sert uniquement a detecter des conflits evidents --
+// silencieuse si non renseignee, jamais devinee depuis le texte libre.
+enum SubstrateType {
+  UNIVERSAL
+  DRAINING
+  MOISTURE_RETAINING
+  ACIDIC
+  AQUATIC
+  EPIPHYTE
+  MINERAL
+}
+
 model User {
   id           String     @id @default(cuid())
   email        String     @unique
@@ -130,6 +145,9 @@ model Plant {
   potHeightMm     Int?
   potMaterial     String?
   substrate       String?
+  // Etiquette optionnelle en plus du texte libre ci-dessus -- seule forme
+  // comparable de substrat entre deux plantes (voir SubstrateType).
+  substrateType   SubstrateType?
   exposure        String?
   temperatureNote String?
   humidityNote    String?

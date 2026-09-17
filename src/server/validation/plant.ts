@@ -27,6 +27,9 @@ export const createPlantSchema = z.object({
   potHeightMm: z.coerce.number().int().positive().optional(),
   potMaterial: z.string().trim().max(80).optional(),
   substrate: z.string().trim().max(200).optional(),
+  // Etiquette structuree en plus du texte libre ci-dessus -- nullable pour
+  // pouvoir l'effacer explicitement (voir src/lib/containerCompatibility.ts).
+  substrateType: z.enum(["UNIVERSAL", "DRAINING", "MOISTURE_RETAINING", "ACIDIC", "AQUATIC", "EPIPHYTE", "MINERAL"]).nullable().optional(),
   exposure: z.string().trim().max(200).optional(),
   temperatureNote: z.string().trim().max(120).optional(),
   humidityNote: z.string().trim().max(120).optional(),

@@ -2,18 +2,14 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { checkContainerCompatibility, type CompatibilityPlant } from "@/lib/containerCompatibility";
 
-export interface ContainerPlantMarker {
-  id: string;
-  name: string;
+export interface ContainerPlantMarker extends CompatibilityPlant {
   positionX: number;
   positionY: number;
 }
 
-export interface UnassignedPlant {
-  id: string;
-  name: string;
-}
+export type UnassignedPlant = CompatibilityPlant;
 
 interface Props {
   containerId: string;
@@ -113,7 +109,7 @@ export default function ContainerDiagram({ containerId, shape, lengthMm, widthMm
       setPlacingId(null);
       if (point && plant) {
         setUnassigned((prev) => prev.filter((p) => p.id !== plant.id));
-        setPlants((prev) => [...prev, { id: plant.id, name: plant.name, positionX: point.x, positionY: point.y }]);
+        setPlants((prev) => [...prev, { ...plant, positionX: point.x, positionY: point.y }]);
         commitPosition(plant.id, point.x, point.y);
       }
     }
@@ -133,8 +129,17 @@ export default function ContainerDiagram({ containerId, shape, lengthMm, widthMm
       router.refresh();
       return;
     }
-    if (removed) setUnassigned((prev) => [...prev, { id: removed.id, name: removed.name }]);
+    if (removed) {
+      setUnassigned((prev) => [
+        ...prev,
+        { id: removed.id, name: removed.name, substrateType: removed.substrateType, wateringIntervalDays: removed.wateringIntervalDays },
+      ]);
+    }
   }
+
+  const placingWarnings = placingId
+    ? checkContainerCompatibility([...plants, ...unassigned.filter((p) => p.id === placingId)])
+    : [];
 
   return (
     <div className="space-y-3">
@@ -145,9 +150,16 @@ export default function ContainerDiagram({ containerId, shape, lengthMm, widthMm
       )}
 
       {placingId && (
-        <p className="text-sm rounded-lg px-3 py-2" style={{ background: "var(--primary-soft)", color: "var(--primary-strong)" }}>
-          Touchez ou cliquez à l&apos;endroit du schéma où se trouve « {unassigned.find((p) => p.id === placingId)?.name} ».
-        </p>
+        <div className="space-y-1.5 rounded-lg px-3 py-2" style={{ background: "var(--primary-soft)", color: "var(--primary-strong)" }}>
+          <p className="text-sm">
+            Touchez ou cliquez à l&apos;endroit du schéma où se trouve « {unassigned.find((p) => p.id === placingId)?.name} ».
+          </p>
+          {placingWarnings.map((w) => (
+            <p key={w.kind} className="text-xs" style={{ color: "var(--warning)" }}>
+              ⚠ {w.message}
+            </p>
+          ))}
+        </div>
       )}
 
       <div className="card p-3">

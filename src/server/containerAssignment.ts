@@ -1,4 +1,6 @@
+import { db } from "@/server/db";
 import { getOwnedContainer } from "@/server/ownership";
+import { normalizeWateringIntervalDays, type CompatibilityPlant } from "@/lib/containerCompatibility";
 
 interface ContainerAssignmentInput {
   containerId?: string | null;
@@ -32,4 +34,44 @@ export async function resolveContainerFields(userId: string, input: ContainerAss
     positionX: input.positionX ?? 0.5,
     positionY: input.positionY ?? 0.5,
   };
+}
+
+export interface ContainerOptionForUser {
+  id: string;
+  name: string;
+  occupants: CompatibilityPlant[];
+}
+
+/**
+ * Jardinieres de l'utilisateur avec leurs occupants actuels (substrat,
+ * arrosage normalise) -- utilise par le formulaire plante pour calculer les
+ * avertissements de compatibilite en direct, sans aller-retour reseau
+ * supplementaire (voir src/lib/containerCompatibility.ts).
+ */
+export async function listContainerOptionsForUser(userId: string): Promise<ContainerOptionForUser[]> {
+  const containers = await db.container.findMany({
+    where: { userId },
+    orderBy: { name: "asc" },
+    include: {
+      plants: {
+        select: {
+          id: true,
+          name: true,
+          substrateType: true,
+          careRules: { where: { type: "WATERING", enabled: true }, take: 1 },
+        },
+      },
+    },
+  });
+
+  return containers.map((c) => ({
+    id: c.id,
+    name: c.name,
+    occupants: c.plants.map((p) => ({
+      id: p.id,
+      name: p.name,
+      substrateType: p.substrateType,
+      wateringIntervalDays: normalizeWateringIntervalDays(p.careRules[0]),
+    })),
+  }));
 }

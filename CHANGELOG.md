@@ -3,6 +3,21 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-17 — Avertissements de compatibilité dans les jardinières
+
+Troisième retour bêta sur les jardinières : rien n'empêchait de regrouper des plantes aux besoins incompatibles ("je peux mettre de l'origan avec un pothos avec un bégonia"). Avertit, ne bloque jamais.
+
+### Ajouté
+
+- **`Plant.substrateType`** (migration `20260917152022_add_substrate_type`) : étiquette optionnelle (Universel, Drainant, Retient l'humidité, Acide, Aquatique, Épiphyte, Minéral) en plus du substrat en texte libre existant, seule forme réellement comparable entre deux plantes.
+- **`src/lib/containerCompatibility.ts`** : normalise l'intervalle d'arrosage de chaque plante en jours à partir de sa règle existante (aucune migration nécessaire pour ce volet), puis compare les occupants d'une jardinière. Avertit si l'écart dépasse x1.5, ou si deux substrats renseignés diffèrent — silencieux si les données manquent, jamais de fausse certitude.
+- Avertissement affiché à deux endroits : en direct dans la fiche plante au moment de choisir une jardinière, et en bandeau permanent sur la page de chaque jardinière (recalculé à l'affichage, couvre aussi les jardinières déjà composées).
+
+### Décisions notables
+
+- Jamais de blocage : un jardinier peut choisir un compromis en connaissance de cause, cohérent avec le reste de l'app (rien n'est jamais empêché de force, seulement signalé).
+- Pas de tentative de déduire le type de substrat depuis le texte libre existant (retour d'expérience direct : trop de formulations différentes pour un parsing fiable) — un nouveau champ explicite plutôt qu'une heuristique fragile.
+
 ## [Post-MVP] - 2026-09-17 — Schéma interactif des jardinières (phase 2/2)
 
 ### Ajouté

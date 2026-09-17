@@ -8,15 +8,25 @@ import { Sprout } from "lucide-react";
 import { CareTypeIcon } from "@/components/careIcons";
 import ExternalSpeciesSearch from "@/components/ExternalSpeciesSearch";
 import { mmToInputUnit, inputUnitToMm, type UnitSystem } from "@/lib/units";
+import {
+  SUBSTRATE_TYPE_OPTIONS,
+  normalizeWateringIntervalDays,
+  checkContainerCompatibility,
+  type SubstrateType,
+  type CompatibilityPlant,
+} from "@/lib/containerCompatibility";
 
 export interface LocationOption {
   id: string;
   name: string;
 }
 
+export type ContainerOccupant = CompatibilityPlant;
+
 export interface ContainerOption {
   id: string;
   name: string;
+  occupants: ContainerOccupant[];
 }
 
 export interface FertilizerOption {
@@ -57,6 +67,11 @@ export interface PlantFormInitial {
   potHeightMm?: number | null;
   potMaterial?: string | null;
   substrate?: string | null;
+  substrateType?: SubstrateType | null;
+  // Precalcule cote serveur (voir page d'edition) : la regle d'arrosage
+  // reelle est geree par CareRulesManager, pas par ce formulaire en mode
+  // edition (voir plus bas) -- impossible de la recalculer ici sans elle.
+  wateringIntervalDays?: number | null;
   exposure?: string | null;
   notes?: string | null;
 }
@@ -118,6 +133,7 @@ export default function PlantForm({
   );
   const [potMaterial, setPotMaterial] = useState(initial?.potMaterial ?? "");
   const [substrate, setSubstrate] = useState(initial?.substrate ?? "");
+  const [substrateType, setSubstrateType] = useState<SubstrateType | "">(initial?.substrateType ?? "");
   const [exposure, setExposure] = useState(initial?.exposure ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
 
@@ -294,6 +310,7 @@ export default function PlantForm({
         potHeightMm: potHeightInput ? inputUnitToMm(Number(potHeightInput), unitSystem) : undefined,
         potMaterial: potMaterial || undefined,
         substrate: substrate || undefined,
+        substrateType: substrateType || null,
         exposure: exposure || undefined,
         notes: notes || undefined,
       };
@@ -371,6 +388,34 @@ export default function PlantForm({
       setSubmitting(false);
     }
   }
+
+  const ownWateringIntervalDays =
+    mode === "create"
+      ? wateringEnabled
+        ? normalizeWateringIntervalDays({
+            enabled: true,
+            recurrenceType: wateringRecurrence,
+            interval: wateringInterval ? Number(wateringInterval) : null,
+          })
+        : null
+      : (initial?.wateringIntervalDays ?? null);
+
+  const selectedContainer = containers.find((c) => c.id === containerId);
+  // Ne bloque jamais : seulement des points d'attention, calcules en direct
+  // a chaque frappe (occupants actuels de la jardiniere + cette plante-ci
+  // avec ses valeurs en cours de saisie, elle-meme exclue de la comparaison
+  // en mode edition).
+  const compatibilityWarnings = selectedContainer
+    ? checkContainerCompatibility([
+        ...selectedContainer.occupants.filter((o) => o.id !== initial?.id),
+        {
+          id: initial?.id ?? "__self__",
+          name: name.trim() || "Cette plante",
+          substrateType: substrateType || null,
+          wateringIntervalDays: ownWateringIntervalDays,
+        } satisfies CompatibilityPlant,
+      ])
+    : [];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-10">
@@ -542,6 +587,16 @@ export default function PlantForm({
               .
             </p>
           )}
+          {compatibilityWarnings.length > 0 && (
+            <div
+              className="mt-2 space-y-1 rounded-lg px-3 py-2 text-xs"
+              style={{ background: "color-mix(in srgb, var(--warning) 15%, var(--surface))", color: "var(--warning)" }}
+            >
+              {compatibilityWarnings.map((w) => (
+                <p key={w.kind}>⚠ {w.message}</p>
+              ))}
+            </div>
+          )}
         </div>
         {!containerId && (
         <div>
@@ -642,6 +697,27 @@ export default function PlantForm({
             Substrat
           </label>
           <input id="substrate" value={substrate} onChange={(e) => setSubstrate(e.target.value)} className={inputClass} />
+        </div>
+        <div>
+          <label htmlFor="substrateType" className={labelClass}>
+            Type de substrat
+          </label>
+          <select
+            id="substrateType"
+            value={substrateType}
+            onChange={(e) => setSubstrateType(e.target.value as SubstrateType | "")}
+            className={inputClass}
+          >
+            <option value="">Non renseigné</option>
+            {SUBSTRATE_TYPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-muted text-xs mt-1">
+            Sert uniquement à détecter des conflits évidents entre plantes d&apos;une même jardinière.
+          </p>
         </div>
         <div>
           <label htmlFor="exposure" className={labelClass}>
