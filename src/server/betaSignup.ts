@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { db } from "@/server/db";
+import { emailShell, type EmailContent } from "@/server/emailTemplates";
 
 export const BETA_SIGNUP_LIMIT = 12;
 
@@ -45,25 +46,6 @@ export async function confirmBetaSignupByToken(token: string): Promise<ConfirmBe
   return finalStatus === "CONFIRMED"
     ? { outcome: "confirmed", email: signup.email }
     : { outcome: "waitlisted", email: signup.email };
-}
-
-function emailShell(title: string, bodyHtml: string): string {
-  return `<!doctype html>
-<html lang="fr">
-<body style="margin:0;padding:32px 16px;background:#f6f2e8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#23281f;">
-  <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;">
-    <p style="font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#7c9473;margin:0 0 12px;">Jungly</p>
-    <h1 style="font-size:1.3rem;margin:0 0 16px;color:#22361a;">${title}</h1>
-    ${bodyHtml}
-  </div>
-</body>
-</html>`;
-}
-
-export interface EmailContent {
-  subject: string;
-  html: string;
-  text: string;
 }
 
 export function confirmationRequestEmail(confirmUrl: string): EmailContent {

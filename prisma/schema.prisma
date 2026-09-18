@@ -71,6 +71,27 @@ model User {
   pushSubscriptions     PushSubscription[]
   weatherProfile        WeatherProfile?
   uploads               Upload[]
+  passwordResetTokens   PasswordResetToken[]
+}
+
+/**
+ * Retour utilisateur (2026-09-18) : aucun moyen de recuperer un compte dont
+ * le mot de passe est oublie. A usage unique (usedAt) et de courte duree
+ * (voir PASSWORD_RESET_TOKEN_TTL_MS) -- une fois utilise ou expire,
+ * conserve seulement pour la purge periodique (tickPasswordResetCleanup),
+ * jamais reutilisable.
+ */
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------

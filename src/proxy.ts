@@ -7,8 +7,10 @@ import { auth } from "@/server/auth";
 // s'applique a toutes les pages) -- l'exclusion se fait donc ici, dans le
 // corps de la fonction, plutot que dans le matcher comme avant Next.js 16.
 // /beta/confirmation meme raison : le lien de confirmation par email est
-// suivi par des visiteurs sans compte Jungly.
-const PUBLIC_PATHS = ["/login", "/inscription", "/beta/confirmation"];
+// suivi par des visiteurs sans compte Jungly. /mot-de-passe-oublie et
+// /reinitialiser-mot-de-passe meme motif : un compte verrouille hors de sa
+// session n'a par definition aucune session valide pour les atteindre sinon.
+const PUBLIC_PATHS = ["/login", "/inscription", "/beta/confirmation", "/mot-de-passe-oublie", "/reinitialiser-mot-de-passe"];
 
 export default auth((req) => {
   const isDev = process.env.NODE_ENV === "development";

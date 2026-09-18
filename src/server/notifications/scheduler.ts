@@ -138,6 +138,28 @@ async function tickPurchaseRevocationCheck(): Promise<void> {
   }
 }
 
+// Purge des jetons de reinitialisation de mot de passe perimes (expires ou
+// deja utilises) -- meme cadence quotidienne que les autres purges
+// ci-dessus, un volume qui ne justifie rien de plus reactif.
+const PASSWORD_RESET_TOKEN_RETENTION_DAYS = 7;
+let lastPasswordResetCleanupDay: Date | null = null;
+
+async function tickPasswordResetCleanup(): Promise<void> {
+  const now = new Date();
+  if (lastPasswordResetCleanupDay && isSameDay(lastPasswordResetCleanupDay, now)) {
+    return;
+  }
+  const cutoff = new Date(now.getTime() - PASSWORD_RESET_TOKEN_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  try {
+    await db.passwordResetToken.deleteMany({
+      where: { OR: [{ expiresAt: { lt: now } }, { usedAt: { not: null, lt: cutoff } }] },
+    });
+    lastPasswordResetCleanupDay = now;
+  } catch (error) {
+    console.error("[auth] purge des jetons de reinitialisation echouee :", error);
+  }
+}
+
 let started = false;
 
 /**
@@ -188,6 +210,7 @@ export function startNotificationScheduler(): void {
       tickSensorRetention().catch((error) => console.error("[sensors] verification echouee :", error)),
       tickFileGc().catch((error) => console.error("[gc] verification echouee :", error)),
       tickPurchaseRevocationCheck(),
+      tickPasswordResetCleanup(),
     ]).finally(() => {
       runningIteration = false;
     });

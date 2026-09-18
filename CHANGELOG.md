@@ -3,6 +3,18 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-18 — Réinitialisation de mot de passe
+
+Retour utilisateur : aucun moyen de récupérer un compte dont le mot de passe est oublié.
+
+### Ajouté
+
+- **`PasswordResetToken`** (migration `20260918174936_add_password_reset_token`) : jeton à usage unique, valable 1 heure. `/mot-de-passe-oublie` (demande par email) et `/reinitialiser-mot-de-passe` (choix du nouveau mot de passe), lien "Mot de passe oublié ?" ajouté à `/login`.
+- **`src/server/passwordReset.ts`** : réponse toujours générique si l'email n'existe pas (même motif que le formulaire bêta public — jamais de fuite sur l'existence d'un compte). Un token EST le secret côté réinitialisation elle-même : confirmer explicitement "invalide/expiré" ne révèle rien de plus à qui le possède déjà.
+- Réinitialiser le mot de passe invalide toute autre demande en attente sur le même compte (un ancien lien jamais utilisé aurait sinon pu rester valable jusqu'à sa propre expiration).
+- Purge quotidienne des jetons périmés (`tickPasswordResetCleanup`), même cadence que les autres purges du scheduler (capteurs, fichiers orphelins, achats).
+- `src/server/emailShell` extrait de `betaSignup.ts` dans `emailTemplates.ts` (gabarit visuel partagé, pour ne pas diverger entre types d'emails).
+
 ## [Post-MVP] - 2026-09-17 — Avertissements de compatibilité dans les jardinières
 
 Troisième retour bêta sur les jardinières : rien n'empêchait de regrouper des plantes aux besoins incompatibles ("je peux mettre de l'origan avec un pothos avec un bégonia"). Avertit, ne bloque jamais.
