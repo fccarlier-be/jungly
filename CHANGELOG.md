@@ -3,6 +3,15 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-19 — Revue par lots des traductions Plantfolio
+
+Suite à la traduction quasi complète des ~590 fiches : demande explicite de vérifier chaque traduction en lots de 10 pour éviter les erreurs à cette échelle.
+
+### Corrigé
+
+- **`COMMON_NAME_FR_OVERRIDES`** (`prisma/plantfolioMapping.ts`) : 20 corrections trouvées sur les 590 lors de la revue complète — noms fruit/plante incohérents avec la convention établie (ex. cherries "Cerises" → "Cerisier", grapes "Raisin" → "Vigne", starfruit "Carambole" → "Carambolier"), doublons entre deux espèces différentes (philodendron-silver vs philodendron-brandtianum, boston-ivy vs virginia-creeper), traductions imprécises ou inventées (daffodils "Jonquilles" → "Narcisses", shiso "Pérille de Nankin" → "Pérille", prayer-plants "Plantes qui prient" → "Plante de la prière"), et noms vernaculaires établis à privilégier sur une traduction littérale (rose-of-sharon → "Althéa", primula-alpine → "Oreille d'ours").
+- `PLANTFOLIO_SEED_LOGIC_VERSION` passée à `v4` pour forcer le réimport (la table de correspondance n'a pas changé de périmètre, seulement le contenu de certaines valeurs — le fingerprint ne l'aurait pas détecté sans ce bump manuel).
+
 ## [Post-MVP] - 2026-09-19 — Traduction quasi complète des fiches Plantfolio en français
 
 Suite au correctif ciblé sur les orchidées : demande explicite d'étendre la traduction à l'ensemble de la bibliothèque plutôt que de la compléter au fil des retours.
