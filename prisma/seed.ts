@@ -117,7 +117,7 @@ const PLANTFOLIO_EXCLUDE_IDS = new Set(["lichen", "mosses", "sprouts-microgreens
 // ou la logique de dedoublonnage ci-dessous change : ces changements de code
 // ne se reflètent dans aucune donnee source, donc l'empreinte ne les
 // detecterait pas sans ce marqueur explicite.
-const PLANTFOLIO_SEED_LOGIC_VERSION = "v2";
+const PLANTFOLIO_SEED_LOGIC_VERSION = "v3";
 
 async function seedPlantfolio() {
   // Le premier element du fichier distribue est un objet `_metadata`

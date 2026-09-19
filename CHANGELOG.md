@@ -3,6 +3,19 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-19 — Traduction quasi complète des fiches Plantfolio en français
+
+Suite au correctif ciblé sur les orchidées : demande explicite d'étendre la traduction à l'ensemble de la bibliothèque plutôt que de la compléter au fil des retours.
+
+### Corrigé
+
+- **`COMMON_NAME_FR_OVERRIDES`** (`prisma/plantfolioMapping.ts`) : environ 590 des 663 fiches Plantfolio importées ont désormais un nom commun français établi (vocabulaire horticole reconnu, pas une traduction mot à mot). Les ~70 restantes sont des genres ou noms de cultivar déjà utilisés tels quels en horticulture francophone (Hoya, Miscanthus, Peperomia, "Monstera Peru"...) ou des mots identiques dans les deux langues (Kiwi, Kumquat, Wasabi...) — laissées intentionnellement inchangées plutôt que traduites au hasard.
+- `PLANTFOLIO_SEED_LOGIC_VERSION` passée à `v3` pour forcer le réimport.
+
+### Décisions notables
+
+- À cette échelle (~590 noms), la vérification n'a pas le même niveau de rigueur individuelle que les 5 corrections initiales des orchidées — signaler toute correction nécessaire au fil des retours plutôt que de considérer cette liste comme définitive.
+
 ## [Post-MVP] - 2026-09-19 — Noms français pour les fiches Plantfolio (famille des orchidées)
 
 Suite au correctif de recherche insensible aux accents : en creusant, la vraie cause était plus large — Plantfolio (663 des 784 fiches de la bibliothèque) n'a pas de version française, donc `commonName` y est en anglais brut ("Slipper Orchid", "Dendrobium Orchid"...). Un utilisateur cherchant en français ne les trouve jamais, peu importe la qualité de la recherche.
