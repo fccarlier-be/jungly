@@ -3,6 +3,18 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-19 — Noms français pour les fiches Plantfolio (famille des orchidées)
+
+Suite au correctif de recherche insensible aux accents : en creusant, la vraie cause était plus large — Plantfolio (663 des 784 fiches de la bibliothèque) n'a pas de version française, donc `commonName` y est en anglais brut ("Slipper Orchid", "Dendrobium Orchid"...). Un utilisateur cherchant en français ne les trouve jamais, peu importe la qualité de la recherche.
+
+### Corrigé
+
+- **`prisma/plantfolioMapping.ts`** : nouvelle table `COMMON_NAME_FR_OVERRIDES` (clé = `id` Plantfolio, stable même si le dataset est mis à jour) — corrige les 5 fiches de la famille des orchidées actuellement importées (Epiphyllum → Cactus orchidée, Dendrobium/Oncidium/Vanda → Orchidée \<genre\>, Paphiopedilum → Sabot de Vénus, nom français établi). `PLANTFOLIO_SEED_LOGIC_VERSION` passée à `v2` pour forcer le réimport au prochain déploiement.
+
+### Décisions notables
+
+- Pas de traduction en masse des 663 fiches Plantfolio : la majorité (arbres, légumes, fruits — Durian, Dragon Fruit, Adzuki Bean...) est hors du périmètre "plantes d'intérieur" de Jungly, une traduction systématique serait un travail disproportionné pour une valeur faible. Complété au fil des retours utilisateurs plutôt qu'en une fois.
+
 ## [Post-MVP] - 2026-09-19 — Correctif : recherche de bibliothèque insensible aux accents
 
 Retour utilisateur : "pas d'orchidées dans la bibliothèque". En réalité si (Phalaenopsis, Dendrobium, Oncidium, Vanda...) — mais chercher "orchidee" (sans accent, faute de frappe courante en français) ne remontait rien : le `contains` de SQLite ignore la casse ASCII mais pas les accents (`e` ≠ `é`), donc "Orchidée papillon" restait invisible à quiconque tapait sans accent. Vérifié directement contre la base avant de conclure à un vrai bug plutôt qu'à un manque de contenu.

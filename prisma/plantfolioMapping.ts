@@ -114,6 +114,25 @@ function averageInterval(entry: PlantfolioRawEntry): number | null {
   return Math.max(1, Math.round(values.reduce((a, b) => a + b, 0) / values.length));
 }
 
+/**
+ * Retour utilisateur (2026-09-19) : "pas d'orchidees dans la bibliotheque"
+ * -- en realite si, mais sous des noms anglais (plantfolio n'a pas de
+ * version francaise, voir commentaire plus haut sur description/careTips)
+ * que personne ne pense a chercher en francais. Cle = `id` plantfolio (pas
+ * typeName, qui change si le dataset est mis a jour) ; noms verifies
+ * (vocabulaire horticole francais etabli, pas une traduction mot a mot) --
+ * a completer au fil des retours plutot que de traduire les 663 entrees
+ * d'un coup, la plupart etant hors du perimetre plantes d'interieur
+ * (arbres, legumes, fruits...).
+ */
+const COMMON_NAME_FR_OVERRIDES: Record<string, string> = {
+  epiphyllum: "Cactus orchidée",
+  "dendrobium-orchid": "Orchidée Dendrobium",
+  "oncidium-orchid": "Orchidée Oncidium",
+  paphiopedilum: "Sabot de Vénus",
+  "vanda-orchid": "Orchidée Vanda",
+};
+
 export interface MappedLibraryEntry {
   commonName: string;
   scientificName: string | null;
@@ -160,7 +179,7 @@ export function mapPlantfolioEntry(entry: PlantfolioRawEntry): MappedLibraryEntr
   if (tipsParts.length) careProfile.tips = tipsParts.join(" ");
 
   return {
-    commonName: entry.typeName,
+    commonName: COMMON_NAME_FR_OVERRIDES[entry.id] ?? entry.typeName,
     scientificName: extractScientificName(entry.commonExamples),
     family: null,
     careProfile,
