@@ -3,6 +3,14 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-19 — Correctif : recherche de bibliothèque insensible aux accents
+
+Retour utilisateur : "pas d'orchidées dans la bibliothèque". En réalité si (Phalaenopsis, Dendrobium, Oncidium, Vanda...) — mais chercher "orchidee" (sans accent, faute de frappe courante en français) ne remontait rien : le `contains` de SQLite ignore la casse ASCII mais pas les accents (`e` ≠ `é`), donc "Orchidée papillon" restait invisible à quiconque tapait sans accent. Vérifié directement contre la base avant de conclure à un vrai bug plutôt qu'à un manque de contenu.
+
+### Corrigé
+
+- **`GET /api/library`** (`src/lib/textSearch.ts`) : la comparaison se fait désormais sur des chaînes normalisées (accents retirés, minuscules) des deux côtés, en mémoire plutôt que via le `WHERE` SQL — la bibliothèque reste de taille modeste (quelques centaines à quelques milliers de lignes), un aller-retour complet est instantané, pas besoin de colonne/migration dédiée.
+
 ## [Post-MVP] - 2026-09-18 — Réinitialisation de mot de passe
 
 Retour utilisateur : aucun moyen de récupérer un compte dont le mot de passe est oublié.

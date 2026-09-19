@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
+import { normalizeForSearch } from "@/lib/textSearch";
 
 /**
  * Recherche dans la bibliothèque de plantes. Nécessite d'être connecté
@@ -20,16 +21,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([]);
     }
 
-    const entries = await db.plantLibraryEntry.findMany({
-      where: {
-        OR: [
-          { commonName: { contains: q } },
-          { scientificName: { contains: q } },
-        ],
-      },
-      orderBy: { commonName: "asc" },
-      take: 20,
-    });
+    // Filtre en memoire (pas de `where` SQL) : SQLite `contains` ignore la
+    // casse ASCII mais pas les accents ("orchidee" ne matchait jamais
+    // "Orchidée") -- voir normalizeForSearch. La bibliotheque reste de
+    // taille modeste (quelques milliers de lignes au plus), un aller-retour
+    // complet est instantane.
+    const normalizedQuery = normalizeForSearch(q);
+    const allEntries = await db.plantLibraryEntry.findMany({ orderBy: { commonName: "asc" } });
+    const entries = allEntries
+      .filter(
+        (e) =>
+          normalizeForSearch(e.commonName).includes(normalizedQuery) ||
+          (e.scientificName && normalizeForSearch(e.scientificName).includes(normalizedQuery)),
+      )
+      .slice(0, 20);
 
     return NextResponse.json(entries);
   } catch (error) {
