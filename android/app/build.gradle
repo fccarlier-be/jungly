@@ -57,8 +57,8 @@ android {
         applicationId "org.fcold.jungly.twa"
         minSdkVersion 23
         targetSdkVersion 36
-        versionCode 2
-        versionName "1.1"
+        versionCode 3
+        versionName "1.2"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name
@@ -206,6 +206,11 @@ dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
 
         implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.3'
+
+    // ResourcesCompat.getFont() (polices Inter embarquees, voir res/font et
+    // SetupActivity) -- deja present transitivement via androidbrowserhelper,
+    // declare explicitement plutot que de compter dessus.
+    implementation 'androidx.core:core:1.13.1'
 
     // Achat unique (offre hebergee) -- voir BillingHelper/SetupActivity.
     // 7.1.1 est hors delai Google depuis le 31 aout 2026 (verifie sur

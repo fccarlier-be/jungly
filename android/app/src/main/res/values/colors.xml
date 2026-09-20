@@ -15,4 +15,16 @@
 -->
 <resources>
     <color name="shortcut_background">#F5F5F5</color>
+
+    <!-- Palette de marque Jungly, reprise de src/app/globals.css (web).
+         Voir SetupActivity.java, seul ecran natif non couvert par la TWA,
+         donc le seul a devoir la redefinir ici. -->
+    <color name="setup_bg">#F7F4EE</color>
+    <color name="setup_surface_alt">#EFE9DC</color>
+    <color name="setup_border">#E3DDCC</color>
+    <color name="setup_ink">#23281F</color>
+    <color name="setup_ink_muted">#6F7566</color>
+    <color name="setup_primary">#2F4A34</color>
+    <color name="setup_primary_ink">#F5F2E6</color>
+    <color name="setup_accent">#B3684A</color>
 </resources>
