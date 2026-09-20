@@ -3,7 +3,7 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "org.fcold.plantes.twa",
+      "package_name": "org.fcold.jungly.twa",
       "sha256_cert_fingerprints": [
         "C2:5A:D6:87:B3:3F:66:A5:E9:9F:AA:8A:5E:32:43:CD:4D:B5:AA:5A:1A:53:13:5F:52:12:31:92:ED:FA:80:35"
       ]

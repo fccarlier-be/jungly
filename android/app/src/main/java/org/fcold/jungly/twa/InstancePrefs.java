@@ -1,4 +1,4 @@
-package org.fcold.plantes.twa;
+package org.fcold.jungly.twa;
 
 import android.content.Context;
 import android.content.SharedPreferences;

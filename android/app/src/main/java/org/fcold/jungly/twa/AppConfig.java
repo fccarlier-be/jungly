@@ -1,4 +1,4 @@
-package org.fcold.plantes.twa;
+package org.fcold.jungly.twa;
 
 /**
  * Constantes partagees entre l'ecran de configuration et le lanceur --

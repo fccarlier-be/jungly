@@ -21,7 +21,7 @@ plugins {
 }
 
 def twaManifest = [
-    applicationId: 'org.fcold.plantes.twa',
+    applicationId: 'org.fcold.jungly.twa',
     hostName: 'plantes.fcold.org', // The domain being opened in the TWA.
     launchUrl: '/', // The start path for the TWA. Must be relative to the domain.
     name: 'Jungly', // The application name.
@@ -52,9 +52,9 @@ def twaManifest = [
 
 android {
     compileSdkVersion 36
-    namespace "org.fcold.plantes.twa"
+    namespace "org.fcold.jungly.twa"
     defaultConfig {
-        applicationId "org.fcold.plantes.twa"
+        applicationId "org.fcold.jungly.twa"
         minSdkVersion 23
         targetSdkVersion 36
         versionCode 1
