@@ -45,7 +45,7 @@
     "@types/react": "^19.0.4",
     "@types/react-dom": "^19.0.2",
     "@types/web-push": "^3.6.4",
-    "eslint": "9.39.5",
+    "eslint": "10.10.0",
     "eslint-config-next": "16.3.5",
     "postcss": "^8.4.49",
     "tailwindcss": "4.3.3",
