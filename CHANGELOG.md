@@ -11,7 +11,8 @@ Retour de deux utilisateurs : possibilite d'identifier une plante a partir d'une
 
 - **`POST /api/plants/identify`** (`src/server/plantnet/client.ts`) : identification via l'API Pl@ntNet (projet "all", flore mondiale), limitee a 10 requetes/15 min par utilisateur (quota gratuit Pl@ntNet : 500 identifications/jour, partage entre `plantes-app` et `plantes-app-hosted`, meme cle). L'image n'est jamais conservee sur disque, uniquement transmise puis jetee.
 - **`src/server/plantnet/matching.ts`** : associe chaque candidat renvoye par Pl@ntNet a une fiche de bibliotheque existante par nom scientifique exact (insensible a la casse/accents), pour proposer directement son profil de soin plutot qu'une simple identification textuelle.
-- **`PlantPhotoIdentify.tsx`**, integre dans le formulaire de creation d'une plante (`PlantForm.tsx`) : selection de la partie photographiee (feuille/fleur/fruit/ecorce, "automatique" par defaut) puis liste des candidats avec score de confiance.
+- **`PlantPhotoIdentify.tsx`**, integre dans le formulaire de creation d'une plante (`PlantForm.tsx`) : selection de la partie photographiee (feuille/fleur/fruit/ecorce, "automatique" par defaut) puis liste des candidats avec score de confiance. La photo utilisee pour l'identification est aussi televersee et appliquee comme photo de la plante (meme fichier, requete separee de l'identification -- retour utilisateur du premier essai en staging).
+- Retour utilisateur (meme essai) : quand aucune fiche de bibliotheque ne correspond exactement, `applyIdentifiedCandidate` relance automatiquement la recherche (locale, puis en ligne sur clic via `ExternalSpeciesSearch`, meme pipeline que le champ de recherche manuel) avec le nom scientifique identifie, au lieu de se limiter a un texte sans profil de soin.
 - `PLANTNET_API_KEY` (cle gratuite sur my.plantnet.org, voir `.env.example`).
 
 ### Décisions notables

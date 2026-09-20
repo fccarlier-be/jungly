@@ -182,21 +182,30 @@ export default function PlantForm({
   }, [libraryQuery, librarySearchActive]);
 
   /**
+   * Candidat retenu depuis PlantPhotoIdentify : meme logique que
+   * applyLibraryEntry si une fiche de bibliotheque locale correspond
+   * exactement. Sinon, retour utilisateur (2026-09-20) : relance la
+   * recherche (locale d'abord, en ligne ensuite sur clic -- meme pipeline
+   * que le champ de recherche juste au-dessus) avec le nom scientifique
+   * identifie, plutot que de se contenter d'un texte sans profil de soin.
+   */
+  function applyIdentifiedCandidate(candidate: IdentifiedCandidate) {
+    if (candidate.libraryEntry) {
+      applyLibraryEntry(candidate.libraryEntry as unknown as LibraryEntry);
+      return;
+    }
+    if (!scientificName.trim()) setScientificName(candidate.scientificName);
+    if (!name.trim() && candidate.commonNames[0]) setName(candidate.commonNames[0]);
+    setSelectedLibraryName(null);
+    setLibraryQuery(candidate.scientificName);
+  }
+
+  /**
    * Applique le profil suggere par la bibliotheque (section 20) : pre-remplit
    * les champs et les règles d'entretien encore vides, mais NE remplace
    * jamais une valeur deja saisie par l'utilisateur -- celui-ci garde
    * toujours la main.
    */
-  /** Candidat retenu depuis PlantPhotoIdentify : meme logique que applyLibraryEntry si une fiche existe, sinon simple pre-remplissage. */
-  function applyIdentifiedCandidate(candidate: IdentifiedCandidate) {
-    if (candidate.libraryEntry) {
-      applyLibraryEntry(candidate.libraryEntry as unknown as LibraryEntry);
-    } else {
-      if (!scientificName.trim()) setScientificName(candidate.scientificName);
-      if (!name.trim() && candidate.commonNames[0]) setName(candidate.commonNames[0]);
-    }
-  }
-
   function applyLibraryEntry(entry: LibraryEntry) {
     // entry.id absent (chaine vide) : recherche externe utilisee par un
     // compte non-admin (voir ExternalSpeciesSearch.tsx, qui n'ecrit plus
@@ -484,7 +493,7 @@ export default function PlantForm({
           )}
           <div className="border-t pt-2" style={{ borderColor: "var(--border)" }}>
             <p className="text-muted mb-1.5 text-xs">Ou identifie-la à partir d&apos;une photo (bêta) :</p>
-            <PlantPhotoIdentify onSelect={applyIdentifiedCandidate} />
+            <PlantPhotoIdentify onSelect={applyIdentifiedCandidate} onPhotoUploaded={setPhotoUrl} />
           </div>
         </section>
       )}

@@ -23,8 +23,20 @@ export interface IdentifiedCandidate {
  * src/server/plantnet/client.ts). Composant autonome, sur le meme principe
  * qu'ExternalSpeciesSearch.tsx : n'appelle l'API externe que sur action
  * explicite (choix d'un fichier), jamais automatiquement.
+ *
+ * Retour utilisateur (2026-09-20) : la photo servant a l'identification doit
+ * aussi devenir la photo de la plante -- televersee en parallele de
+ * l'appel Pl@ntNet (meme fichier, deux requetes independantes ; un File est
+ * relisible plusieurs fois sans conflit) plutot que d'exiger une deuxieme
+ * selection manuelle via "Choisir une photo".
  */
-export default function PlantPhotoIdentify({ onSelect }: { onSelect: (candidate: IdentifiedCandidate) => void }) {
+export default function PlantPhotoIdentify({
+  onSelect,
+  onPhotoUploaded,
+}: {
+  onSelect: (candidate: IdentifiedCandidate) => void;
+  onPhotoUploaded: (url: string) => void;
+}) {
   const [organ, setOrgan] = useState("auto");
   const [status, setStatus] = useState<"idle" | "loading" | "results" | "error">("idle");
   const [candidates, setCandidates] = useState<IdentifiedCandidate[]>([]);
@@ -39,6 +51,18 @@ export default function PlantPhotoIdentify({ onSelect }: { onSelect: (candidate:
     setStatus("loading");
     setError(null);
     setAppliedName(null);
+
+    // Televersement non bloquant : une panne d'upload n'empeche pas
+    // l'identification de s'afficher (et inversement).
+    const uploadFormData = new FormData();
+    uploadFormData.append("file", file);
+    fetch("/api/uploads", { method: "POST", body: uploadFormData })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (body?.url) onPhotoUploaded(body.url);
+      })
+      .catch(() => {});
+
     try {
       const formData = new FormData();
       formData.append("image", file);
