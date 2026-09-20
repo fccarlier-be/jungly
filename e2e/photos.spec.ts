@@ -3,6 +3,7 @@ import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { test, expect } from "@playwright/test";
 import { cleanupDb, cleanupE2eData, E2E_MARKER } from "./dbCleanup";
+import { createTestUser, loginAs } from "./testHelpers";
 
 // Compte seed reutilise (comme plant-journey.spec.ts) : une seule plante
 // creee et supprimee par le test lui-meme, pas de risque d'ecraser les
@@ -73,14 +74,19 @@ test("upload, galerie, couverture, suppression avec promotion, suppression de la
   expect(existsSync(filePathTwo)).toBe(false);
 });
 
-test("GET /uploads/... refuse la mise en cache d'un 404 (security2.md)", async ({ page }) => {
-  // Sans Cache-Control explicite sur ce 404, Cloudflare y injectait son
+test("GET /uploads/... : l'auteur voit sa photo avant rattachement, un autre compte non (security2.md + retour utilisateur 2026-09-20)", async ({
+  page,
+  browser,
+}) => {
+  // Retour utilisateur (2026-09-20, identification par photo) : l'apercu du
+  // formulaire de creation affiche la photo AVANT que la plante existe --
+  // l'auteur du fichier doit donc pouvoir la revoir immediatement (voir
+  // src/app/uploads/[filename]/route.ts, ligne Upload comme preuve de
+  // propriete alternative). Un autre compte, lui, ne le peut toujours pas :
+  // sans Cache-Control explicite sur CE 404, Cloudflare y injectait son
   // propre defaut (max-age=14400, verifie en direct sur plantes.fcold.org)
-  // et le mettait en cache d'edge -- alors qu'une URL /uploads/... fraichement
-  // televersee mais pas encore attachee a une plante (cas normal : apercu
-  // avant sauvegarde du formulaire, voir PlantForm.tsx) redeviendrait
-  // legitimement accessible une fois la plante sauvegardee. private/no-store
-  // empeche tout cache (CDN ou navigateur) de servir cet etat perime.
+  // et le mettait en cache d'edge -- private/no-store empeche tout cache
+  // (CDN ou navigateur) de servir cet etat perime.
   await page.goto("/login");
   await page.locator("#email").fill(email!);
   await page.locator("#password").fill(password!);
@@ -92,12 +98,20 @@ test("GET /uploads/... refuse la mise en cache d'un 404 (security2.md)", async (
   });
   const { url } = await uploadRes.json();
 
-  // Jamais attachee a aucune plante : le fichier existe sur disque mais
-  // n'appartient encore a aucune ressource, exactement le 404 qui se
+  // Jamais attachee a aucune plante, mais l'auteur du televersement peut
+  // la revoir directement.
+  const ownGetRes = await page.request.get(url);
+  expect(ownGetRes.status()).toBe(200);
+
+  // Un autre compte, lui, n'y a pas acces : exactement le 404 qui se
   // faisait mettre en cache.
-  const getRes = await page.request.get(url);
-  expect(getRes.status()).toBe(404);
-  expect(getRes.headers()["cache-control"]).toBe("private, no-store");
+  const otherUser = await createTestUser("uploads-404-cache");
+  const otherContext = await browser.newContext();
+  const otherPage = await otherContext.newPage();
+  await loginAs(otherPage, otherUser.email, otherUser.password);
+  const foreignGetRes = await otherPage.request.get(url);
+  expect(foreignGetRes.status()).toBe(404);
+  expect(foreignGetRes.headers()["cache-control"]).toBe("private, no-store");
 
   // Nettoyage manuel : ce fichier n'est jamais attache a une plante, donc
   // aucune des routes de suppression habituelles (photos/plantes) ne le
