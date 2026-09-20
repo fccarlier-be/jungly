@@ -11,11 +11,19 @@ const ORGAN_OPTIONS: { value: string; label: string }[] = [
   { value: "bark", label: "Écorce" },
 ];
 
+interface LibraryEntryPreview {
+  id: string;
+  commonName: string;
+  scientificName: string | null;
+  careProfile: unknown;
+}
+
 export interface IdentifiedCandidate {
   scientificName: string;
   commonNames: string[];
   score: number;
-  libraryEntry: { id: string; commonName: string; scientificName: string | null; careProfile: unknown } | null;
+  libraryEntry: LibraryEntryPreview | null;
+  genusLibraryEntry: LibraryEntryPreview | null;
 }
 
 /**
@@ -126,20 +134,23 @@ export default function PlantPhotoIdentify({
 
       {status === "results" && candidates.length > 0 && (
         <div className="space-y-1.5">
-          {candidates.map((c) => (
-            <button
-              key={c.scientificName}
-              type="button"
-              onClick={() => select(c)}
-              className="card flex w-full items-center justify-between gap-2 p-2.5 text-left text-sm"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium italic">{c.scientificName}</span>
-                {c.commonNames[0] && <span className="text-muted block">{c.commonNames[0]}</span>}
-              </span>
-              <span className="text-muted shrink-0 text-xs">{Math.round(c.score * 100)}%</span>
-            </button>
-          ))}
+          {candidates.map((c) => {
+            const displayName = c.libraryEntry?.commonName ?? c.genusLibraryEntry?.commonName ?? c.commonNames[0];
+            return (
+              <button
+                key={c.scientificName}
+                type="button"
+                onClick={() => select(c)}
+                className="card flex w-full items-center justify-between gap-2 p-2.5 text-left text-sm"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium italic">{c.scientificName}</span>
+                  {displayName && <span className="text-muted block">{displayName}</span>}
+                </span>
+                <span className="text-muted shrink-0 text-xs">{Math.round(c.score * 100)}%</span>
+              </button>
+            );
+          })}
         </div>
       )}
 

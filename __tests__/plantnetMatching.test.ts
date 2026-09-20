@@ -29,15 +29,41 @@ describe("matchLibraryEntries", () => {
     expect(result!.libraryEntry?.id).toBe("1");
   });
 
-  it("ne fait pas correspondre un nom de genre seul a une espece precise", () => {
+  it("ne fait pas correspondre une espece precise differente au meme genre (ni libraryEntry, ni genusLibraryEntry)", () => {
     const entries = [entry({ id: "1", commonName: "Hoya Australis", scientificName: "Hoya australis" })];
     const [result] = matchLibraryEntries([candidate({ scientificName: "Hoya carnosa" })], entries);
     expect(result!.libraryEntry).toBeNull();
+    expect(result!.genusLibraryEntry).toBeNull();
   });
 
   it("renvoie null quand aucune fiche ne correspond", () => {
     const [result] = matchLibraryEntries([candidate({ scientificName: "Species inconnue" })], []);
     expect(result!.libraryEntry).toBeNull();
+    expect(result!.genusLibraryEntry).toBeNull();
+  });
+
+  /**
+   * Retour utilisateur (2026-09-20) : "Phalaenopsis cornu-cervi" identifie
+   * par Pl@ntNet sans correspondance exacte, alors que la bibliotheque a
+   * bien "Phalaenopsis" -> "Orchidée papillon" (fiche generique au niveau
+   * du genre) -- se retrouvait avec un nom anglais brut plutot que ce nom
+   * francais pourtant disponible.
+   */
+  it("propose une fiche generique au niveau du genre quand aucune espece precise ne correspond", () => {
+    const entries = [entry({ id: "1", commonName: "Orchidée papillon", scientificName: "Phalaenopsis" })];
+    const [result] = matchLibraryEntries([candidate({ scientificName: "Phalaenopsis cornu-cervi" })], entries);
+    expect(result!.libraryEntry).toBeNull();
+    expect(result!.genusLibraryEntry?.commonName).toBe("Orchidée papillon");
+  });
+
+  it("ne propose pas de fiche generique quand une correspondance exacte existe deja", () => {
+    const entries = [
+      entry({ id: "1", commonName: "Orchidée papillon", scientificName: "Phalaenopsis" }),
+      entry({ id: "2", commonName: "Phalaenopsis Big Lip", scientificName: "Phalaenopsis cornu-cervi" }),
+    ];
+    const [result] = matchLibraryEntries([candidate({ scientificName: "Phalaenopsis cornu-cervi" })], entries);
+    expect(result!.libraryEntry?.id).toBe("2");
+    expect(result!.genusLibraryEntry).toBeNull();
   });
 
   it("conserve les champs du candidat original (score, noms communs)", () => {

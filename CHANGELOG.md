@@ -15,6 +15,11 @@ Retour de deux utilisateurs : possibilite d'identifier une plante a partir d'une
 - Retour utilisateur (meme essai) : quand aucune fiche de bibliotheque ne correspond exactement, `applyIdentifiedCandidate` relance automatiquement la recherche (locale, puis en ligne sur clic via `ExternalSpeciesSearch`, meme pipeline que le champ de recherche manuel) avec le nom scientifique identifie, au lieu de se limiter a un texte sans profil de soin.
 - `PLANTNET_API_KEY` (cle gratuite sur my.plantnet.org, voir `.env.example`).
 
+### Corrigé
+
+- **Photo cassée apres identification** (`PlantForm.tsx`) : constate en staging sur deux plantes creees via identification par photo. Cause reelle : la miniature du formulaire affiche `/uploads/...` AVANT que la plante existe (fichier pas encore rattache, voir `src/app/uploads/[filename]/route.ts`) -- l'optimiseur d'images Next.js tente alors un aller-retour serveur qui echoue, et MET EN CACHE cet echec, laissant la photo cassee meme une fois la plante sauvegardee. Le risque existait deja pour le televersement manuel classique mais etait rarement atteint (le flux d'identification atteint l'ecran de detail plus vite). Corrige en passant cette miniature en `unoptimized` inconditionnel (requete directe du navigateur, sans cache serveur a empoisonner).
+- **Nom en anglais malgre une fiche francaise disponible** (`src/server/plantnet/matching.ts`) : "Phalaenopsis cornu-cervi" (Pl@ntNet) n'a pas de correspondance exacte, mais la bibliotheque a bien "Phalaenopsis" -> "Orchidée papillon" (fiche generique au niveau du genre) -- ignoree par la correspondance stricte, donc secours sur le nom anglais brut de Pl@ntNet. Nouveau champ `genusLibraryEntry` : correspondance par genre seul, utilisee UNIQUEMENT comme nom d'appoint francais (jamais comme profil de soin, une espece precise pouvant avoir des besoins differents du genre).
+
 ### Décisions notables
 
 - Pas d'option "identifier" en mode edition d'une plante existante : le besoin exprime concernait uniquement l'ajout d'une nouvelle plante.

@@ -194,8 +194,12 @@ export default function PlantForm({
       applyLibraryEntry(candidate.libraryEntry as unknown as LibraryEntry);
       return;
     }
+    // Aucune fiche precise, mais peut-etre une fiche generique au niveau du
+    // genre (ex. "Phalaenopsis" -> "Orchidée papillon") : nom francais
+    // d'appoint, jamais applique comme profil de soin (voir matching.ts).
+    const fallbackName = candidate.genusLibraryEntry?.commonName ?? candidate.commonNames[0];
     if (!scientificName.trim()) setScientificName(candidate.scientificName);
-    if (!name.trim() && candidate.commonNames[0]) setName(candidate.commonNames[0]);
+    if (!name.trim() && fallbackName) setName(fallbackName);
     setSelectedLibraryName(null);
     setLibraryQuery(candidate.scientificName);
   }
@@ -507,7 +511,19 @@ export default function PlantForm({
             style={{ background: "var(--surface-alt)", color: "var(--secondary)" }}
           >
             {photoUrl ? (
-              <Image src={photoUrl} alt="" fill sizes="80px" className="object-cover" unoptimized={photoUrl.startsWith("http")} />
+              // unoptimized inconditionnel ICI (contrairement a PlantCard.tsx) :
+              // en mode creation, cette miniature affiche une photo /uploads/...
+              // AVANT que la plante existe -- l'optimiseur d'images Next.js fait
+              // alors un aller-retour serveur qui echoue (fichier pas encore
+              // rattache a une plante, voir src/app/uploads/[filename]/route.ts)
+              // et MET EN CACHE cet echec, laissant la photo cassee meme une
+              // fois la plante sauvegardee. Bug remonte le 2026-09-20 (photo
+              // issue de l'identification par photo, cree+affichee plus vite
+              // qu'un televersement manuel classique -- le meme risque existait
+              // deja avant, juste rarement atteint en pratique). unoptimized
+              // contourne l'optimiseur : requete directe du navigateur, sans
+              // cache serveur a empoisonner.
+              <Image src={photoUrl} alt="" fill sizes="80px" className="object-cover" unoptimized />
             ) : (
               <Sprout size={28} strokeWidth={1.5} />
             )}
