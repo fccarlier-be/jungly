@@ -80,6 +80,14 @@ export default async function SettingsPage() {
       </section>
 
       <section className="card p-4 space-y-2 text-sm">
+        <h2 className="font-semibold">Un avis à donner ?</h2>
+        <p className="text-muted">Bug, idée, remarque — ton retour compte, surtout pendant la bêta.</p>
+        <Link href="/feedback" className="chip inline-block rounded-lg py-2 px-4">
+          Donner mon avis
+        </Link>
+      </section>
+
+      <section className="card p-4 space-y-2 text-sm">
         <h2 className="font-semibold">À propos</h2>
         <p className="text-muted">Jungly — suivi et entretien de vos plantes.</p>
         <p className="text-muted text-xs">

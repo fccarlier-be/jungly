@@ -3,6 +3,19 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-20 — Formulaire de feedback bêta
+
+Demande utilisateur : un moyen pour les bêta-testeurs de donner leur avis, sans qu'un utilisateur déjà connecté dans l'app ait à se reconnecter ailleurs.
+
+### Ajouté
+
+- **Modèle `Feedback`** (`userId`, `content`, `createdAt`) : volontairement minimal, pas de statut/catégorie ici — le suivi en "tickets" (nouveau/en cours/résolu/fusionné) est prévu dans `jungly-admin` (déjà protégé par Cloudflare Access), qui devra agréger les retours des deux instances (personnelle + hébergée, deux bases séparées). Voir mémoire `jungly_feedback_ticket_roadmap_plan.md` pour le plan complet (pas encore construit).
+- **`POST /api/feedback`** (authentifié, limité à 10/heure/utilisateur) et page **`/feedback`**, accessible depuis Paramètres → "Donner mon avis".
+
+### Décisions notables
+
+- Pas de page dédiée sur le site vitrine (statique, domaine différent) : les cookies de session ne se partagent pas entre domaines, ça aurait forcé une reconnexion — l'inverse du besoin exprimé.
+
 ## [Post-MVP] - 2026-09-20 — Allègement du tableau de bord
 
 Retour utilisateur : gagner de la place sur l'écran d'accueil.

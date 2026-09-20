@@ -72,6 +72,7 @@ model User {
   weatherProfile        WeatherProfile?
   uploads               Upload[]
   passwordResetTokens   PasswordResetToken[]
+  feedbacks             Feedback[]
 }
 
 /**
@@ -88,6 +89,25 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/**
+ * Retour beta-testeur (2026-09-20) : simple texte libre envoye depuis
+ * Parametres. Volontairement minimal (pas de statut/categorie ici) -- le
+ * suivi en "tickets" (nouveau/en cours/resolu/fusionne) vit dans
+ * jungly-admin, pas ici, puisqu'il doit agreger les retours des DEUX
+ * instances (personnelle + hebergee, deux bases Prisma separees) : voir
+ * memoire jungly_feedback_ticket_roadmap_plan.md pour le plan complet.
+ */
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
