@@ -6,7 +6,7 @@ import { google } from "googleapis";
  * seule app, un seul package, identique pour tous les self-hosters comme
  * pour l'offre hebergee.
  */
-const PACKAGE_NAME = "org.fcold.plantes.twa";
+const PACKAGE_NAME = "org.fcold.jungly.twa";
 
 type PurchaseCheckResult = "valid_needs_ack" | "valid_acknowledged" | "not_purchased";
 
