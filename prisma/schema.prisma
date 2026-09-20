@@ -97,21 +97,40 @@ model PasswordResetToken {
 
 /**
  * Retour beta-testeur (2026-09-20) : simple texte libre envoye depuis
- * Parametres. Volontairement minimal (pas de statut/categorie ici) -- le
- * suivi en "tickets" (nouveau/en cours/resolu/fusionne) vit dans
- * jungly-admin, pas ici, puisqu'il doit agreger les retours des DEUX
- * instances (personnelle + hebergee, deux bases Prisma separees) : voir
- * memoire jungly_feedback_ticket_roadmap_plan.md pour le plan complet.
+ * Parametres. Volontairement minimal (pas de statut ici) -- le suivi en
+ * "tickets" (nouveau/en cours/resolu/fusionne) vit dans jungly-admin, pas
+ * ici, puisqu'il doit agreger les retours des DEUX instances (personnelle +
+ * hebergee, deux bases Prisma separees) : voir memoire
+ * jungly_feedback_ticket_roadmap_plan.md pour le plan complet.
+ *
+ * userId nullable : option "envoyer anonymement" (l'utilisateur reste
+ * authentifie pour acceder a /feedback et televerser une capture -- voir
+ * resolvePhotoUrl -- mais son identite n'est pas rattachee a CE retour).
+ * onDelete SetNull (pas Cascade, contrairement au reste du schema) :
+ * supprimer son compte ne doit pas effacer un retour deja envoye, utile
+ * meme une fois l'auteur parti -- juste le detacher.
  */
 model Feedback {
-  id        String   @id @default(cuid())
-  userId    String
+  id        String        @id @default(cuid())
+  userId    String?
+  topic     FeedbackTopic @default(AUTRE)
   content   String
-  createdAt DateTime @default(now())
+  photoUrl  String?
+  createdAt DateTime      @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+}
+
+enum FeedbackTopic {
+  ACCUEIL
+  TACHES
+  PLANTES
+  PARAMETRES
+  BIBLIOTHEQUE
+  ENGRAIS
+  AUTRE
 }
 
 // ---------------------------------------------------------------------------

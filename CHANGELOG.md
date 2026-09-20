@@ -11,6 +11,7 @@ Demande utilisateur : un moyen pour les bêta-testeurs de donner leur avis, sans
 
 - **Modèle `Feedback`** (`userId`, `content`, `createdAt`) : volontairement minimal, pas de statut/catégorie ici — le suivi en "tickets" (nouveau/en cours/résolu/fusionné) est prévu dans `jungly-admin` (déjà protégé par Cloudflare Access), qui devra agréger les retours des deux instances (personnelle + hébergée, deux bases séparées). Voir mémoire `jungly_feedback_ticket_roadmap_plan.md` pour le plan complet (pas encore construit).
 - **`POST /api/feedback`** (authentifié, limité à 10/heure/utilisateur) et page **`/feedback`**, accessible depuis Paramètres → "Donner mon avis".
+- Retour utilisateur (même jour, après premier test) : ajout d'un **thème prédéfini** (Accueil/Tâches/Mes plantes/Paramètres/Bibliothèque/Engrais/Autre), d'une **capture d'écran optionnelle** (réutilise `/api/uploads`), et d'une option **"envoyer anonymement"** (`userId` désormais nullable sur `Feedback`, `onDelete: SetNull` plutôt que `Cascade` — supprimer son compte ne doit pas effacer un retour déjà envoyé). L'authentification reste requise pour accéder à `/feedback` et téléverser une capture ; l'anonymat ne s'applique qu'à l'identité rattachée au retour, pas à l'accès lui-même.
 
 ### Décisions notables
 

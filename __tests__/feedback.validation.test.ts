@@ -26,4 +26,25 @@ describe("createFeedbackSchema", () => {
     const r = createFeedbackSchema.safeParse({ content: "a".repeat(4001) });
     expect(r.success).toBe(false);
   });
+
+  it("applique AUTRE et anonymous=false par defaut", () => {
+    const r = createFeedbackSchema.safeParse({ content: "Un retour." });
+    expect(r.success && r.data.topic).toBe("AUTRE");
+    expect(r.success && r.data.anonymous).toBe(false);
+  });
+
+  it("accepte un theme valide et anonymous=true", () => {
+    const r = createFeedbackSchema.safeParse({ content: "Bug sur les taches.", topic: "TACHES", anonymous: true });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejette un theme inconnu", () => {
+    const r = createFeedbackSchema.safeParse({ content: "Un retour.", topic: "INCONNU" });
+    expect(r.success).toBe(false);
+  });
+
+  it("accepte une capture d'ecran (photoUrl)", () => {
+    const r = createFeedbackSchema.safeParse({ content: "Un retour.", photoUrl: "/uploads/abc.jpg" });
+    expect(r.success).toBe(true);
+  });
 });
