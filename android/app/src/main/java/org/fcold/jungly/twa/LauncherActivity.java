@@ -44,9 +44,13 @@ public class LauncherActivity
         // Oreo and below. We only set the orientation on Oreo and above. This only affects the
         // splash screen and Chrome will still respect the orientation.
         // See https://github.com/GoogleChromeLabs/bubblewrap/issues/496 for details.
+        //
+        // Bug corrige le 2026-09-21 : les deux branches appelaient
+        // setRequestedOrientation(), annulant completement la garde -- crash
+        // au demarrage constate sur un Galaxy Tab Android 7.0 (IllegalStateException
+        // "Only fullscreen activities can request orientation" sur un theme
+        // transparent, exactement le crash que ce if/else est cense eviter).
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.O) {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-        } else {
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         }
     }

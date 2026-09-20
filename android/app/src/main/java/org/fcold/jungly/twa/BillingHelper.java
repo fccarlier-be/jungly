@@ -1,6 +1,8 @@
 package org.fcold.jungly.twa;
 
 import android.app.Activity;
+import android.os.Handler;
+import android.os.Looper;
 
 import com.android.billingclient.api.BillingClient;
 import com.android.billingclient.api.BillingClientStateListener;
@@ -45,9 +47,18 @@ final class BillingHelper implements PurchasesUpdatedListener {
         void onCancelled();
     }
 
+    // Certains environnements (Play Store absent/mal configure -- ex. emulateurs
+    // PC comme MuMuPlayer) ne declenchent NI onBillingSetupFinished NI
+    // onBillingServiceDisconnected : startConnection() ne rappelle jamais,
+    // laissant l'ecran "Connexion à Google Play…" tourner indefiniment. La
+    // librairie Billing n'offre aucun timeout integre -- on en pose un nous-memes.
+    private static final long CONNECTION_TIMEOUT_MS = 10_000;
+
     private final Activity activity;
     private final Listener listener;
     private final BillingClient billingClient;
+    private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
+    private boolean setupResolved;
 
     BillingHelper(Activity activity, Listener listener) {
         this.activity = activity;
@@ -67,9 +78,20 @@ final class BillingHelper implements PurchasesUpdatedListener {
      * retrouver a payer une seconde fois.
      */
     void startPurchase() {
+        setupResolved = false;
+        Runnable timeout = () -> {
+            if (setupResolved) return;
+            setupResolved = true;
+            listener.onError("Connexion à Google Play trop longue. Vérifiez que le Play Store est installé, à jour et que vous êtes connecté à un compte Google, puis réessayez.");
+        };
+        timeoutHandler.postDelayed(timeout, CONNECTION_TIMEOUT_MS);
+
         billingClient.startConnection(new BillingClientStateListener() {
             @Override
             public void onBillingSetupFinished(BillingResult billingResult) {
+                if (setupResolved) return; // le timeout a deja resolu (erreur affichee)
+                setupResolved = true;
+                timeoutHandler.removeCallbacks(timeout);
                 if (billingResult.getResponseCode() != BillingClient.BillingResponseCode.OK) {
                     listener.onError("Connexion à Google Play impossible (" + billingResult.getDebugMessage() + ").");
                     return;
@@ -168,6 +190,7 @@ final class BillingHelper implements PurchasesUpdatedListener {
     }
 
     void endConnection() {
+        timeoutHandler.removeCallbacksAndMessages(null);
         billingClient.endConnection();
     }
 }
