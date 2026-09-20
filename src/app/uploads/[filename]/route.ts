@@ -28,15 +28,25 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const { filename } = await params;
     const url = `/uploads/${filename}`;
 
-    const owned = await db.plant.findFirst({
-      where: {
-        userId,
-        OR: [{ photoUrl: url }, { photos: { some: { url } } }, { plantNotes: { some: { photoUrl: url } } }],
-      },
-      select: { id: true },
-    });
-    if (!owned) {
-      throw new NotFoundError("Ce fichier n'existe plus.");
+    // Retour utilisateur (2026-09-20) : l'apercu du formulaire de creation
+    // affiche ce fichier AVANT qu'il soit rattache a une plante -- restait
+    // 404 jusqu'ici (voir plus bas), acceptable pour un televersement
+    // manuel classique (l'utilisateur ne fixe pas la miniature), mais trop
+    // visible avec l'identification par photo. La ligne Upload (creee des
+    // le televersement, voir /api/uploads) suffit a prouver que CE compte
+    // est bien l'auteur du fichier, sans attendre qu'il soit attache.
+    const upload = await db.upload.findUnique({ where: { filename }, select: { userId: true } });
+    if (upload?.userId !== userId) {
+      const owned = await db.plant.findFirst({
+        where: {
+          userId,
+          OR: [{ photoUrl: url }, { photos: { some: { url } } }, { plantNotes: { some: { photoUrl: url } } }],
+        },
+        select: { id: true },
+      });
+      if (!owned) {
+        throw new NotFoundError("Ce fichier n'existe plus.");
+      }
     }
 
     const data = await readFile(resolveUploadedFilePath(filename));
