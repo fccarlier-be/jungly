@@ -9,6 +9,7 @@ import { Check, Sprout } from "lucide-react";
 import { formatRelativeDueDate } from "@/lib/units";
 import { CareTypeIcon, careSoftBackground } from "@/components/careIcons";
 import SwipeableCard from "@/components/SwipeableCard";
+import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 
 export interface TaskCardData {
   id: string;
@@ -171,7 +172,7 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
               fill
               sizes="56px"
               className="object-cover"
-              unoptimized={task.plantImage.startsWith("http")}
+              unoptimized={bypassesImageOptimizer(task.plantImage)}
             />
           ) : (
             <Sprout size={22} strokeWidth={1.5} style={{ color: "var(--secondary)" }} />

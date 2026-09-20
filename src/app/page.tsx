@@ -12,6 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import NoScrollDashboard from "@/components/NoScrollDashboard";
 import UpcomingTaskCard from "@/components/UpcomingTaskCard";
 import { getLibraryImageMap } from "@/lib/libraryImages";
+import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -251,7 +252,7 @@ export default async function DashboardPage() {
                       fill
                       sizes="64px"
                       className="object-cover"
-                      unoptimized={plant.image.startsWith("http")}
+                      unoptimized={bypassesImageOptimizer(plant.image)}
                     />
                   ) : (
                     <Sprout size={22} strokeWidth={1.5} style={{ color: "var(--secondary)" }} />

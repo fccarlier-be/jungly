@@ -9,6 +9,7 @@ import { CareTypeIcon } from "@/components/careIcons";
 import ExternalSpeciesSearch from "@/components/ExternalSpeciesSearch";
 import PlantPhotoIdentify, { type IdentifiedCandidate } from "@/components/PlantPhotoIdentify";
 import { mmToInputUnit, inputUnitToMm, type UnitSystem } from "@/lib/units";
+import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 import {
   SUBSTRATE_TYPE_OPTIONS,
   normalizeWateringIntervalDays,
@@ -511,19 +512,7 @@ export default function PlantForm({
             style={{ background: "var(--surface-alt)", color: "var(--secondary)" }}
           >
             {photoUrl ? (
-              // unoptimized inconditionnel ICI (contrairement a PlantCard.tsx) :
-              // en mode creation, cette miniature affiche une photo /uploads/...
-              // AVANT que la plante existe -- l'optimiseur d'images Next.js fait
-              // alors un aller-retour serveur qui echoue (fichier pas encore
-              // rattache a une plante, voir src/app/uploads/[filename]/route.ts)
-              // et MET EN CACHE cet echec, laissant la photo cassee meme une
-              // fois la plante sauvegardee. Bug remonte le 2026-09-20 (photo
-              // issue de l'identification par photo, cree+affichee plus vite
-              // qu'un televersement manuel classique -- le meme risque existait
-              // deja avant, juste rarement atteint en pratique). unoptimized
-              // contourne l'optimiseur : requete directe du navigateur, sans
-              // cache serveur a empoisonner.
-              <Image src={photoUrl} alt="" fill sizes="80px" className="object-cover" unoptimized />
+              <Image src={photoUrl} alt="" fill sizes="80px" className="object-cover" unoptimized={bypassesImageOptimizer(photoUrl)} />
             ) : (
               <Sprout size={28} strokeWidth={1.5} />
             )}

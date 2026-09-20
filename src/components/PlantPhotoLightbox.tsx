@@ -3,6 +3,7 @@
 import { useEffect, useState, type TouchEvent } from "react";
 import Image from "next/image";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 
 const SWIPE_THRESHOLD_PX = 40;
 
@@ -83,7 +84,7 @@ export default function PlantPhotoLightbox({
           fill
           sizes="100vw"
           className="object-contain"
-          unoptimized={photos[index].startsWith("http")}
+          unoptimized={bypassesImageOptimizer(photos[index])}
         />
         {index < photos.length - 1 && (
           <button

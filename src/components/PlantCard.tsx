@@ -4,6 +4,7 @@ import { Sprout, TriangleAlert } from "lucide-react";
 import { formatRelativeDueDate } from "@/lib/units";
 import { computePlantStatus } from "@/lib/plantStatus";
 import { CareTypeIcon } from "@/components/careIcons";
+import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 
 export interface PlantCardData {
   id: string;
@@ -49,9 +50,10 @@ export default function PlantCard({ plant }: { plant: PlantCardData }) {
             className="object-cover transition-transform duration-300 group-hover:scale-105"
             // image peut rester une URL externe brute si le mirroring a
             // echoue (best-effort, voir resolvePhotoUrl) -- unoptimized
-            // contourne alors la restriction remotePatterns sans crasher,
-            // au prix de l'optimisation pour ce seul cas rare.
-            unoptimized={image.startsWith("http")}
+            // contourne alors la restriction remotePatterns sans crasher.
+            // Contourne aussi la regression Next.js sur /uploads/... (photo
+            // privee, voir src/lib/imageOptimization.ts).
+            unoptimized={bypassesImageOptimizer(image)}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center" style={{ color: "var(--secondary)" }}>

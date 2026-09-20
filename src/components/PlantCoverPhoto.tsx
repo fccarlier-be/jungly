@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Sprout } from "lucide-react";
 import { usePhotoViewer } from "./PhotoViewerProvider";
+import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 
 export default function PlantCoverPhoto({
   photos,
@@ -38,7 +39,7 @@ export default function PlantCoverPhoto({
         fill
         sizes="(max-width: 640px) 100vw, 800px"
         className="object-cover"
-        unoptimized={displayUrl.startsWith("http")}
+        unoptimized={bypassesImageOptimizer(displayUrl)}
       />
     </button>
   );

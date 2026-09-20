@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Star, Trash2, Plus } from "lucide-react";
 import { usePhotoViewer } from "./PhotoViewerProvider";
+import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 
 export interface GalleryPhoto {
   id: string;
@@ -134,7 +135,7 @@ export default function PlantPhotoGallery({
                     fill
                     sizes="(max-width: 640px) 33vw, 200px"
                     className="object-cover"
-                    unoptimized={photo.url.startsWith("http")}
+                    unoptimized={bypassesImageOptimizer(photo.url)}
                   />
                 </button>
                 {isCover && (
