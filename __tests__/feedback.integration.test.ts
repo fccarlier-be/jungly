@@ -5,7 +5,8 @@ vi.mock("@/lib/email", () => ({ sendEmail: vi.fn() }));
 
 import { sendEmail } from "@/lib/email";
 import { createFeedback } from "@/server/feedback";
-import { listFeedbackDetailed } from "@/server/adminPanel";
+import { listFeedbackDetailed, deleteFeedback } from "@/server/adminPanel";
+import { NotFoundError } from "@/lib/errors";
 
 /**
  * Retour utilisateur (2026-09-20) : formulaire de feedback beta-testeur,
@@ -90,5 +91,17 @@ describe("createFeedback (integration reelle SQLite)", () => {
     expect(stored.content).toBe("Retour avant suppression du compte.");
 
     await db.feedback.delete({ where: { id: feedback.id } });
+  });
+
+  it("deleteFeedback supprime le retour (ex. contenu de test)", async () => {
+    const feedback = await createFeedback(userId, { summary: "À supprimer", content: "Contenu de test.", topic: "AUTRE", anonymous: false });
+
+    await deleteFeedback(feedback.id);
+
+    await expect(db.feedback.findUniqueOrThrow({ where: { id: feedback.id } })).rejects.toThrow();
+  });
+
+  it("deleteFeedback refuse un identifiant inconnu", async () => {
+    await expect(deleteFeedback("inconnu")).rejects.toThrow(NotFoundError);
   });
 });

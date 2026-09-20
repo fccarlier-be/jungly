@@ -3,6 +3,15 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-20 — Suppression admin d'un retour de feedback
+
+Retour utilisateur : besoin de supprimer un ticket créé par erreur (contenu de test) depuis l'admin.
+
+### Ajouté
+
+- **`DELETE /api/internal/admin/feedback/{id}`** (protégé par le secret partagé) + `deleteFeedback()` dans `adminPanel.ts`. Suppression définitive (pas de corbeille) — la capture d'écran éventuellement associée n'est pas touchée directement, `collectOrphanFiles()` la nettoiera d'elle-même après son délai de grâce, comme pour tout autre `Upload` orphelin.
+- Côté `jungly-admin` : bouton "Supprimer ce ticket" (avec confirmation) dans `tickets.html`, relayé via `DELETE /api/tickets/{instance}/{feedback_id}` — supprime d'abord côté Jungly, puis la métadonnée locale (statut/titre/fusion) uniquement si la suppression amont a réussi, pour ne jamais perdre cette métadonnée pour un retour qui existe encore.
+
 ## [Post-MVP] - 2026-09-20 — Résumé court sur un retour de feedback
 
 Retour utilisateur : la page publique de suivi des tickets (`jungly-admin` + site vitrine) n'affichait que le thème générique en titre — besoin d'un vrai résumé écrit par l'auteur.

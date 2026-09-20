@@ -73,6 +73,21 @@ export async function listFeedbackDetailed(): Promise<FeedbackDetail[]> {
   }));
 }
 
+/**
+ * Suppression admin d'un retour (ex. contenu de test envoye par erreur en
+ * prod, ou demande de retrait de l'auteur). Ne touche jamais au fichier de
+ * capture d'ecran associe -- collectOrphanFiles() (voir fileGarbageCollector.ts)
+ * le nettoiera de lui-meme apres son delai de grace, meme mecanisme que pour
+ * n'importe quel autre Upload devenu orphelin.
+ */
+export async function deleteFeedback(id: string): Promise<void> {
+  const feedback = await db.feedback.findUnique({ where: { id } });
+  if (!feedback) {
+    throw new NotFoundError("Retour introuvable.");
+  }
+  await db.feedback.delete({ where: { id } });
+}
+
 export interface AccountSummary {
   email: string;
   name: string | null;
