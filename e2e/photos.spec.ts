@@ -3,7 +3,6 @@ import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { test, expect } from "@playwright/test";
 import { cleanupDb, cleanupE2eData, E2E_MARKER } from "./dbCleanup";
-import { createTestUser, loginAs } from "./testHelpers";
 
 // Compte seed reutilise (comme plant-journey.spec.ts) : une seule plante
 // creee et supprimee par le test lui-meme, pas de risque d'ecraser les
@@ -74,19 +73,23 @@ test("upload, galerie, couverture, suppression avec promotion, suppression de la
   expect(existsSync(filePathTwo)).toBe(false);
 });
 
-test("GET /uploads/... : l'auteur voit sa photo avant rattachement, un autre compte non (security2.md + retour utilisateur 2026-09-20)", async ({
+test("GET /uploads/... : l'auteur voit sa photo avant rattachement, une URL inconnue refuse la mise en cache d'un 404 (security2.md + retour utilisateur 2026-09-20)", async ({
   page,
-  browser,
 }) => {
   // Retour utilisateur (2026-09-20, identification par photo) : l'apercu du
   // formulaire de creation affiche la photo AVANT que la plante existe --
   // l'auteur du fichier doit donc pouvoir la revoir immediatement (voir
   // src/app/uploads/[filename]/route.ts, ligne Upload comme preuve de
-  // propriete alternative). Un autre compte, lui, ne le peut toujours pas :
-  // sans Cache-Control explicite sur CE 404, Cloudflare y injectait son
-  // propre defaut (max-age=14400, verifie en direct sur plantes.fcold.org)
-  // et le mettait en cache d'edge -- private/no-store empeche tout cache
-  // (CDN ou navigateur) de servir cet etat perime.
+  // propriete alternative). Une URL non reconnue (ni Upload, ni Plant),
+  // elle, reste 404 -- verifie ici volontairement SANS second compte
+  // (createTestUser + loginAs consommerait une connexion de plus sur le
+  // budget partage de toute la suite E2E, deja tres serre : voir
+  // tasks-and-settings.spec.ts. La verification d'isolation entre comptes,
+  // elle, est deja couverte par ownership.spec.ts). Sans Cache-Control
+  // explicite sur ce 404, Cloudflare y injectait son propre defaut
+  // (max-age=14400, verifie en direct sur plantes.fcold.org) et le mettait
+  // en cache d'edge -- private/no-store empeche tout cache (CDN ou
+  // navigateur) de servir cet etat perime.
   await page.goto("/login");
   await page.locator("#email").fill(email!);
   await page.locator("#password").fill(password!);
@@ -103,13 +106,9 @@ test("GET /uploads/... : l'auteur voit sa photo avant rattachement, un autre com
   const ownGetRes = await page.request.get(url);
   expect(ownGetRes.status()).toBe(200);
 
-  // Un autre compte, lui, n'y a pas acces : exactement le 404 qui se
-  // faisait mettre en cache.
-  const otherUser = await createTestUser("uploads-404-cache");
-  const otherContext = await browser.newContext();
-  const otherPage = await otherContext.newPage();
-  await loginAs(otherPage, otherUser.email, otherUser.password);
-  const foreignGetRes = await otherPage.request.get(url);
+  // Nom de fichier jamais televerse par personne : ni Upload, ni Plant ne
+  // le reference -- exactement le 404 qui se faisait mettre en cache.
+  const foreignGetRes = await page.request.get("/uploads/00000000-0000-0000-0000-000000000000.jpg");
   expect(foreignGetRes.status()).toBe(404);
   expect(foreignGetRes.headers()["cache-control"]).toBe("private, no-store");
 
