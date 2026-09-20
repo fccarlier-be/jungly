@@ -12,10 +12,12 @@ Demande utilisateur : un moyen pour les bêta-testeurs de donner leur avis, sans
 - **Modèle `Feedback`** (`userId`, `content`, `createdAt`) : volontairement minimal, pas de statut/catégorie ici — le suivi en "tickets" (nouveau/en cours/résolu/fusionné) est prévu dans `jungly-admin` (déjà protégé par Cloudflare Access), qui devra agréger les retours des deux instances (personnelle + hébergée, deux bases séparées). Voir mémoire `jungly_feedback_ticket_roadmap_plan.md` pour le plan complet (pas encore construit).
 - **`POST /api/feedback`** (authentifié, limité à 10/heure/utilisateur) et page **`/feedback`**, accessible depuis Paramètres → "Donner mon avis".
 - Retour utilisateur (même jour, après premier test) : ajout d'un **thème prédéfini** (Accueil/Tâches/Mes plantes/Paramètres/Bibliothèque/Engrais/Autre), d'une **capture d'écran optionnelle** (réutilise `/api/uploads`), et d'une option **"envoyer anonymement"** (`userId` désormais nullable sur `Feedback`, `onDelete: SetNull` plutôt que `Cascade` — supprimer son compte ne doit pas effacer un retour déjà envoyé). L'authentification reste requise pour accéder à `/feedback` et téléverser une capture ; l'anonymat ne s'applique qu'à l'identité rattachée au retour, pas à l'accès lui-même.
+- **Email de confirmation** (`src/server/feedback.ts`) envoyé à la vraie adresse de la session à chaque retour (même anonyme) avec un lien vers la page publique de suivi des tickets.
+- **`GET /api/internal/admin/feedback`** (protégé par le secret partagé, même motif que les routes internes existantes) : expose les retours à `jungly-admin`, qui construit désormais le système de tickets complet dessus (agrégation des deux instances, statut nouveau/en cours/résolu, fusion de doublons, page publique en lecture seule sur le site vitrine). Voir le dépôt `jungly-admin` pour le détail — nécessite une exception de chemin Cloudflare Access pour `/api/tickets/public` (action manuelle, la seule restante).
 
 ### Décisions notables
 
-- Pas de page dédiée sur le site vitrine (statique, domaine différent) : les cookies de session ne se partagent pas entre domaines, ça aurait forcé une reconnexion — l'inverse du besoin exprimé.
+- Pas de page dédiée sur le site vitrine pour le FORMULAIRE (statique, domaine différent) : les cookies de session ne se partagent pas entre domaines, ça aurait forcé une reconnexion — l'inverse du besoin exprimé. La page de SUIVI des tickets, elle, est bien sur le site vitrine (lecture seule, sans authentification, données déjà anonymisées côté `jungly-admin`).
 
 ## [Post-MVP] - 2026-09-20 — Allègement du tableau de bord
 

@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { createFeedbackSchema } from "@/server/validation/feedback";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
-import { resolvePhotoUrl } from "@/server/uploads";
+import { createFeedback } from "@/server/feedback";
 
 export async function POST(request: NextRequest) {
   try {
     // Toujours la vraie session, meme pour un retour anonyme : necessaire
-    // pour la limite de debit et pour verifier la propriete d'une capture
-    // d'ecran jointe (resolvePhotoUrl) -- l'anonymat ne s'applique qu'au
-    // champ userId ENREGISTRE sur le retour, jamais a l'authentification
-    // elle-meme (deja exigee pour simplement acceder a /feedback).
+    // pour la limite de debit, l'email de confirmation, et pour verifier la
+    // propriete d'une capture d'ecran jointe -- l'anonymat ne s'applique
+    // qu'au champ userId ENREGISTRE sur le retour, jamais a
+    // l'authentification elle-meme (deja exigee pour acceder a /feedback).
     const sessionUserId = await requireUserId();
 
     // Anti-spam simple : un beta-testeur n'a besoin d'envoyer que quelques
@@ -24,16 +23,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const input = createFeedbackSchema.parse(body);
-    const photoUrl = await resolvePhotoUrl(sessionUserId, input.photoUrl);
-
-    const feedback = await db.feedback.create({
-      data: {
-        userId: input.anonymous ? null : sessionUserId,
-        topic: input.topic,
-        content: input.content,
-        photoUrl,
-      },
-    });
+    const feedback = await createFeedback(sessionUserId, input);
     return NextResponse.json(feedback, { status: 201 });
   } catch (error) {
     return handleApiError(error);

@@ -36,6 +36,36 @@ export async function listBetaSignupsDetailed(): Promise<BetaSignupDetail[]> {
   }));
 }
 
+export interface FeedbackDetail {
+  id: string;
+  topic: string;
+  content: string;
+  photoUrl: string | null;
+  createdAt: string;
+  email: string | null;
+}
+
+/**
+ * email null pour un retour envoye anonymement (userId null sur Feedback --
+ * voir schema.prisma) OU dont l'auteur a depuis supprime son compte
+ * (onDelete SetNull) : les deux cas sont indiscernables ici, deliberement --
+ * jungly-admin n'a jamais a savoir lequel.
+ */
+export async function listFeedbackDetailed(): Promise<FeedbackDetail[]> {
+  const rows = await db.feedback.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { user: { select: { email: true } } },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    topic: r.topic,
+    content: r.content,
+    photoUrl: r.photoUrl,
+    createdAt: r.createdAt.toISOString(),
+    email: r.user?.email ?? null,
+  }));
+}
+
 export interface AccountSummary {
   email: string;
   name: string | null;
