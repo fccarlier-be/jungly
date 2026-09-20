@@ -3,6 +3,15 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-20 — Allègement du tableau de bord
+
+Retour utilisateur : gagner de la place sur l'écran d'accueil.
+
+### Corrigé
+
+- **`src/app/page.tsx`** : le message d'accueil se limite désormais à "Bonjour"/"Bonsoir" -- "Bon après-midi" était plus long et passait sur deux lignes sur mobile, décalant tout l'écran.
+- Suppression du bandeau d'icônes de tâches avec leur nombre (ex. 🚿 3) au-dessus de la liste des tâches du jour : faisait double emploi avec cette même liste, juste en dessous.
+
 ## [Post-MVP] - 2026-09-20 — Identification d'une plante par photo (Pl@ntNet)
 
 Retour de deux utilisateurs : possibilite d'identifier une plante a partir d'une photo. Un essai interne avait deja ete tente il y a plus d'un an sans bon resultat. Un test manuel du 2026-09-20 sur 4 vraies photos de plantes Jungly (organe "leaf" precise explicitement) a donne 3 identifications exactes a plus de 70% de confiance et une quatrieme juste au niveau du genre -- nettement mieux qu'attendu, retenu pour implementation.

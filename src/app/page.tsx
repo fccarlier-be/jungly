@@ -6,7 +6,6 @@ import { auth } from "@/server/auth";
 import { db } from "@/server/db";
 import { dueTasksWhere, effectiveDueDate } from "@/server/careEngine/dueTasks";
 import { multiplierShortLabel } from "@/server/weather/multiplier";
-import { CareTypeIcon } from "@/components/careIcons";
 import TaskCard, { type TaskCardData } from "@/components/TaskCard";
 import EmptyState from "@/components/EmptyState";
 import NoScrollDashboard from "@/components/NoScrollDashboard";
@@ -14,11 +13,11 @@ import UpcomingTaskCard from "@/components/UpcomingTaskCard";
 import { getLibraryImageMap } from "@/lib/libraryImages";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 
+// Seulement "Bonjour"/"Bonsoir" (retour utilisateur) : "Bon après-midi" est
+// plus long et passait sur deux lignes sur mobile, decalant tout l'ecran.
 function greeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return "Bonjour";
-  if (hour < 18) return "Bon après-midi";
-  return "Bonsoir";
+  return hour < 18 ? "Bonjour" : "Bonsoir";
 }
 
 function heroMessage(taskCount: number, overdueCount: number): string {
@@ -108,11 +107,6 @@ export default async function DashboardPage() {
     };
   });
 
-  const counts: Record<string, number> = {};
-  for (const task of tasks) {
-    counts[task.type] = (counts[task.type] ?? 0) + 1;
-  }
-
   // Aperçu de ce qui arrive ensuite, qu'il y ait deja des taches dues
   // aujourd'hui ou non (exclut celles deja dues, deja listees dans `cards`).
   let nextUp: { id: string; type: string; title: string; plantName: string; effectiveDate: Date }[] = [];
@@ -159,17 +153,6 @@ export default async function DashboardPage() {
 
       <NoScrollDashboard>
         <div className="space-y-7">
-          {Object.keys(counts).length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(counts).map(([type, count]) => (
-                <span key={type} className="card flex items-center gap-1.5 px-3 py-1.5 text-sm">
-                  <CareTypeIcon type={type} size={16} className="text-current" />
-                  {count}
-                </span>
-              ))}
-            </div>
-          )}
-
           {cards.length === 0 ? (
             plantCount === 0 ? (
               <EmptyState
