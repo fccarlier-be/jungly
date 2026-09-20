@@ -3,6 +3,15 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-20 — Résumé court sur un retour de feedback
+
+Retour utilisateur : la page publique de suivi des tickets (`jungly-admin` + site vitrine) n'affichait que le thème générique en titre — besoin d'un vrai résumé écrit par l'auteur.
+
+### Ajouté
+
+- **`Feedback.summary`** (obligatoire, ≤120 caractères) : nouveau champ dans `FeedbackForm.tsx` ("Résume ton retour en une phrase"), au-dessus du contenu détaillé (désormais "Détaille ton retour"). C'est ce résumé qui sert de titre sur la page publique de suivi, avec l'auteur (nom, ou "Anonyme").
+- **`listFeedbackDetailed()`** expose aussi `name` (en plus de `email`, réservé à l'admin) pour permettre à `jungly-admin` d'afficher l'auteur sur la page publique — indiscernable entre "envoyé anonymement" et "compte depuis supprimé" (les deux donnent `userId: null`), par choix.
+
 ## [Post-MVP] - 2026-09-20 — Formulaire de feedback bêta
 
 Demande utilisateur : un moyen pour les bêta-testeurs de donner leur avis, sans qu'un utilisateur déjà connecté dans l'app ait à se reconnecter ailleurs.

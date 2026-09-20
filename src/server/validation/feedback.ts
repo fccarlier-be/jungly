@@ -3,6 +3,7 @@ import { z } from "zod";
 export const FEEDBACK_TOPICS = ["ACCUEIL", "TACHES", "PLANTES", "PARAMETRES", "BIBLIOTHEQUE", "ENGRAIS", "AUTRE"] as const;
 
 export const createFeedbackSchema = z.object({
+  summary: z.string().trim().min(1).max(120),
   content: z.string().trim().min(1).max(4000),
   topic: z.enum(FEEDBACK_TOPICS).default("AUTRE"),
   // Capture d'ecran deja televersee via /api/uploads -- voir resolvePhotoUrl

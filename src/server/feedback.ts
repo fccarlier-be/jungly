@@ -40,6 +40,7 @@ export async function createFeedback(sessionUserId: string, input: CreateFeedbac
     data: {
       userId: input.anonymous ? null : sessionUserId,
       topic: input.topic,
+      summary: input.summary,
       content: input.content,
       photoUrl,
     },

@@ -17,7 +17,7 @@ describe("createFeedback (integration reelle SQLite)", () => {
   const email = `test-feedback-${Date.now()}@example.com`;
 
   beforeAll(async () => {
-    const user = await db.user.create({ data: { email, passwordHash: "x" } });
+    const user = await db.user.create({ data: { email, name: "Testeur Bêta", passwordHash: "x" } });
     userId = user.id;
   });
 
@@ -32,9 +32,15 @@ describe("createFeedback (integration reelle SQLite)", () => {
   });
 
   it("enregistre le retour avec l'identite de l'auteur et envoie la confirmation", async () => {
-    const feedback = await createFeedback(userId, { content: "Un bug sur les tâches.", topic: "TACHES", anonymous: false });
+    const feedback = await createFeedback(userId, {
+      summary: "Bug sur les tâches",
+      content: "Un bug sur les tâches.",
+      topic: "TACHES",
+      anonymous: false,
+    });
 
     expect(feedback.userId).toBe(userId);
+    expect(feedback.summary).toBe("Bug sur les tâches");
     expect(feedback.topic).toBe("TACHES");
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
@@ -42,28 +48,40 @@ describe("createFeedback (integration reelle SQLite)", () => {
   });
 
   it("n'enregistre pas l'identite de l'auteur quand anonymous=true, mais envoie quand meme la confirmation", async () => {
-    const feedback = await createFeedback(userId, { content: "Retour anonyme.", topic: "AUTRE", anonymous: true });
+    const feedback = await createFeedback(userId, {
+      summary: "Retour anonyme",
+      content: "Retour anonyme.",
+      topic: "AUTRE",
+      anonymous: true,
+    });
 
     expect(feedback.userId).toBeNull();
     expect(sendEmail).toHaveBeenCalledTimes(1);
     expect(vi.mocked(sendEmail).mock.calls[0][0]).toBe(email);
   });
 
-  it("listFeedbackDetailed ne revele pas l'email d'un retour anonyme", async () => {
-    await createFeedback(userId, { content: "Retour anonyme 2.", topic: "AUTRE", anonymous: true });
-    await createFeedback(userId, { content: "Retour identifie.", topic: "AUTRE", anonymous: false });
+  it("listFeedbackDetailed ne revele ni l'email ni le nom d'un retour anonyme, mais les deux sinon", async () => {
+    await createFeedback(userId, { summary: "Anonyme 2", content: "Retour anonyme 2.", topic: "AUTRE", anonymous: true });
+    await createFeedback(userId, { summary: "Identifié", content: "Retour identifie.", topic: "AUTRE", anonymous: false });
 
     const rows = await listFeedbackDetailed();
     const anonymous = rows.find((r) => r.content === "Retour anonyme 2.");
     const identified = rows.find((r) => r.content === "Retour identifie.");
 
     expect(anonymous?.email).toBeNull();
+    expect(anonymous?.name).toBeNull();
     expect(identified?.email).toBe(email);
+    expect(identified?.name).toBe("Testeur Bêta");
   });
 
   it("un compte supprime detache le retour (SetNull) sans le supprimer", async () => {
     const disposableUser = await db.user.create({ data: { email: `test-feedback-disposable-${Date.now()}@example.com`, passwordHash: "x" } });
-    const feedback = await createFeedback(disposableUser.id, { content: "Retour avant suppression du compte.", topic: "AUTRE", anonymous: false });
+    const feedback = await createFeedback(disposableUser.id, {
+      summary: "Avant suppression",
+      content: "Retour avant suppression du compte.",
+      topic: "AUTRE",
+      anonymous: false,
+    });
 
     await db.user.delete({ where: { id: disposableUser.id } });
 

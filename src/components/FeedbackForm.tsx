@@ -16,6 +16,7 @@ const TOPIC_OPTIONS: { value: string; label: string }[] = [
 ];
 
 export default function FeedbackForm() {
+  const [summary, setSummary] = useState("");
   const [content, setContent] = useState("");
   const [topic, setTopic] = useState("AUTRE");
   const [anonymous, setAnonymous] = useState(false);
@@ -53,7 +54,7 @@ export default function FeedbackForm() {
       const res = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, topic, anonymous, photoUrl: photoUrl || undefined }),
+        body: JSON.stringify({ summary, content, topic, anonymous, photoUrl: photoUrl || undefined }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -61,6 +62,7 @@ export default function FeedbackForm() {
         return;
       }
       setSent(true);
+      setSummary("");
       setContent("");
       setTopic("AUTRE");
       setAnonymous(false);
@@ -97,8 +99,26 @@ export default function FeedbackForm() {
       </div>
 
       <div className="space-y-1">
+        <label htmlFor="feedback-summary" className="text-sm font-medium">
+          Résume ton retour en une phrase
+        </label>
+        <input
+          id="feedback-summary"
+          type="text"
+          required
+          minLength={1}
+          maxLength={120}
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          placeholder="Ex. La photo de la plante ne s'affiche pas"
+          className="input w-full px-3 py-2 text-sm"
+        />
+        <p className="text-muted text-xs">C&apos;est ce titre qui sera visible (avec ton nom, ou « anonyme ») sur la page de suivi des retours.</p>
+      </div>
+
+      <div className="space-y-1">
         <label htmlFor="feedback-content" className="text-sm font-medium">
-          Ton retour
+          Détaille ton retour
         </label>
         <textarea
           id="feedback-content"
@@ -151,7 +171,7 @@ export default function FeedbackForm() {
 
       <button
         type="submit"
-        disabled={loading || uploading || !content.trim()}
+        disabled={loading || uploading || !summary.trim() || !content.trim()}
         className="btn-primary w-full rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
       >
         {loading ? "Envoi..." : "Envoyer"}

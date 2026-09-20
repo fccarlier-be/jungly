@@ -114,6 +114,11 @@ model Feedback {
   id        String        @id @default(cuid())
   userId    String?
   topic     FeedbackTopic @default(AUTRE)
+  // Retour utilisateur (2026-09-20) : sert de titre partout (admin ET page
+  // publique) -- avant, jungly-admin devait deviner un titre (libelle
+  // generique du theme, ou saisie manuelle par l'admin). Rempli par le
+  // testeur lui-meme des la soumission, bien plus parlant.
+  summary   String
   content   String
   photoUrl  String?
   createdAt DateTime      @default(now())

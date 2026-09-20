@@ -39,30 +39,37 @@ export async function listBetaSignupsDetailed(): Promise<BetaSignupDetail[]> {
 export interface FeedbackDetail {
   id: string;
   topic: string;
+  summary: string;
   content: string;
   photoUrl: string | null;
   createdAt: string;
   email: string | null;
+  name: string | null;
 }
 
 /**
- * email null pour un retour envoye anonymement (userId null sur Feedback --
- * voir schema.prisma) OU dont l'auteur a depuis supprime son compte
- * (onDelete SetNull) : les deux cas sont indiscernables ici, deliberement --
- * jungly-admin n'a jamais a savoir lequel.
+ * email/name null pour un retour envoye anonymement (userId null sur
+ * Feedback -- voir schema.prisma) OU dont l'auteur a depuis supprime son
+ * compte (onDelete SetNull) : les deux cas sont indiscernables ici,
+ * deliberement -- jungly-admin n'a jamais a savoir lequel, et la page
+ * publique affiche "Anonyme" dans les deux cas (voir main.py cote
+ * jungly-admin). email reserve a l'usage admin (recontacter un testeur),
+ * name seul est expose sur la page publique.
  */
 export async function listFeedbackDetailed(): Promise<FeedbackDetail[]> {
   const rows = await db.feedback.findMany({
     orderBy: { createdAt: "desc" },
-    include: { user: { select: { email: true } } },
+    include: { user: { select: { email: true, name: true } } },
   });
   return rows.map((r) => ({
     id: r.id,
     topic: r.topic,
+    summary: r.summary,
     content: r.content,
     photoUrl: r.photoUrl,
     createdAt: r.createdAt.toISOString(),
     email: r.user?.email ?? null,
+    name: r.user?.name ?? null,
   }));
 }
 
