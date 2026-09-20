@@ -11,6 +11,7 @@ Retour utilisateur : la page publique de suivi des tickets (`jungly-admin` + sit
 
 - **`Feedback.summary`** (obligatoire, ≤120 caractères) : nouveau champ dans `FeedbackForm.tsx` ("Résume ton retour en une phrase"), au-dessus du contenu détaillé (désormais "Détaille ton retour"). C'est ce résumé qui sert de titre sur la page publique de suivi, avec l'auteur (nom, ou "Anonyme").
 - **`listFeedbackDetailed()`** expose aussi `name` (en plus de `email`, réservé à l'admin) pour permettre à `jungly-admin` d'afficher l'auteur sur la page publique — indiscernable entre "envoyé anonymement" et "compte depuis supprimé" (les deux donnent `userId: null`), par choix.
+- Côté `jungly-admin` (pas de dépôt git séparé, historique ici pour trace) : numérotation consécutive des tickets (`#N`, stable dans le temps, ordre de création), page dédiée `tickets.html` remplaçant la carte de `index.html` (fusion via un vrai sélecteur de ticket cible, titre public en champ inline plutôt qu'un `prompt()`, avec explication que ce champ ne sert plus qu'à donner un titre commun à des tickets fusionnés — le résumé de l'auteur sert de titre par défaut). La page publique du site vitrine affiche désormais le numéro, le contenu complet du retour et l'auteur (nom, ou "Anonyme") — seul l'email reste privé.
 
 ## [Post-MVP] - 2026-09-20 — Formulaire de feedback bêta
 
