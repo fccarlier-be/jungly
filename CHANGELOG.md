@@ -3,6 +3,18 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-21 — Refonte de jungly-admin (pas de dépôt git séparé, trace ici)
+
+Demande utilisateur : "une vraie refonte, pas des sparadraps" — tout était empilé sur une seule page, CSS/JS dupliqués intégralement entre `index.html` et `tickets.html`, thème suivant `prefers-color-scheme` (sombre sans le demander), aucun graphique alors que les données existaient déjà côté serveur.
+
+### Ajouté
+
+- **Découpage en 4 pages par rôle** : `index.html` devient le Dashboard (KPIs + graphiques), `comptes.html` et `beta.html` sont extraites de l'ancien `index.html`, `tickets.html` conserve sa logique mais migre vers le nouveau socle.
+- **`assets/admin.css` + `assets/admin.js`** : jetons de couleur, sidebar/topbar, cartes, boutons, tableaux, toasts, `api()`/`toast()`/`fmtDate()` — plus aucune duplication entre pages.
+- **Thème clair par défaut** avec bascule sombre manuelle (mémorisée en `localStorage`, appliquée avant le premier rendu pour éviter un flash) — ne suit plus le thème système.
+- **Graphiques (Chart.js via CDN)** sur le Dashboard : fréquentation du site vitrine (14 jours), croissance cumulée des comptes (perso + hébergée), répartition des tickets par statut — toutes calculées côté client à partir des endpoints existants (`/api/stats`, `/api/accounts`, `/api/tickets`), aucun nouvel endpoint nécessaire.
+- Chaque page (Comptes/Bêta/Tickets) affiche désormais une bande de KPI en tête, cohérente avec le Dashboard.
+
 ## [Post-MVP] - 2026-09-20 — Suppression admin d'un retour de feedback
 
 Retour utilisateur : besoin de supprimer un ticket créé par erreur (contenu de test) depuis l'admin.
