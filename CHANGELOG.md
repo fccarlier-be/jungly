@@ -3,6 +3,22 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-20 — Identification d'une plante par photo (Pl@ntNet)
+
+Retour de deux utilisateurs : possibilite d'identifier une plante a partir d'une photo. Un essai interne avait deja ete tente il y a plus d'un an sans bon resultat. Un test manuel du 2026-09-20 sur 4 vraies photos de plantes Jungly (organe "leaf" precise explicitement) a donne 3 identifications exactes a plus de 70% de confiance et une quatrieme juste au niveau du genre -- nettement mieux qu'attendu, retenu pour implementation.
+
+### Ajoute
+
+- **`POST /api/plants/identify`** (`src/server/plantnet/client.ts`) : identification via l'API Pl@ntNet (projet "all", flore mondiale), limitee a 10 requetes/15 min par utilisateur (quota gratuit Pl@ntNet : 500 identifications/jour, partage entre `plantes-app` et `plantes-app-hosted`, meme cle). L'image n'est jamais conservee sur disque, uniquement transmise puis jetee.
+- **`src/server/plantnet/matching.ts`** : associe chaque candidat renvoye par Pl@ntNet a une fiche de bibliotheque existante par nom scientifique exact (insensible a la casse/accents), pour proposer directement son profil de soin plutot qu'une simple identification textuelle.
+- **`PlantPhotoIdentify.tsx`**, integre dans le formulaire de creation d'une plante (`PlantForm.tsx`) : selection de la partie photographiee (feuille/fleur/fruit/ecorce, "automatique" par defaut) puis liste des candidats avec score de confiance.
+- `PLANTNET_API_KEY` (cle gratuite sur my.plantnet.org, voir `.env.example`).
+
+### Décisions notables
+
+- Pas d'option "identifier" en mode edition d'une plante existante : le besoin exprime concernait uniquement l'ajout d'une nouvelle plante.
+- Pas de test automatise mockant l'appel HTTP Pl@ntNet (meme choix que `src/server/perenual/client.ts`, jamais teste ainsi) -- seule la logique pure de correspondance bibliotheque (`matching.ts`) est couverte par des tests.
+
 ## [Post-MVP] - 2026-09-19 — Revue par lots des traductions Plantfolio
 
 Suite à la traduction quasi complète des ~590 fiches : demande explicite de vérifier chaque traduction en lots de 10 pour éviter les erreurs à cette échelle.

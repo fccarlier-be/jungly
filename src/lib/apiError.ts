@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { Prisma } from "@generated/prisma/client";
 import { UnauthorizedError, NotFoundError, ConflictError, ForbiddenError, BadRequestError, ServiceUnavailableError } from "@/lib/errors";
 import { PerenualError } from "@/server/perenual/client";
+import { PlantnetError } from "@/server/plantnet/client";
 
 // Re-exportees pour compatibilite -- la definition vit desormais dans
 // errors.ts (sans dependance next/server, importable depuis un module
@@ -58,6 +59,10 @@ export function handleApiError(error: unknown): NextResponse {
   }
 
   if (error instanceof PerenualError) {
+    return NextResponse.json({ error: error.message }, { status: error.status === 429 ? 429 : 502 });
+  }
+
+  if (error instanceof PlantnetError) {
     return NextResponse.json({ error: error.message }, { status: error.status === 429 ? 429 : 502 });
   }
 

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Sprout } from "lucide-react";
 import { CareTypeIcon } from "@/components/careIcons";
 import ExternalSpeciesSearch from "@/components/ExternalSpeciesSearch";
+import PlantPhotoIdentify, { type IdentifiedCandidate } from "@/components/PlantPhotoIdentify";
 import { mmToInputUnit, inputUnitToMm, type UnitSystem } from "@/lib/units";
 import {
   SUBSTRATE_TYPE_OPTIONS,
@@ -186,6 +187,16 @@ export default function PlantForm({
    * jamais une valeur deja saisie par l'utilisateur -- celui-ci garde
    * toujours la main.
    */
+  /** Candidat retenu depuis PlantPhotoIdentify : meme logique que applyLibraryEntry si une fiche existe, sinon simple pre-remplissage. */
+  function applyIdentifiedCandidate(candidate: IdentifiedCandidate) {
+    if (candidate.libraryEntry) {
+      applyLibraryEntry(candidate.libraryEntry as unknown as LibraryEntry);
+    } else {
+      if (!scientificName.trim()) setScientificName(candidate.scientificName);
+      if (!name.trim() && candidate.commonNames[0]) setName(candidate.commonNames[0]);
+    }
+  }
+
   function applyLibraryEntry(entry: LibraryEntry) {
     // entry.id absent (chaine vide) : recherche externe utilisee par un
     // compte non-admin (voir ExternalSpeciesSearch.tsx, qui n'ecrit plus
@@ -471,6 +482,10 @@ export default function PlantForm({
               onImported={(entry) => applyLibraryEntry(entry as unknown as LibraryEntry)}
             />
           )}
+          <div className="border-t pt-2" style={{ borderColor: "var(--border)" }}>
+            <p className="text-muted mb-1.5 text-xs">Ou identifie-la à partir d&apos;une photo (bêta) :</p>
+            <PlantPhotoIdentify onSelect={applyIdentifiedCandidate} />
+          </div>
         </section>
       )}
 
