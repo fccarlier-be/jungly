@@ -97,6 +97,7 @@ export function invitationEmail(playConsoleUrl: string, email: string): EmailCon
       "C'est ouvert !",
       `<p style="font-size:0.95rem;line-height:1.6;">Bonne nouvelle : la bêta Android de Jungly est maintenant ouverte, et vous en faites partie — vous êtes déjà inscrit·e comme testeur, aucune démarche d'adhésion supplémentaire n'est nécessaire.</p>
        <p style="font-size:0.95rem;line-height:1.6;"><strong>Important :</strong> ouvrez le lien ci-dessous depuis votre appareil Android, connecté au Play Store avec l'adresse <strong>${email}</strong> (celle fournie à l'inscription). C'est la seule condition pour que l'app apparaisse comme installable.</p>
+       <p style="font-size:0.95rem;line-height:1.6;">Si vous avez déjà testé Jungly via la PWA sur mon instance privée, supprimez-la avant d'installer la bêta, et créez un nouveau compte dans l'app — les deux ne sont pas liées.</p>
        <p style="margin:28px 0;"><a href="${playConsoleUrl}" style="background:#22361a;color:#f5f2e6;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Installer Jungly</a></p>
        <p style="font-size:0.95rem;line-height:1.6;">Pour tester l'app, choisissez l'option payante (offre hébergée) lors de la configuration — en tant que testeur, aucun montant ne sera réellement prélevé, et vous conserverez un accès gratuit à vie à cette offre.</p>
        <p style="font-size:0.95rem;line-height:1.6;">Une option de feedback est disponible directement dans les paramètres de l'app : n'hésitez pas à l'utiliser pour tout bug, retour ou suggestion.</p>`,
@@ -104,6 +105,8 @@ export function invitationEmail(playConsoleUrl: string, email: string): EmailCon
     text: `Bonne nouvelle : la bêta Android de Jungly est maintenant ouverte, et vous en faites partie — vous êtes déjà inscrit·e comme testeur, aucune démarche d'adhésion supplémentaire n'est nécessaire.
 
 Important : ouvrez ce lien depuis votre appareil Android, connecté au Play Store avec l'adresse ${email} (celle fournie à l'inscription). C'est la seule condition pour que l'app apparaisse comme installable.
+
+Si vous avez déjà testé Jungly via la PWA sur mon instance privée, supprimez-la avant d'installer la bêta, et créez un nouveau compte dans l'app — les deux ne sont pas liées.
 
 Installer Jungly : ${playConsoleUrl}
 
