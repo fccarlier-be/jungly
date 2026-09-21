@@ -5,7 +5,9 @@
       "namespace": "android_app",
       "package_name": "org.fcold.jungly.twa",
       "sha256_cert_fingerprints": [
-        "C2:5A:D6:87:B3:3F:66:A5:E9:9F:AA:8A:5E:32:43:CD:4D:B5:AA:5A:1A:53:13:5F:52:12:31:92:ED:FA:80:35"
+        "C2:5A:D6:87:B3:3F:66:A5:E9:9F:AA:8A:5E:32:43:CD:4D:B5:AA:5A:1A:53:13:5F:52:12:31:92:ED:FA:80:35",
+        "9F:BE:37:A6:C4:D1:82:C9:AE:2B:FE:CB:D0:BB:2A:14:55:EF:6D:F8:EF:0D:29:66:26:F9:DD:A0:E4:03:1B:CF",
+        "76:26:09:57:75:3A:20:BB:00:08:C6:55:91:0F:EA:23:50:BB:44:31:E6:9F:5A:FC:59:60:4C:B6:38:56:08:55"
       ]
     }
   }
