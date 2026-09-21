@@ -3,6 +3,7 @@ package org.fcold.jungly.twa;
 import android.app.Activity;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 
 import com.android.billingclient.api.BillingClient;
 import com.android.billingclient.api.BillingClientStateListener;
@@ -32,6 +33,15 @@ import java.util.List;
  * lieu d'une simple liste.
  */
 final class BillingHelper implements PurchasesUpdatedListener {
+
+    // Trace explicite de chaque etape (voir "adb logcat -s JunglyBilling") --
+    // ajoutee le 2026-09-21 apres plusieurs hypotheses infirmees (timeout
+    // trop tot dans le flux, gel de processus emulateur...) : le probleme
+    // reproduit A L'IDENTIQUE sur tablette Android 7.0 REELLE, ecartant
+    // toute explication propre a l'emulateur. Plutot que d'inferer depuis
+    // les logs internes de Google Play (qui ne disent jamais ce que NOTRE
+    // code fait), cette trace dira precisement jusqu'ou l'execution va.
+    private static final String TAG = "JunglyBilling";
 
     interface Listener {
         /**
@@ -91,15 +101,18 @@ final class BillingHelper implements PurchasesUpdatedListener {
      * attente -- que la resolution vienne du timeout lui-meme ou d'un vrai
      * callback Google, peu importe lequel arrive en premier. */
     private void resolveOnce(Runnable action) {
+        Log.d(TAG, "resolveOnce() appele, deja resolu=" + resolved);
         if (resolved) return;
         resolved = true;
         if (timeoutThread != null) {
             timeoutThread.interrupt();
         }
         action.run();
+        Log.d(TAG, "resolveOnce() action.run() terminee");
     }
 
     BillingHelper(Activity activity, Listener listener) {
+        Log.d(TAG, "Constructeur BillingHelper");
         this.activity = activity;
         this.listener = listener;
     }
@@ -112,17 +125,22 @@ final class BillingHelper implements PurchasesUpdatedListener {
      * retrouver a payer une seconde fois.
      */
     void startPurchase() {
+        Log.d(TAG, "startPurchase() debut");
         resolved = false;
         timeoutThread = new Thread(() -> {
+            Log.d(TAG, "thread chien de garde demarre, sleep " + PREPARE_PURCHASE_TIMEOUT_MS + "ms");
             try {
                 Thread.sleep(PREPARE_PURCHASE_TIMEOUT_MS);
             } catch (InterruptedException e) {
+                Log.d(TAG, "thread chien de garde interrompu (resolu ailleurs)");
                 return; // resolu par un vrai callback avant l'expiration du delai
             }
+            Log.d(TAG, "chien de garde EXPIRE, post vers le thread principal");
             mainHandler.post(() -> resolveOnce(() -> listener.onError(
                     "Connexion à Google Play trop longue. Vérifiez que le Play Store est installé, à jour et que vous êtes connecté à un compte Google, puis réessayez.")));
         });
         timeoutThread.start();
+        Log.d(TAG, "thread chien de garde .start() appele");
 
         // Construction du client APRES le demarrage du chien de garde : voir
         // le commentaire au-dessus de PREPARE_PURCHASE_TIMEOUT_MS.
@@ -131,10 +149,12 @@ final class BillingHelper implements PurchasesUpdatedListener {
                 .enablePendingPurchases(
                         PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
                 .build();
+        Log.d(TAG, "BillingClient construit, appel startConnection()");
 
         billingClient.startConnection(new BillingClientStateListener() {
             @Override
             public void onBillingSetupFinished(BillingResult billingResult) {
+                Log.d(TAG, "onBillingSetupFinished responseCode=" + billingResult.getResponseCode() + " debugMessage=" + billingResult.getDebugMessage());
                 if (resolved) return; // le timeout a deja resolu (erreur affichee)
                 if (billingResult.getResponseCode() != BillingClient.BillingResponseCode.OK) {
                     resolveOnce(() -> listener.onError("Connexion à Google Play impossible (" + billingResult.getDebugMessage() + ")."));
@@ -145,17 +165,21 @@ final class BillingHelper implements PurchasesUpdatedListener {
 
             @Override
             public void onBillingServiceDisconnected() {
+                Log.d(TAG, "onBillingServiceDisconnected");
                 // L'utilisateur peut relancer l'achat depuis SetupActivity -- pas de reconnexion automatique ici.
             }
         });
+        Log.d(TAG, "startConnection() appele (retour immediat attendu, async)");
     }
 
     private void recoverExistingPurchaseOrLaunchNew() {
+        Log.d(TAG, "recoverExistingPurchaseOrLaunchNew() appel queryPurchasesAsync");
         QueryPurchasesParams params = QueryPurchasesParams.newBuilder()
                 .setProductType(BillingClient.ProductType.INAPP)
                 .build();
 
         billingClient.queryPurchasesAsync(params, (billingResult, purchases) -> {
+            Log.d(TAG, "queryPurchasesAsync callback responseCode=" + billingResult.getResponseCode() + " nbPurchases=" + (purchases != null ? purchases.size() : -1));
             if (resolved) return; // le chien de garde a deja resolu (erreur affichee)
             if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
                 for (Purchase purchase : purchases) {
@@ -177,6 +201,7 @@ final class BillingHelper implements PurchasesUpdatedListener {
     }
 
     private void queryProductAndLaunch() {
+        Log.d(TAG, "queryProductAndLaunch() appel queryProductDetailsAsync pour " + AppConfig.HOSTED_PRODUCT_ID);
         QueryProductDetailsParams.Product product = QueryProductDetailsParams.Product.newBuilder()
                 .setProductId(AppConfig.HOSTED_PRODUCT_ID)
                 .setProductType(BillingClient.ProductType.INAPP)
@@ -187,6 +212,7 @@ final class BillingHelper implements PurchasesUpdatedListener {
                 .build();
 
         billingClient.queryProductDetailsAsync(params, (billingResult, queryProductDetailsResult) -> {
+            Log.d(TAG, "queryProductDetailsAsync callback responseCode=" + billingResult.getResponseCode() + " debugMessage=" + billingResult.getDebugMessage());
             if (resolved) return; // le chien de garde a deja resolu (erreur affichee)
             List<ProductDetails> productDetailsList = queryProductDetailsResult.getProductDetailsList();
             if (billingResult.getResponseCode() != BillingClient.BillingResponseCode.OK || productDetailsList.isEmpty()) {
@@ -211,6 +237,7 @@ final class BillingHelper implements PurchasesUpdatedListener {
                 return;
             }
             String offerToken = offers.get(0).getOfferToken();
+            Log.d(TAG, "offerToken obtenu, " + offers.size() + " option(s) d'achat disponible(s)");
 
             BillingFlowParams.ProductDetailsParams productDetailsParams =
                     BillingFlowParams.ProductDetailsParams.newBuilder()
@@ -240,7 +267,9 @@ final class BillingHelper implements PurchasesUpdatedListener {
             // aucun timeout ne surveille cette etape (on a deja resolu pour
             // laisser la main a l'UI Google) et qu'aucun callback ulterieur
             // n'arrive jamais dans ce cas.
+            Log.d(TAG, "appel launchBillingFlow()");
             BillingResult launchResult = billingClient.launchBillingFlow(activity, billingFlowParams);
+            Log.d(TAG, "launchBillingFlow() a retourne responseCode=" + launchResult.getResponseCode() + " debugMessage=" + launchResult.getDebugMessage());
             if (launchResult.getResponseCode() != BillingClient.BillingResponseCode.OK) {
                 resolveOnce(() -> listener.onError("Impossible d'ouvrir l'achat Google Play (" + launchResult.getDebugMessage() + ")."));
                 return;
@@ -255,6 +284,7 @@ final class BillingHelper implements PurchasesUpdatedListener {
 
     @Override
     public void onPurchasesUpdated(BillingResult billingResult, List<Purchase> purchases) {
+        Log.d(TAG, "onPurchasesUpdated responseCode=" + billingResult.getResponseCode() + " nbPurchases=" + (purchases != null ? purchases.size() : -1));
         if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.USER_CANCELED) {
             listener.onCancelled();
             return;

@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.util.Log;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -190,20 +191,25 @@ public class SetupActivity extends Activity {
     // ---------- Offre hébergée ----------
 
     private void startPurchase() {
+        Log.d("JunglyBilling", "SetupActivity.startPurchase() -- clic recu");
         root = newRoot();
         root.addView(logo());
         root.addView(title("Connexion à Google Play…"));
         ProgressBar progressBar = new ProgressBar(this);
-        progressBar.getIndeterminateDrawable().setColorFilter(color(R.color.setup_primary), PorterDuff.Mode.SRC_IN);
+        if (progressBar.getIndeterminateDrawable() != null) {
+            progressBar.getIndeterminateDrawable().setColorFilter(color(R.color.setup_primary), PorterDuff.Mode.SRC_IN);
+        }
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         params.gravity = Gravity.START;
         progressBar.setLayoutParams(params);
         root.addView(progressBar);
+        Log.d("JunglyBilling", "Ecran de connexion affiche, creation de BillingHelper");
 
         billingHelper = new BillingHelper(this, new BillingHelper.Listener() {
             @Override
             public void onPurchaseObtained(String purchaseToken, String provisioningId) {
+                Log.d("JunglyBilling", "Listener.onPurchaseObtained");
                 pendingPurchaseToken = purchaseToken;
                 pendingProvisioningId = provisioningId;
                 showAccountScreen();
@@ -211,16 +217,20 @@ public class SetupActivity extends Activity {
 
             @Override
             public void onError(String message) {
+                Log.d("JunglyBilling", "Listener.onError: " + message);
                 Toast.makeText(SetupActivity.this, message, Toast.LENGTH_LONG).show();
                 showChoiceScreen();
             }
 
             @Override
             public void onCancelled() {
+                Log.d("JunglyBilling", "Listener.onCancelled");
                 showChoiceScreen();
             }
         });
+        Log.d("JunglyBilling", "BillingHelper construit, appel startPurchase()");
         billingHelper.startPurchase();
+        Log.d("JunglyBilling", "billingHelper.startPurchase() est revenu (appel non bloquant attendu)");
     }
 
     private void showAccountScreen() {
