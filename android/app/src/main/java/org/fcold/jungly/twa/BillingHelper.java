@@ -55,30 +55,35 @@ final class BillingHelper implements PurchasesUpdatedListener {
     // fonctionnel -- cette fois le blocage silencieux venait d'une etape
     // SUIVANTE (queryPurchasesAsync ou queryProductDetailsAsync), toujours
     // sous l'ecran "Connexion à Google Play…" puisque le titre ne change pas
-    // entre ces etapes. Un timeout qui ne couvrait QUE startConnection() ne
-    // pouvait pas rattraper un blocage plus loin dans la sequence -- un seul
-    // chien de garde couvre desormais tout le flux de preparation (connexion
-    // + recherche d'achat existant + recherche du produit), jusqu'a ce que le
-    // controle soit rendu a l'UI d'achat de Google (launchBillingFlow) ou
-    // qu'une erreur/annulation survienne.
+    // entre ces etapes.
+    //
+    // Un PREMIER correctif (Handler.postDelayed sur le Looper principal) n'a
+    // PAS suffi : verifie sur le meme emulateur MuMuPlayer avec le spinner
+    // toujours anime et le bouton retour toujours reactif (donc le thread
+    // principal n'est pas gele) -- Handler.postDelayed depend de
+    // SystemClock.uptimeMillis(), que certains emulateurs de jeu virtualisent
+    // ou throttlent independamment de l'animation UI (pilotee, elle, par
+    // vsync/Choreographer). D'ou ce timeout base sur un VRAI thread separe
+    // (Thread.sleep), un mecanisme entierement different, plutot qu'un
+    // deuxieme reglage du meme mecanisme deja pris en defaut.
     private static final long PREPARE_PURCHASE_TIMEOUT_MS = 15_000;
 
     private final Activity activity;
     private final Listener listener;
     private final BillingClient billingClient;
-    private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
-    private boolean resolved;
-    private Runnable timeoutRunnable;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private boolean resolved; // toujours lu/ecrit sur le thread principal
+    private Thread timeoutThread;
 
-    /** Execute `action` une seule fois pour tout ce flux d'achat, et annule le
-     * chien de garde s'il est encore en attente -- que la resolution vienne
-     * du timeout lui-meme ou d'un vrai callback Google, peu importe lequel
-     * arrive en premier. */
+    /** Execute `action` une seule fois pour tout ce flux d'achat (toujours sur
+     * le thread principal), et arrete le chien de garde s'il est encore en
+     * attente -- que la resolution vienne du timeout lui-meme ou d'un vrai
+     * callback Google, peu importe lequel arrive en premier. */
     private void resolveOnce(Runnable action) {
         if (resolved) return;
         resolved = true;
-        if (timeoutRunnable != null) {
-            timeoutHandler.removeCallbacks(timeoutRunnable);
+        if (timeoutThread != null) {
+            timeoutThread.interrupt();
         }
         action.run();
     }
@@ -102,9 +107,16 @@ final class BillingHelper implements PurchasesUpdatedListener {
      */
     void startPurchase() {
         resolved = false;
-        timeoutRunnable = () -> resolveOnce(() -> listener.onError(
-                "Connexion à Google Play trop longue. Vérifiez que le Play Store est installé, à jour et que vous êtes connecté à un compte Google, puis réessayez."));
-        timeoutHandler.postDelayed(timeoutRunnable, PREPARE_PURCHASE_TIMEOUT_MS);
+        timeoutThread = new Thread(() -> {
+            try {
+                Thread.sleep(PREPARE_PURCHASE_TIMEOUT_MS);
+            } catch (InterruptedException e) {
+                return; // resolu par un vrai callback avant l'expiration du delai
+            }
+            mainHandler.post(() -> resolveOnce(() -> listener.onError(
+                    "Connexion à Google Play trop longue. Vérifiez que le Play Store est installé, à jour et que vous êtes connecté à un compte Google, puis réessayez.")));
+        });
+        timeoutThread.start();
 
         billingClient.startConnection(new BillingClientStateListener() {
             @Override
@@ -214,7 +226,9 @@ final class BillingHelper implements PurchasesUpdatedListener {
     }
 
     void endConnection() {
-        timeoutHandler.removeCallbacksAndMessages(null);
+        if (timeoutThread != null) {
+            timeoutThread.interrupt();
+        }
         billingClient.endConnection();
     }
 }
