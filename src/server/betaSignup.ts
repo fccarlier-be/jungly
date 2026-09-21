@@ -84,21 +84,32 @@ Vous recevrez un email avec le lien d'invitation dès que la bêta ouvrira — a
  * d'inscription au test ferme Google Play n'existe qu'une fois le compte
  * developpeur valide et l'app soumise -- inconnu au moment d'ecrire ce
  * template.
+ *
+ * Les testeurs sont deja inscrits au programme (ajoutes cote Play Console
+ * en amont) -- le lien mene directement a la fiche Play Store, pas a une
+ * etape d'adhesion. `email` sert uniquement a leur rappeler quel compte
+ * Google utiliser, seule condition pour que l'app apparaisse installable.
  */
-export function invitationEmail(playConsoleUrl: string): EmailContent {
+export function invitationEmail(playConsoleUrl: string, email: string): EmailContent {
   return {
     subject: "La bêta Android de Jungly est ouverte !",
     html: emailShell(
       "C'est ouvert !",
-      `<p style="font-size:0.95rem;line-height:1.6;">Bonne nouvelle : la bêta Android de Jungly est maintenant ouverte, et vous en faites partie. Deux étapes rapides pour l'installer :</p>
-       <p style="margin:28px 0;"><a href="${playConsoleUrl}" style="background:#22361a;color:#f5f2e6;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Rejoindre le programme de test</a></p>
-       <p style="font-size:0.95rem;line-height:1.6;">Ce lien vous ajoute au groupe de testeurs sur le Play Store. Une fois rejoint, l'app Jungly devient installable normalement depuis le Play Store, avec le choix entre auto-hébergement gratuit et offre hébergée.</p>`,
+      `<p style="font-size:0.95rem;line-height:1.6;">Bonne nouvelle : la bêta Android de Jungly est maintenant ouverte, et vous en faites partie — vous êtes déjà inscrit·e comme testeur, aucune démarche d'adhésion supplémentaire n'est nécessaire.</p>
+       <p style="font-size:0.95rem;line-height:1.6;"><strong>Important :</strong> ouvrez le lien ci-dessous depuis votre appareil Android, connecté au Play Store avec l'adresse <strong>${email}</strong> (celle fournie à l'inscription). C'est la seule condition pour que l'app apparaisse comme installable.</p>
+       <p style="margin:28px 0;"><a href="${playConsoleUrl}" style="background:#22361a;color:#f5f2e6;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Installer Jungly</a></p>
+       <p style="font-size:0.95rem;line-height:1.6;">Pour tester l'app, choisissez l'option payante (offre hébergée) lors de la configuration — en tant que testeur, aucun montant ne sera réellement prélevé, et vous conserverez un accès gratuit à vie à cette offre.</p>
+       <p style="font-size:0.95rem;line-height:1.6;">Une option de feedback est disponible directement dans les paramètres de l'app : n'hésitez pas à l'utiliser pour tout bug, retour ou suggestion.</p>`,
     ),
-    text: `Bonne nouvelle : la bêta Android de Jungly est maintenant ouverte, et vous en faites partie.
+    text: `Bonne nouvelle : la bêta Android de Jungly est maintenant ouverte, et vous en faites partie — vous êtes déjà inscrit·e comme testeur, aucune démarche d'adhésion supplémentaire n'est nécessaire.
 
-Rejoignez le programme de test ici : ${playConsoleUrl}
+Important : ouvrez ce lien depuis votre appareil Android, connecté au Play Store avec l'adresse ${email} (celle fournie à l'inscription). C'est la seule condition pour que l'app apparaisse comme installable.
 
-Ce lien vous ajoute au groupe de testeurs sur le Play Store. Une fois rejoint, l'app Jungly devient installable normalement depuis le Play Store, avec le choix entre auto-hébergement gratuit et offre hébergée.`,
+Installer Jungly : ${playConsoleUrl}
+
+Pour tester l'app, choisissez l'option payante (offre hébergée) lors de la configuration — en tant que testeur, aucun montant ne sera réellement prélevé, et vous conserverez un accès gratuit à vie à cette offre.
+
+Une option de feedback est disponible directement dans les paramètres de l'app : n'hésitez pas à l'utiliser pour tout bug, retour ou suggestion.`,
   };
 }
 

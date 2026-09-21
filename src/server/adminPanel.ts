@@ -198,7 +198,7 @@ export async function sendBetaInvite(id: string, playConsoleUrl: string): Promis
     throw new ConflictError("Seule une inscription confirmée peut recevoir une invitation.");
   }
 
-  const { subject, html, text } = invitationEmail(playConsoleUrl);
+  const { subject, html, text } = invitationEmail(playConsoleUrl, signup.email);
   await sendEmail(signup.email, subject, html, text);
   await db.betaSignup.update({ where: { id }, data: { invitedAt: new Date() } });
 }
