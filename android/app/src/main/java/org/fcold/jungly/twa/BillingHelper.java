@@ -48,17 +48,40 @@ final class BillingHelper implements PurchasesUpdatedListener {
     }
 
     // Certains environnements (Play Store absent/mal configure -- ex. emulateurs
-    // PC comme MuMuPlayer) ne declenchent NI onBillingSetupFinished NI
-    // onBillingServiceDisconnected : startConnection() ne rappelle jamais,
-    // laissant l'ecran "Connexion à Google Play…" tourner indefiniment. La
-    // librairie Billing n'offre aucun timeout integre -- on en pose un nous-memes.
-    private static final long CONNECTION_TIMEOUT_MS = 10_000;
+    // PC comme MuMuPlayer) ne declenchent jamais certains callbacks de la
+    // librairie Billing (aucun timeout integre cote Google) : d'abord repere
+    // sur startConnection() (onBillingSetupFinished jamais appele), puis a
+    // nouveau constate le 2026-09-21 avec un Play Store parfaitement
+    // fonctionnel -- cette fois le blocage silencieux venait d'une etape
+    // SUIVANTE (queryPurchasesAsync ou queryProductDetailsAsync), toujours
+    // sous l'ecran "Connexion à Google Play…" puisque le titre ne change pas
+    // entre ces etapes. Un timeout qui ne couvrait QUE startConnection() ne
+    // pouvait pas rattraper un blocage plus loin dans la sequence -- un seul
+    // chien de garde couvre desormais tout le flux de preparation (connexion
+    // + recherche d'achat existant + recherche du produit), jusqu'a ce que le
+    // controle soit rendu a l'UI d'achat de Google (launchBillingFlow) ou
+    // qu'une erreur/annulation survienne.
+    private static final long PREPARE_PURCHASE_TIMEOUT_MS = 15_000;
 
     private final Activity activity;
     private final Listener listener;
     private final BillingClient billingClient;
     private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
-    private boolean setupResolved;
+    private boolean resolved;
+    private Runnable timeoutRunnable;
+
+    /** Execute `action` une seule fois pour tout ce flux d'achat, et annule le
+     * chien de garde s'il est encore en attente -- que la resolution vienne
+     * du timeout lui-meme ou d'un vrai callback Google, peu importe lequel
+     * arrive en premier. */
+    private void resolveOnce(Runnable action) {
+        if (resolved) return;
+        resolved = true;
+        if (timeoutRunnable != null) {
+            timeoutHandler.removeCallbacks(timeoutRunnable);
+        }
+        action.run();
+    }
 
     BillingHelper(Activity activity, Listener listener) {
         this.activity = activity;
@@ -78,22 +101,17 @@ final class BillingHelper implements PurchasesUpdatedListener {
      * retrouver a payer une seconde fois.
      */
     void startPurchase() {
-        setupResolved = false;
-        Runnable timeout = () -> {
-            if (setupResolved) return;
-            setupResolved = true;
-            listener.onError("Connexion à Google Play trop longue. Vérifiez que le Play Store est installé, à jour et que vous êtes connecté à un compte Google, puis réessayez.");
-        };
-        timeoutHandler.postDelayed(timeout, CONNECTION_TIMEOUT_MS);
+        resolved = false;
+        timeoutRunnable = () -> resolveOnce(() -> listener.onError(
+                "Connexion à Google Play trop longue. Vérifiez que le Play Store est installé, à jour et que vous êtes connecté à un compte Google, puis réessayez."));
+        timeoutHandler.postDelayed(timeoutRunnable, PREPARE_PURCHASE_TIMEOUT_MS);
 
         billingClient.startConnection(new BillingClientStateListener() {
             @Override
             public void onBillingSetupFinished(BillingResult billingResult) {
-                if (setupResolved) return; // le timeout a deja resolu (erreur affichee)
-                setupResolved = true;
-                timeoutHandler.removeCallbacks(timeout);
+                if (resolved) return; // le timeout a deja resolu (erreur affichee)
                 if (billingResult.getResponseCode() != BillingClient.BillingResponseCode.OK) {
-                    listener.onError("Connexion à Google Play impossible (" + billingResult.getDebugMessage() + ").");
+                    resolveOnce(() -> listener.onError("Connexion à Google Play impossible (" + billingResult.getDebugMessage() + ")."));
                     return;
                 }
                 recoverExistingPurchaseOrLaunchNew();
@@ -112,6 +130,7 @@ final class BillingHelper implements PurchasesUpdatedListener {
                 .build();
 
         billingClient.queryPurchasesAsync(params, (billingResult, purchases) -> {
+            if (resolved) return; // le chien de garde a deja resolu (erreur affichee)
             if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.OK) {
                 for (Purchase purchase : purchases) {
                     boolean isOurProduct = purchase.getProducts().contains(AppConfig.HOSTED_PRODUCT_ID);
@@ -122,7 +141,7 @@ final class BillingHelper implements PurchasesUpdatedListener {
                         // disparu -- fabriquer un nouvel identifiant ferait a coup sur
                         // echouer la verification cote serveur (voir InstancePrefs).
                         String provisioningId = InstancePrefs.getPendingProvisioningIdOrNull(activity);
-                        listener.onPurchaseObtained(purchase.getPurchaseToken(), provisioningId);
+                        resolveOnce(() -> listener.onPurchaseObtained(purchase.getPurchaseToken(), provisioningId));
                         return;
                     }
                 }
@@ -142,9 +161,10 @@ final class BillingHelper implements PurchasesUpdatedListener {
                 .build();
 
         billingClient.queryProductDetailsAsync(params, (billingResult, queryProductDetailsResult) -> {
+            if (resolved) return; // le chien de garde a deja resolu (erreur affichee)
             List<ProductDetails> productDetailsList = queryProductDetailsResult.getProductDetailsList();
             if (billingResult.getResponseCode() != BillingClient.BillingResponseCode.OK || productDetailsList.isEmpty()) {
-                listener.onError("Produit introuvable sur Google Play (" + billingResult.getDebugMessage() + ").");
+                resolveOnce(() -> listener.onError("Produit introuvable sur Google Play (" + billingResult.getDebugMessage() + ")."));
                 return;
             }
 
@@ -165,7 +185,11 @@ final class BillingHelper implements PurchasesUpdatedListener {
                     .setObfuscatedAccountId(provisioningId)
                     .build();
 
-            billingClient.launchBillingFlow(activity, billingFlowParams);
+            // A partir d'ici, le controle passe a l'UI d'achat dessinee par
+            // Google (launchBillingFlow) -- on arrete de surveiller : la suite
+            // attend une vraie interaction humaine, pas un appel silencieux
+            // qui pourrait ne jamais revenir.
+            resolveOnce(() -> billingClient.launchBillingFlow(activity, billingFlowParams));
         });
     }
 
