@@ -87,28 +87,48 @@ final class BillingHelper implements PurchasesUpdatedListener {
     // n'etait surveille par rien du tout. La construction du BillingClient
     // est desormais deplacee DANS startPurchase(), apres le lancement du
     // thread de surveillance, pour que meme ce cas soit couvert.
+    //
+    // TROISIEME correctif, le vrai coupable (trouve grace a la trace
+    // JunglyBilling) : les callbacks de la Billing Library (queryPurchasesAsync,
+    // queryProductDetailsAsync, onBillingSetupFinished...) ne sont PAS
+    // garantis sur le thread principal -- confirme par les TID du logcat,
+    // differents de celui du clic initial. listener.onPurchaseObtained()
+    // appelle SetupActivity.showAccountScreen(), qui fait setContentView()/
+    // addView() : appele hors du thread principal, Android ne plante pas
+    // toujours proprement, il peut aussi silencieusement corrompre l'etat de
+    // l'UI (ecran fige, aucune exception) -- exactement le symptome observe,
+    // sur emulateur ET sur tablette reelle. resolveOnce() marshalle desormais
+    // TOUJOURS l'action vers le thread principal via mainHandler.post(), et
+    // la verification/pose du flag "resolved" est synchronisee car plusieurs
+    // callbacks peuvent desormais arriver de threads differents en parallele.
     private static final long PREPARE_PURCHASE_TIMEOUT_MS = 15_000;
 
     private final Activity activity;
     private final Listener listener;
     private BillingClient billingClient;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private boolean resolved; // toujours lu/ecrit sur le thread principal
+    private final Object resolveLock = new Object();
+    private boolean resolved; // protege par resolveLock (callbacks multi-thread)
     private Thread timeoutThread;
 
-    /** Execute `action` une seule fois pour tout ce flux d'achat (toujours sur
-     * le thread principal), et arrete le chien de garde s'il est encore en
-     * attente -- que la resolution vienne du timeout lui-meme ou d'un vrai
-     * callback Google, peu importe lequel arrive en premier. */
+    /** Marshalle `action` vers le thread principal et l'execute une seule
+     * fois pour tout ce flux d'achat, et arrete le chien de garde s'il est
+     * encore en attente -- que la resolution vienne du timeout lui-meme ou
+     * d'un vrai callback Google, peu importe lequel arrive en premier ni de
+     * quel thread (voir commentaire plus haut). */
     private void resolveOnce(Runnable action) {
-        Log.d(TAG, "resolveOnce() appele, deja resolu=" + resolved);
-        if (resolved) return;
-        resolved = true;
+        synchronized (resolveLock) {
+            Log.d(TAG, "resolveOnce() appele sur thread=" + Thread.currentThread().getName() + ", deja resolu=" + resolved);
+            if (resolved) return;
+            resolved = true;
+        }
         if (timeoutThread != null) {
             timeoutThread.interrupt();
         }
-        action.run();
-        Log.d(TAG, "resolveOnce() action.run() terminee");
+        mainHandler.post(() -> {
+            action.run();
+            Log.d(TAG, "resolveOnce() action.run() terminee sur le thread principal");
+        });
     }
 
     BillingHelper(Activity activity, Listener listener) {
@@ -135,9 +155,9 @@ final class BillingHelper implements PurchasesUpdatedListener {
                 Log.d(TAG, "thread chien de garde interrompu (resolu ailleurs)");
                 return; // resolu par un vrai callback avant l'expiration du delai
             }
-            Log.d(TAG, "chien de garde EXPIRE, post vers le thread principal");
-            mainHandler.post(() -> resolveOnce(() -> listener.onError(
-                    "Connexion à Google Play trop longue. Vérifiez que le Play Store est installé, à jour et que vous êtes connecté à un compte Google, puis réessayez.")));
+            Log.d(TAG, "chien de garde EXPIRE");
+            resolveOnce(() -> listener.onError(
+                    "Connexion à Google Play trop longue. Vérifiez que le Play Store est installé, à jour et que vous êtes connecté à un compte Google, puis réessayez."));
         });
         timeoutThread.start();
         Log.d(TAG, "thread chien de garde .start() appele");
@@ -284,23 +304,25 @@ final class BillingHelper implements PurchasesUpdatedListener {
 
     @Override
     public void onPurchasesUpdated(BillingResult billingResult, List<Purchase> purchases) {
-        Log.d(TAG, "onPurchasesUpdated responseCode=" + billingResult.getResponseCode() + " nbPurchases=" + (purchases != null ? purchases.size() : -1));
+        Log.d(TAG, "onPurchasesUpdated sur thread=" + Thread.currentThread().getName() + " responseCode=" + billingResult.getResponseCode() + " nbPurchases=" + (purchases != null ? purchases.size() : -1));
+        // Meme raison que resolveOnce() : pas de garantie que ce callback
+        // arrive sur le thread principal, et le Listener touche l'UI.
         if (billingResult.getResponseCode() == BillingClient.BillingResponseCode.USER_CANCELED) {
-            listener.onCancelled();
+            mainHandler.post(listener::onCancelled);
             return;
         }
         if (billingResult.getResponseCode() != BillingClient.BillingResponseCode.OK || purchases == null) {
-            listener.onError("Achat impossible (" + billingResult.getDebugMessage() + ").");
+            mainHandler.post(() -> listener.onError("Achat impossible (" + billingResult.getDebugMessage() + ")."));
             return;
         }
         for (Purchase purchase : purchases) {
             if (purchase.getProducts().contains(AppConfig.HOSTED_PRODUCT_ID)) {
                 String provisioningId = InstancePrefs.getOrCreatePendingProvisioningId(activity);
-                listener.onPurchaseObtained(purchase.getPurchaseToken(), provisioningId);
+                mainHandler.post(() -> listener.onPurchaseObtained(purchase.getPurchaseToken(), provisioningId));
                 return;
             }
         }
-        listener.onError("Achat reçu mais produit inattendu.");
+        mainHandler.post(() -> listener.onError("Achat reçu mais produit inattendu."));
     }
 
     void endConnection() {
