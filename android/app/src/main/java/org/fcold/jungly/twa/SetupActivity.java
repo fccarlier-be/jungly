@@ -210,20 +210,21 @@ public class SetupActivity extends Activity {
             @Override
             public void onPurchaseObtained(String purchaseToken, String provisioningId, boolean isExistingPurchase) {
                 Log.d("JunglyBilling", "Listener.onPurchaseObtained isExistingPurchase=" + isExistingPurchase);
-                if (isExistingPurchase) {
-                    // Achat retrouve (reinstallation, nouvel appareil...) : un
-                    // compte existe presque certainement deja pour cet achat
-                    // -- tenter de le "creer" echouerait cote serveur ("achat
-                    // deja utilise"). On envoie directement vers la connexion
-                    // de l'offre hebergee plutot que vers l'ecran de creation
-                    // de compte. Retour utilisateur du 2026-09-21.
-                    Toast.makeText(SetupActivity.this, "Achat retrouvé — connecte-toi avec le compte associé à cet achat.", Toast.LENGTH_LONG).show();
-                    InstancePrefs.setTargetUrl(SetupActivity.this, AppConfig.HOSTED_URL);
-                    launchMainActivity();
-                    return;
-                }
                 pendingPurchaseToken = purchaseToken;
                 pendingProvisioningId = provisioningId;
+                if (isExistingPurchase) {
+                    // Achat retrouve (reinstallation, nouvel appareil...) : on
+                    // ne peut pas savoir cote client si un compte existe
+                    // vraiment pour cet achat (Play Billing dit seulement que
+                    // l'achat existe, jamais si sa creation de compte a
+                    // reellement abouti -- ex. compte supprime depuis, ou
+                    // creation interrompue lors d'une tentative precedente).
+                    // Retour utilisateur du 2026-09-21 : rediriger directement
+                    // vers la connexion menait a une impasse dans ce cas.
+                    // On laisse desormais la personne choisir.
+                    showExistingPurchaseScreen();
+                    return;
+                }
                 showAccountScreen();
             }
 
@@ -243,6 +244,21 @@ public class SetupActivity extends Activity {
         Log.d("JunglyBilling", "BillingHelper construit, appel startPurchase()");
         billingHelper.startPurchase();
         Log.d("JunglyBilling", "billingHelper.startPurchase() est revenu (appel non bloquant attendu)");
+    }
+
+    // ---------- Achat retrouve (reinstallation, nouvel appareil...) ----------
+
+    private void showExistingPurchaseScreen() {
+        root = newRoot();
+        root.addView(logo());
+        root.addView(title("Achat retrouvé"));
+        root.addView(body("Google Play indique que tu as déjà débloqué l'offre hébergée. Si tu as déjà un compte, connecte-toi directement. Sinon (par exemple si la création de compte n'avait pas abouti la première fois), tu peux en créer un nouveau."));
+        root.addView(button("Me connecter", true, v -> {
+            InstancePrefs.clearPendingProvisioningId(SetupActivity.this);
+            InstancePrefs.setTargetUrl(SetupActivity.this, AppConfig.HOSTED_URL);
+            launchMainActivity();
+        }));
+        root.addView(button("Créer un compte", false, v -> showAccountScreen()));
     }
 
     private void showAccountScreen() {
