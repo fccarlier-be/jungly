@@ -51,8 +51,17 @@ final class BillingHelper implements PurchasesUpdatedListener {
          * locales ont ete effacees entre le paiement et la creation du
          * compte -- le backend accepte ce cas avec une garantie legerement
          * plus faible plutot que de bloquer la recuperation.
+         *
+         * isExistingPurchase : true quand cet achat existait deja avant cet
+         * appel (retrouve via queryPurchasesAsync -- reinstallation, nouvel
+         * appareil...), false pour un achat qui vient d'etre realise a
+         * l'instant (onPurchasesUpdated). Retour utilisateur du 2026-09-21 :
+         * un achat retrouve correspond quasi toujours a un compte deja cree
+         * -- tenter de le "creer" a nouveau echoue cote serveur ("achat deja
+         * utilise"). Le distinguer permet a l'appelant de proposer une
+         * connexion plutot qu'une creation de compte vouee a l'echec.
          */
-        void onPurchaseObtained(String purchaseToken, String provisioningId);
+        void onPurchaseObtained(String purchaseToken, String provisioningId, boolean isExistingPurchase);
         void onError(String message);
         void onCancelled();
     }
@@ -211,7 +220,7 @@ final class BillingHelper implements PurchasesUpdatedListener {
                         // disparu -- fabriquer un nouvel identifiant ferait a coup sur
                         // echouer la verification cote serveur (voir InstancePrefs).
                         String provisioningId = InstancePrefs.getPendingProvisioningIdOrNull(activity);
-                        resolveOnce(() -> listener.onPurchaseObtained(purchase.getPurchaseToken(), provisioningId));
+                        resolveOnce(() -> listener.onPurchaseObtained(purchase.getPurchaseToken(), provisioningId, true));
                         return;
                     }
                 }
@@ -318,7 +327,7 @@ final class BillingHelper implements PurchasesUpdatedListener {
         for (Purchase purchase : purchases) {
             if (purchase.getProducts().contains(AppConfig.HOSTED_PRODUCT_ID)) {
                 String provisioningId = InstancePrefs.getOrCreatePendingProvisioningId(activity);
-                mainHandler.post(() -> listener.onPurchaseObtained(purchase.getPurchaseToken(), provisioningId));
+                mainHandler.post(() -> listener.onPurchaseObtained(purchase.getPurchaseToken(), provisioningId, false));
                 return;
             }
         }

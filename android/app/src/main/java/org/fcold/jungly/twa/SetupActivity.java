@@ -208,8 +208,20 @@ public class SetupActivity extends Activity {
 
         billingHelper = new BillingHelper(this, new BillingHelper.Listener() {
             @Override
-            public void onPurchaseObtained(String purchaseToken, String provisioningId) {
-                Log.d("JunglyBilling", "Listener.onPurchaseObtained");
+            public void onPurchaseObtained(String purchaseToken, String provisioningId, boolean isExistingPurchase) {
+                Log.d("JunglyBilling", "Listener.onPurchaseObtained isExistingPurchase=" + isExistingPurchase);
+                if (isExistingPurchase) {
+                    // Achat retrouve (reinstallation, nouvel appareil...) : un
+                    // compte existe presque certainement deja pour cet achat
+                    // -- tenter de le "creer" echouerait cote serveur ("achat
+                    // deja utilise"). On envoie directement vers la connexion
+                    // de l'offre hebergee plutot que vers l'ecran de creation
+                    // de compte. Retour utilisateur du 2026-09-21.
+                    Toast.makeText(SetupActivity.this, "Achat retrouvé — connecte-toi avec le compte associé à cet achat.", Toast.LENGTH_LONG).show();
+                    InstancePrefs.setTargetUrl(SetupActivity.this, AppConfig.HOSTED_URL);
+                    launchMainActivity();
+                    return;
+                }
                 pendingPurchaseToken = purchaseToken;
                 pendingProvisioningId = provisioningId;
                 showAccountScreen();
