@@ -66,11 +66,22 @@ final class BillingHelper implements PurchasesUpdatedListener {
     // vsync/Choreographer). D'ou ce timeout base sur un VRAI thread separe
     // (Thread.sleep), un mecanisme entierement different, plutot qu'un
     // deuxieme reglage du meme mecanisme deja pris en defaut.
+    //
+    // Deuxieme correctif le 2026-09-21 : meme ce chien de garde ne suffisait
+    // pas -- capture d'ecran a l'appui, l'ecran restait bloque sur le simple
+    // titre "Jungly" (aucun contenu de SetupActivity.startPurchase() n'a
+    // jamais ete affiche), sans jamais atteindre le delai de 15s. Cause :
+    // BillingClient.newBuilder(...).build() se trouvait dans le CONSTRUCTEUR
+    // de BillingHelper, appele AVANT le demarrage du chien de garde -- un
+    // blocage a cet endroit precis (code tiers, hors de notre controle)
+    // n'etait surveille par rien du tout. La construction du BillingClient
+    // est desormais deplacee DANS startPurchase(), apres le lancement du
+    // thread de surveillance, pour que meme ce cas soit couvert.
     private static final long PREPARE_PURCHASE_TIMEOUT_MS = 15_000;
 
     private final Activity activity;
     private final Listener listener;
-    private final BillingClient billingClient;
+    private BillingClient billingClient;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private boolean resolved; // toujours lu/ecrit sur le thread principal
     private Thread timeoutThread;
@@ -91,11 +102,6 @@ final class BillingHelper implements PurchasesUpdatedListener {
     BillingHelper(Activity activity, Listener listener) {
         this.activity = activity;
         this.listener = listener;
-        this.billingClient = BillingClient.newBuilder(activity)
-                .setListener(this)
-                .enablePendingPurchases(
-                        PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
-                .build();
     }
 
     /**
@@ -117,6 +123,14 @@ final class BillingHelper implements PurchasesUpdatedListener {
                     "Connexion à Google Play trop longue. Vérifiez que le Play Store est installé, à jour et que vous êtes connecté à un compte Google, puis réessayez.")));
         });
         timeoutThread.start();
+
+        // Construction du client APRES le demarrage du chien de garde : voir
+        // le commentaire au-dessus de PREPARE_PURCHASE_TIMEOUT_MS.
+        billingClient = BillingClient.newBuilder(activity)
+                .setListener(this)
+                .enablePendingPurchases(
+                        PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
+                .build();
 
         billingClient.startConnection(new BillingClientStateListener() {
             @Override
@@ -263,6 +277,8 @@ final class BillingHelper implements PurchasesUpdatedListener {
         if (timeoutThread != null) {
             timeoutThread.interrupt();
         }
-        billingClient.endConnection();
+        if (billingClient != null) {
+            billingClient.endConnection();
+        }
     }
 }
