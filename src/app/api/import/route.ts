@@ -20,6 +20,7 @@ import {
 } from "@/server/validation/backup";
 import { ensurePendingTaskForRule } from "@/server/careEngine/service";
 import { resolveUploadedFilePath, deleteUploadedFile } from "@/server/uploads";
+import { resolveLibraryPhotoPath, deleteLibraryPhoto } from "@/server/libraryPhotos";
 import { generateSensorApiKey } from "@/server/sensorAuth";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
@@ -91,7 +92,8 @@ const MAX_INPUT_PIXELS = 40_000_000;
  * dans la réponse, à reconfigurer sur l'appareil physique.
  */
 export async function POST(request: NextRequest) {
-  const writtenFiles: string[] = [];
+  const writtenUploadFiles: string[] = [];
+  const writtenLibraryPhotoFiles: string[] = [];
 
   try {
     const userId = await requireUserId();
@@ -136,6 +138,13 @@ export async function POST(request: NextRequest) {
     // Nouveaux noms de fichiers (UUID frais) : evite toute collision avec
     // des fichiers deja presents sur le serveur cible.
     const filenameMap = new Map<string, string>();
+    // Photos de bibliotheque (/library-photos/..., voir libraryPhotos.ts) :
+    // mirroir LOCAL a chaque serveur, jamais partage entre instances --
+    // traitees comme les uploads (meme pipeline, nom frais) mais ecrites
+    // dans leur propre repertoire, sinon une couverture auto-assignee lors
+    // d'une identification redevient un lien mort une fois importee sur un
+    // autre serveur (incident du 2026-09-21, migration PWA -> beta Android).
+    const libraryFilenameMap = new Map<string, string>();
     {
       // zip.folder("uploads").files n'est PAS filtre au dossier : JSZip
       // partage la meme table de fichiers (chemins complets) entre le zip
@@ -145,10 +154,13 @@ export async function POST(request: NextRequest) {
       // ci-dessous, cassant tout import legitime).
       // entries est un sous-ensemble de zip.files, deja borne par
       // MAX_ZIP_ENTRIES plus haut -- pas besoin d'un second controle ici.
-      const entries = Object.values(zip.files).filter((entry) => !entry.dir && entry.name.startsWith("uploads/"));
+      const entries = Object.values(zip.files).filter(
+        (entry) => !entry.dir && (entry.name.startsWith("uploads/") || entry.name.startsWith("library-photos/")),
+      );
 
       let totalDecompressedSize = 0;
       for (const entry of entries) {
+        const isLibraryPhoto = entry.name.startsWith("library-photos/");
         const originalName = path.basename(entry.name);
         // Une entree a la fois (pas tout le zip decompresse en parallele) :
         // borne le pic memoire a la taille d'un seul fichier plutot qu'a la
@@ -184,24 +196,38 @@ export async function POST(request: NextRequest) {
         // Ecrits immediatement (avant la transaction Prisma) : si l'un des
         // fichiers echoue, on nettoie ceux deja ecrits et on abandonne tout
         // l'import plutot que de laisser une restauration partielle.
-        await writeFile(resolveUploadedFilePath(newName), processed);
-        writtenFiles.push(newName);
-        filenameMap.set(originalName, newName);
+        if (isLibraryPhoto) {
+          await writeFile(resolveLibraryPhotoPath(newName), processed);
+          writtenLibraryPhotoFiles.push(newName);
+          libraryFilenameMap.set(originalName, newName);
+        } else {
+          await writeFile(resolveUploadedFilePath(newName), processed);
+          writtenUploadFiles.push(newName);
+          filenameMap.set(originalName, newName);
+        }
       }
     }
 
-    // Une reference /uploads/... dans data.json sans fichier correspondant
-    // dans l'archive (backup partiel/corrompu, OU archive fabriquee a la
-    // main par un utilisateur malveillant) ne doit JAMAIS etre conservee
-    // telle quelle : ca permettrait de faire pointer une plante importee
-    // vers le fichier physique d'un AUTRE utilisateur si son nom (un UUID)
-    // est connu -- la route de service ne verifie que l'appartenance de la
-    // plante, pas que le fichier a bien ete apporte par cet import precis.
-    // On perd la photo (elle redevient null) plutot que de risquer ca.
+    // Une reference /uploads/... ou /library-photos/... dans data.json sans
+    // fichier correspondant dans l'archive (backup partiel/corrompu, OU
+    // archive fabriquee a la main par un utilisateur malveillant) ne doit
+    // JAMAIS etre conservee telle quelle : ca permettrait de faire pointer
+    // une plante importee vers le fichier physique d'un AUTRE utilisateur
+    // (pour /uploads/) si son nom (un UUID) est connu -- la route de
+    // service ne verifie que l'appartenance de la plante, pas que le
+    // fichier a bien ete apporte par cet import precis. On perd la photo
+    // (elle redevient null) plutot que de risquer ca.
     function remapUrl(url: string | null | undefined): string | null {
-      if (!url || !url.startsWith("/uploads/")) return url ?? null;
-      const newName = filenameMap.get(path.basename(url));
-      return newName ? `/uploads/${newName}` : null;
+      if (!url) return null;
+      if (url.startsWith("/uploads/")) {
+        const newName = filenameMap.get(path.basename(url));
+        return newName ? `/uploads/${newName}` : null;
+      }
+      if (url.startsWith("/library-photos/")) {
+        const newName = libraryFilenameMap.get(path.basename(url));
+        return newName ? `/library-photos/${newName}` : null;
+      }
+      return url;
     }
 
     // timeout releve : une sauvegarde reelle (dizaines de plantes, regles,
@@ -373,7 +399,10 @@ export async function POST(request: NextRequest) {
     // Nettoyage des fichiers deja ecrits sur disque si l'import echoue apres
     // coup (ex. validation Zod ou transaction Prisma en erreur) -- sans ca,
     // un import rate laissait des photos orphelines sur le disque.
-    await Promise.all(writtenFiles.map((name) => deleteUploadedFile(`/uploads/${name}`)));
+    await Promise.all([
+      ...writtenUploadFiles.map((name) => deleteUploadedFile(`/uploads/${name}`)),
+      ...writtenLibraryPhotoFiles.map((name) => deleteLibraryPhoto(`/library-photos/${name}`)),
+    ]);
     return handleApiError(error);
   }
 }

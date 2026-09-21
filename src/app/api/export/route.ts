@@ -6,6 +6,7 @@ import { db } from "@/server/db";
 import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
 import { resolveUploadedFilePath } from "@/server/uploads";
+import { resolveLibraryPhotoPath } from "@/server/libraryPhotos";
 import type { BackupData } from "@/server/validation/backup";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
@@ -148,14 +149,33 @@ export async function GET() {
     const zip = new JSZip();
     zip.file("data.json", JSON.stringify(data, null, 2));
     const uploadsFolder = zip.folder("uploads");
+    // Les photos de bibliotheque (/library-photos/...) sont un mirroir
+    // LOCAL a ce serveur (voir libraryPhotos.ts), jamais partage entre
+    // instances -- sans les inclure ici aussi, une couverture
+    // auto-assignee lors d'une identification (tres courant : beaucoup de
+    // plantes n'ont jamais de vraie photo /uploads/) redevient un lien
+    // mort des qu'importee sur un autre serveur (incident du 2026-09-21,
+    // migration PWA -> beta Android).
+    const libraryPhotosFolder = zip.folder("library-photos");
     for (const url of referencedUrls) {
-      if (!url.startsWith("/uploads/")) continue;
-      const filename = path.basename(url);
-      try {
-        const buffer = await readFile(resolveUploadedFilePath(filename));
-        uploadsFolder?.file(filename, buffer);
-      } catch {
-        // Fichier deja supprime du disque : on exporte quand meme le reste.
+      if (url.startsWith("/uploads/")) {
+        const filename = path.basename(url);
+        try {
+          const buffer = await readFile(resolveUploadedFilePath(filename));
+          uploadsFolder?.file(filename, buffer);
+        } catch {
+          // Fichier deja supprime du disque : on exporte quand meme le reste.
+        }
+        continue;
+      }
+      if (url.startsWith("/library-photos/")) {
+        const filename = path.basename(url);
+        try {
+          const buffer = await readFile(resolveLibraryPhotoPath(filename));
+          libraryPhotosFolder?.file(filename, buffer);
+        } catch {
+          // Fichier deja supprime du disque : on exporte quand meme le reste.
+        }
       }
     }
 

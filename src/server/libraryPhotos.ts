@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
@@ -26,6 +26,30 @@ const MAX_INPUT_PIXELS = 40_000_000;
  */
 export function resolveLibraryPhotoPath(filename: string): string {
   return path.join(LIBRARY_PHOTOS_DIR, path.basename(filename));
+}
+
+/**
+ * Supprime physiquement un fichier de bibliotheque mirrore localement, a
+ * partir de son url stockee en base (`/library-photos/<nom>`). Utilisee
+ * pour nettoyer les fichiers deja ecrits par un import de sauvegarde qui
+ * echoue en cours de route (voir /api/import) -- contrairement a
+ * deleteUploadedFile(), aucune table ne suit l'ownership de ces fichiers
+ * (partages entre tous les comptes, voir la doc de la route
+ * library-photos/[filename]), rien d'autre a nettoyer en base. Un fichier
+ * deja absent (ENOENT) n'est pas une erreur.
+ */
+export async function deleteLibraryPhoto(url: string | null | undefined): Promise<void> {
+  if (!url || !url.startsWith("/library-photos/")) {
+    return;
+  }
+  const filePath = resolveLibraryPhotoPath(path.basename(url));
+  try {
+    await unlink(filePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      console.error("Echec de suppression du fichier de bibliotheque", filePath, error);
+    }
+  }
 }
 
 /**
