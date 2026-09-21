@@ -197,11 +197,27 @@ final class BillingHelper implements PurchasesUpdatedListener {
                     .setObfuscatedAccountId(provisioningId)
                     .build();
 
-            // A partir d'ici, le controle passe a l'UI d'achat dessinee par
-            // Google (launchBillingFlow) -- on arrete de surveiller : la suite
-            // attend une vraie interaction humaine, pas un appel silencieux
-            // qui pourrait ne jamais revenir.
-            resolveOnce(() -> billingClient.launchBillingFlow(activity, billingFlowParams));
+            // BUG reel trouve le 2026-09-21 : la valeur de retour de
+            // launchBillingFlow() etait jusqu'ici totalement ignoree. Or ce
+            // retour est SYNCHRONE et distinct du callback onPurchasesUpdated
+            // -- il indique si Google a seulement reussi a OUVRIR son propre
+            // ecran d'achat (ex. DEVELOPER_ERROR, ITEM_ALREADY_OWNED, produit
+            // non actif sur la Play Console peuvent echouer ici silencieusement).
+            // Sans cette verification, un tel echec laissait l'ecran
+            // "Connexion à Google Play…" affiche indefiniment, puisque plus
+            // aucun timeout ne surveille cette etape (on a deja resolu pour
+            // laisser la main a l'UI Google) et qu'aucun callback ulterieur
+            // n'arrive jamais dans ce cas.
+            BillingResult launchResult = billingClient.launchBillingFlow(activity, billingFlowParams);
+            if (launchResult.getResponseCode() != BillingClient.BillingResponseCode.OK) {
+                resolveOnce(() -> listener.onError("Impossible d'ouvrir l'achat Google Play (" + launchResult.getDebugMessage() + ")."));
+                return;
+            }
+            // A partir d'ici, l'ecran d'achat de Google a bien ete ouvert --
+            // on arrete de surveiller : la suite attend une vraie interaction
+            // humaine (onPurchasesUpdated), qui peut legitimement prendre du
+            // temps (saisie de carte, 2FA...), jamais un delai fixe.
+            resolveOnce(() -> {});
         });
     }
 
