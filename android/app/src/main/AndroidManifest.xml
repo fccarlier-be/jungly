@@ -90,6 +90,13 @@
             <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL"
                 android:value="@string/launchUrl" />
 
+            <!-- Offre hebergee (jungly-app.fcold.org) : sans cette entree,
+                 seule DEFAULT_URL (plantes.fcold.org) est traitee en TWA
+                 plein ecran, toute autre origine retombe en Custom Tab avec
+                 barre d'URL visible. Retour utilisateur du 2026-09-21. -->
+            <meta-data android:name="android.support.customtabs.trusted.ADDITIONAL_TRUSTED_ORIGINS"
+                android:resource="@array/additional_trusted_origins" />
+
             <meta-data
                 android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
                 android:resource="@color/colorPrimary" />

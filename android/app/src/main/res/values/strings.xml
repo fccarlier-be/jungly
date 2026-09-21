@@ -36,7 +36,27 @@
             \"namespace\": \"web\",
             \"site\": \"https://plantes.fcold.org\"
         }
+    },
+    {
+        \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+        \"target\": {
+            \"namespace\": \"web\",
+            \"site\": \"https://jungly-app.fcold.org\"
+        }
     }]
-    
-  </string>  
+
+  </string>
+
+  <!--
+    Origines supplementaires de confiance pour la TWA (offre hebergee,
+    jungly-app.fcold.org). Sans cette liste, meme avec un assetlinks.json
+    et un asset_statements corrects sur ce domaine, la LauncherActivity par
+    defaut ne construit l'intent TWA que pour l'origine DEFAULT_URL
+    (plantes.fcold.org) et retombe en Custom Tab (barre d'URL visible) pour
+    toute autre origine. Voir developer.chrome.com/docs/android/
+    trusted-web-activity/multi-origin.
+  -->
+  <string-array name="additional_trusted_origins">
+    <item>https://jungly-app.fcold.org</item>
+  </string-array>
 </resources>
