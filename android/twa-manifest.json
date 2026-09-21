@@ -12,7 +12,7 @@
   "maskableIconUrl": "https://plantes.fcold.org/icons/icon-512.png",
   "signingKey": { "path": "/keystore/jungly-release.keystore", "alias": "jungly" },
   "appVersionName": "1.1.4",
-  "appVersionCode": 13,
+  "appVersionCode": 14,
   "webManifestUrl": "https://plantes.fcold.org/manifest.json",
   "fallbackType": "customtabs",
   "minSdkVersion": 23,

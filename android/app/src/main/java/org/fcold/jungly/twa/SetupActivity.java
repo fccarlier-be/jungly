@@ -286,10 +286,26 @@ public class SetupActivity extends Activity {
                     InstancePrefs.clearPendingProvisioningId(SetupActivity.this);
                     InstancePrefs.setTargetUrl(SetupActivity.this, AppConfig.HOSTED_URL);
                     launchMainActivity();
-                } else {
-                    String error = body.optString("error", "Impossible de créer le compte.");
-                    Toast.makeText(SetupActivity.this, error, Toast.LENGTH_LONG).show();
+                    return;
                 }
+                String error = body.optString("error", "Impossible de créer le compte.");
+                // Filet de securite : la decision "achat retrouve -> direction
+                // connexion" prise cote client (voir BillingHelper.Listener,
+                // isExistingPurchase) est une optimisation, pas une garantie --
+                // un achat peut avoir ete fait sans que la creation de compte
+                // n'ait jamais abouti (app tuee/reseau coupe pendant CET ecran
+                // precis, lors d'une tentative precedente). Le serveur reste la
+                // seule source de verite : s'il dit que l'achat est deja lie a
+                // un compte, on propose la connexion au lieu de laisser
+                // l'utilisateur bloque sur un formulaire voue a l'echec.
+                if (statusCode == 409 && error.contains("achat")) {
+                    Toast.makeText(SetupActivity.this, "Un compte existe déjà pour cet achat — connecte-toi.", Toast.LENGTH_LONG).show();
+                    InstancePrefs.clearPendingProvisioningId(SetupActivity.this);
+                    InstancePrefs.setTargetUrl(SetupActivity.this, AppConfig.HOSTED_URL);
+                    launchMainActivity();
+                    return;
+                }
+                Toast.makeText(SetupActivity.this, error, Toast.LENGTH_LONG).show();
             }
 
             @Override
