@@ -30,16 +30,32 @@ public class LauncherActivity
 
 
     @Override
+    protected boolean shouldLaunchImmediately() {
+        // Point d'extension prevu par androidbrowserhelper pour empecher le
+        // lancement automatique de la TWA dans onCreate() -- voir sa javadoc.
+        // Necessaire ici : sans lui, il fallait retourner de onCreate() avant
+        // d'appeler super.onCreate() pour rediriger vers SetupActivity au
+        // premier lancement, ce qui levait un SuperNotCalledException (crash
+        // reproduit le 2026-09-21 uniquement sur une installation fraiche,
+        // jamais remarque avant faute d'avoir jamais reteste un
+        // uninstall+reinstall complet en cours de session).
+        return InstancePrefs.isConfigured(this);
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
         // Premier lancement (ou apres reinitialisation) : aucune instance
         // choisie encore -- montre l'assistant plutot que de lancer la TWA
-        // avec l'URL par defaut du manifeste (voir SetupActivity).
+        // avec l'URL par defaut du manifeste (voir SetupActivity et
+        // shouldLaunchImmediately() ci-dessus, qui a deja empeche le
+        // lancement automatique de la TWA a ce stade).
         if (!InstancePrefs.isConfigured(this)) {
             startActivity(new Intent(this, SetupActivity.class));
             finish();
             return;
         }
-        super.onCreate(savedInstanceState);
         // Setting an orientation crashes the app due to the transparent background on Android 8.0
         // Oreo and below. We only set the orientation on Oreo and above. This only affects the
         // splash screen and Chrome will still respect the orientation.
