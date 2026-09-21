@@ -181,9 +181,27 @@ final class BillingHelper implements PurchasesUpdatedListener {
             }
 
             ProductDetails productDetails = productDetailsList.get(0);
+
+            // Modele "purchase options" pour les produits ponctuels (introduit
+            // mi-2025) : un produit peut desormais avoir plusieurs options
+            // d'achat (acheter/louer), chacune avec son propre offerToken.
+            // setProductDetails() seul ne suffit plus -- setOfferToken() est
+            // obligatoire, meme avec une seule option configuree cote Play
+            // Console (voir developer.android.com/google/play/billing/
+            // one-time-product-multi-purchase-options-offers). Jungly n'a
+            // qu'une option ("Acheter", pas de location) : on prend la
+            // premiere de la liste, pas de choix a proposer a l'utilisateur.
+            List<ProductDetails.OneTimePurchaseOfferDetails> offers = productDetails.getOneTimePurchaseOfferDetailsList();
+            if (offers == null || offers.isEmpty()) {
+                resolveOnce(() -> listener.onError("Aucune option d'achat disponible pour ce produit sur Google Play."));
+                return;
+            }
+            String offerToken = offers.get(0).getOfferToken();
+
             BillingFlowParams.ProductDetailsParams productDetailsParams =
                     BillingFlowParams.ProductDetailsParams.newBuilder()
                             .setProductDetails(productDetails)
+                            .setOfferToken(offerToken)
                             .build();
 
             // Identifiant genere avant l'achat et transmis a Google : notre backend verifiera
