@@ -95,16 +95,19 @@ export default function PlantPhotoGallery({
     <section className="animate-rise-in space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Photos</h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-1.5">
           {/* Boutons separes plutot qu'un input unique : sur Android recent,
               accept="image/*" seul declenche le Photo Picker natif (galerie
               uniquement, jamais l'appareil photo) -- capture="environment"
               force la camera. Un seul input ne peut pas offrir les deux en
-              meme temps de facon fiable (retour utilisateur, 2026-09-22). */}
-          <label className="text-sm">
-            <span className="btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold">
-              <Plus size={14} />
-              {uploading ? "Téléversement..." : "Prendre une photo"}
+              meme temps de facon fiable (retour utilisateur, 2026-09-22).
+              Taille reduite (text-xs, px-2) : deux boutons cote a cote
+              ecrasaient le titre "Photos" avec la taille d'origine, pensee
+              pour un seul bouton "Ajouter" (retour utilisateur, 2026-09-22). */}
+          <label>
+            <span className="btn-primary inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold whitespace-nowrap">
+              <Plus size={12} />
+              {uploading ? "..." : "Photo"}
             </span>
             <input
               type="file"
@@ -115,10 +118,10 @@ export default function PlantPhotoGallery({
               disabled={uploading}
             />
           </label>
-          <label className="text-sm">
-            <span className="btn-ghost inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold">
-              <Plus size={14} />
-              {uploading ? "Téléversement..." : "Galerie"}
+          <label>
+            <span className="btn-ghost inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold whitespace-nowrap">
+              <Plus size={12} />
+              {uploading ? "..." : "Galerie"}
             </span>
             <input type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} disabled={uploading} />
           </label>

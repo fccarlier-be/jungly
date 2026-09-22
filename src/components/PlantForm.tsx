@@ -524,7 +524,7 @@ export default function PlantForm({
                 force la camera. Un seul input ne peut pas offrir les deux en
                 meme temps de facon fiable (retour utilisateur, 2026-09-22). */}
             <label>
-              <span className="btn-primary inline-block cursor-pointer rounded-xl px-3 py-2 font-semibold">
+              <span className="btn-primary inline-block cursor-pointer rounded-lg px-2.5 py-1.5 font-semibold">
                 {uploading ? "Téléversement..." : "Prendre une photo"}
               </span>
               <input
@@ -537,8 +537,8 @@ export default function PlantForm({
               />
             </label>
             <label>
-              <span className="btn-ghost inline-block cursor-pointer rounded-xl px-3 py-2 font-semibold">
-                {uploading ? "Téléversement..." : "Choisir depuis la galerie"}
+              <span className="btn-ghost inline-block cursor-pointer rounded-lg px-2.5 py-1.5 font-semibold">
+                {uploading ? "Téléversement..." : "Galerie"}
               </span>
               <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} disabled={uploading} />
             </label>
