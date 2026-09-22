@@ -95,13 +95,34 @@ export default function PlantPhotoGallery({
     <section className="animate-rise-in space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Photos</h2>
-        <label className="text-sm">
-          <span className="btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold">
-            <Plus size={14} />
-            {uploading ? "Téléversement..." : "Ajouter"}
-          </span>
-          <input type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} disabled={uploading} />
-        </label>
+        <div className="flex flex-wrap gap-2">
+          {/* Boutons separes plutot qu'un input unique : sur Android recent,
+              accept="image/*" seul declenche le Photo Picker natif (galerie
+              uniquement, jamais l'appareil photo) -- capture="environment"
+              force la camera. Un seul input ne peut pas offrir les deux en
+              meme temps de facon fiable (retour utilisateur, 2026-09-22). */}
+          <label className="text-sm">
+            <span className="btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold">
+              <Plus size={14} />
+              {uploading ? "Téléversement..." : "Prendre une photo"}
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleUpload}
+              disabled={uploading}
+            />
+          </label>
+          <label className="text-sm">
+            <span className="btn-ghost inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-semibold">
+              <Plus size={14} />
+              {uploading ? "Téléversement..." : "Galerie"}
+            </span>
+            <input type="file" accept="image/*" multiple className="hidden" onChange={handleUpload} disabled={uploading} />
+          </label>
+        </div>
       </div>
 
       {error && (

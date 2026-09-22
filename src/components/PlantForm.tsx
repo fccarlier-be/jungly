@@ -517,12 +517,32 @@ export default function PlantForm({
               <Sprout size={28} strokeWidth={1.5} />
             )}
           </div>
-          <label className="text-sm">
-            <span className="btn-primary inline-block cursor-pointer rounded-xl px-3 py-2 font-semibold">
-              {uploading ? "Téléversement..." : "Choisir une photo"}
-            </span>
-            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} disabled={uploading} />
-          </label>
+          <div className="flex flex-wrap gap-2 text-sm">
+            {/* Boutons separes plutot qu'un input unique : sur Android recent,
+                accept="image/*" seul declenche le Photo Picker natif (galerie
+                uniquement, jamais l'appareil photo) -- capture="environment"
+                force la camera. Un seul input ne peut pas offrir les deux en
+                meme temps de facon fiable (retour utilisateur, 2026-09-22). */}
+            <label>
+              <span className="btn-primary inline-block cursor-pointer rounded-xl px-3 py-2 font-semibold">
+                {uploading ? "Téléversement..." : "Prendre une photo"}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handlePhotoChange}
+                disabled={uploading}
+              />
+            </label>
+            <label>
+              <span className="btn-ghost inline-block cursor-pointer rounded-xl px-3 py-2 font-semibold">
+                {uploading ? "Téléversement..." : "Choisir depuis la galerie"}
+              </span>
+              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} disabled={uploading} />
+            </label>
+          </div>
         </div>
 
         <div>
