@@ -12,17 +12,17 @@ interface Preference {
 
 const inputClass = "input w-full px-3 py-2 text-sm";
 
-type SupportState = "checking" | "unsupported" | "unsupported-ios-not-installed" | "supported";
+// Deux <select> plutot que <input type="time"> : le picker natif Android
+// (TimePickerDialog du systeme) affiche son bouton de confirmation hors
+// cadre sur certains appareils -- bug documente du navigateur/OS, pas
+// corrigeable via notre CSS (retour utilisateur, 2026-09-22). Un menu
+// deroulant HTML natif evite completement ce genre de rendu specifique a
+// l'OS. Le pas de 15 minutes correspond au rythme du scheduler (voir
+// scheduler.ts, qui ne verifie qu'aux quarts d'heure).
+const HOURS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0"));
+const MINUTES = ["00", "15", "30", "45"];
 
-/** Arrondit au quart d'heure le plus proche (le scheduler ne verifie qu'a ces instants, voir scheduler.ts). */
-function roundToQuarterHour(time: string): string {
-  const [hours, minutes] = time.split(":").map(Number);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return time;
-  const totalMinutes = (Math.round((hours * 60 + minutes) / 15) * 15) % (24 * 60);
-  const roundedHours = Math.floor(totalMinutes / 60);
-  const roundedMinutes = totalMinutes % 60;
-  return `${String(roundedHours).padStart(2, "0")}:${String(roundedMinutes).padStart(2, "0")}`;
-}
+type SupportState = "checking" | "unsupported" | "unsupported-ios-not-installed" | "supported";
 
 function isIosDevice(): boolean {
   // iPadOS se declare "MacIntel" mais garde le multi-touch d'un iPad.
@@ -38,11 +38,13 @@ export default function NotificationSettings({ initial }: { initial: Preference 
   const [preference, setPreference] = useState<Preference>(initial);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  // Brouillons locaux pour l'heure et le nombre de jours : la saisie met a
-  // jour ces champs a chaque frappe sans jamais desactiver l'input (ce qui
-  // coupait le focus/clavier mobile en plein milieu), et la sauvegarde reelle
-  // ne part qu'au blur -- pas a chaque tick de la roulette ou chaque chiffre.
-  const [timeDraft, setTimeDraft] = useState(initial.notificationTime);
+  // Brouillon local pour le nombre de jours : la saisie met a jour ce champ
+  // a chaque frappe sans jamais desactiver l'input (ce qui coupait le
+  // focus/clavier mobile en plein milieu), et la sauvegarde reelle ne part
+  // qu'au blur -- pas a chaque chiffre. L'heure n'a plus besoin de ce
+  // mecanisme depuis le passage a deux <select> (choix atomique, jamais de
+  // saisie partielle a preserver) : preference.notificationTime sert
+  // directement de valeur affichee.
   const [daysDraft, setDaysDraft] = useState(String(initial.advanceReminderDays));
 
   const [support, setSupport] = useState<SupportState>("checking");
@@ -242,24 +244,42 @@ export default function NotificationSettings({ initial }: { initial: Preference 
           <>
             <div>
               <label className="text-sm font-medium block mb-1">Heure d&apos;envoi</label>
-              <input
-                type="time"
-                step={900}
-                value={timeDraft}
-                onChange={(e) => setTimeDraft(e.target.value)}
-                onBlur={() => {
-                  if (!timeDraft) return;
-                  const rounded = roundToQuarterHour(timeDraft);
-                  setTimeDraft(rounded);
-                  if (rounded !== preference.notificationTime) {
-                    savePreference({ notificationTime: rounded });
-                  }
-                }}
-                className="input w-32 px-3 py-2 text-sm"
-              />
-              <p className="text-muted mt-1 text-xs">
-                Le digest est envoyé pile à cette heure (arrondie au quart d&apos;heure le plus proche).
-              </p>
+              <div className="flex items-center gap-1.5">
+                <select
+                  aria-label="Heure"
+                  value={preference.notificationTime.split(":")[0] ?? "08"}
+                  onChange={(e) => {
+                    const minutes = preference.notificationTime.split(":")[1] ?? "00";
+                    savePreference({ notificationTime: `${e.target.value}:${minutes}` });
+                  }}
+                  disabled={saving}
+                  className="input px-2 py-2 text-sm"
+                >
+                  {HOURS.map((h) => (
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
+                  ))}
+                </select>
+                <span aria-hidden="true">:</span>
+                <select
+                  aria-label="Minutes"
+                  value={preference.notificationTime.split(":")[1] ?? "00"}
+                  onChange={(e) => {
+                    const hours = preference.notificationTime.split(":")[0] ?? "08";
+                    savePreference({ notificationTime: `${hours}:${e.target.value}` });
+                  }}
+                  disabled={saving}
+                  className="input px-2 py-2 text-sm"
+                >
+                  {MINUTES.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-muted mt-1 text-xs">Le digest est envoyé pile à cette heure.</p>
             </div>
 
             <label className="flex items-center justify-between text-sm">
