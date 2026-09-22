@@ -1,3 +1,4 @@
+import { writeFile, unlink } from "node:fs/promises";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
 
@@ -5,7 +6,8 @@ vi.mock("@/lib/email", () => ({ sendEmail: vi.fn() }));
 
 import { sendEmail } from "@/lib/email";
 import { createFeedback } from "@/server/feedback";
-import { listFeedbackDetailed, deleteFeedback } from "@/server/adminPanel";
+import { listFeedbackDetailed, deleteFeedback, getFeedbackPhoto } from "@/server/adminPanel";
+import { resolveUploadedFilePath } from "@/server/uploads";
 import { NotFoundError } from "@/lib/errors";
 
 /**
@@ -103,5 +105,40 @@ describe("createFeedback (integration reelle SQLite)", () => {
 
   it("deleteFeedback refuse un identifiant inconnu", async () => {
     await expect(deleteFeedback("inconnu")).rejects.toThrow(NotFoundError);
+  });
+
+  it("getFeedbackPhoto renvoie le contenu du fichier associe", async () => {
+    const filename = `test-${Date.now()}.jpg`;
+    const filePath = resolveUploadedFilePath(filename);
+    await writeFile(filePath, Buffer.from("contenu-jpeg-factice"));
+    // assertOwnedUpload (resolvePhotoUrl, appele par createFeedback) exige
+    // soit une ligne Upload, soit une reference existante sur une plante --
+    // ni l'un ni l'autre ici, cette ligne est le seul moyen de faire passer
+    // ce fichier de test pour "possede" par userId.
+    await db.upload.create({ data: { filename, userId } });
+    const feedback = await createFeedback(userId, {
+      summary: "Capture jointe",
+      content: "Voir capture.",
+      topic: "AUTRE",
+      anonymous: false,
+      photoUrl: `/uploads/${filename}`,
+    });
+
+    try {
+      const buffer = await getFeedbackPhoto(feedback.id);
+      expect(buffer.toString()).toBe("contenu-jpeg-factice");
+    } finally {
+      await unlink(filePath).catch(() => {});
+      await db.upload.delete({ where: { filename } }).catch(() => {});
+    }
+  });
+
+  it("getFeedbackPhoto refuse un retour sans photo", async () => {
+    const feedback = await createFeedback(userId, { summary: "Sans photo", content: "Rien.", topic: "AUTRE", anonymous: false });
+    await expect(getFeedbackPhoto(feedback.id)).rejects.toThrow(NotFoundError);
+  });
+
+  it("getFeedbackPhoto refuse un identifiant inconnu", async () => {
+    await expect(getFeedbackPhoto("inconnu")).rejects.toThrow(NotFoundError);
   });
 });

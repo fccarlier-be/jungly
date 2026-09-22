@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { db } from "@/server/db";
 import { sendEmail } from "@/lib/email";
 import { NotFoundError, ConflictError } from "@/lib/errors";
@@ -8,6 +9,7 @@ import {
   waitlistedEmail,
   invitationEmail,
 } from "@/server/betaSignup";
+import { resolveUploadedFilePath } from "@/server/uploads";
 
 /**
  * Backend pour jungly-admin (service separe, voir docs/admin-panel.md) --
@@ -86,6 +88,31 @@ export async function deleteFeedback(id: string): Promise<void> {
     throw new NotFoundError("Retour introuvable.");
   }
   await db.feedback.delete({ where: { id } });
+}
+
+/**
+ * Sert la capture jointe a un retour, pour jungly-admin -- distinct de
+ * /uploads/[filename] (qui exige une session utilisateur proprietaire du
+ * fichier) puisque jungly-admin n'a jamais de session Jungly. Retour
+ * utilisateur (2026-09-22) : sans cette route, l'admin pointait
+ * directement vers l'URL /uploads/... du fichier, systematiquement rejetee
+ * (l'admin n'est jamais l'auteur du feedback) -- image toujours cassee
+ * dans l'UI de gestion des tickets.
+ */
+export async function getFeedbackPhoto(id: string): Promise<Buffer> {
+  const feedback = await db.feedback.findUnique({ where: { id }, select: { photoUrl: true } });
+  if (!feedback?.photoUrl) {
+    throw new NotFoundError("Aucune capture associée à ce retour.");
+  }
+  const filename = feedback.photoUrl.split("/").pop();
+  if (!filename) {
+    throw new NotFoundError("Aucune capture associée à ce retour.");
+  }
+  try {
+    return await readFile(resolveUploadedFilePath(filename));
+  } catch {
+    throw new NotFoundError("Ce fichier n'existe plus.");
+  }
 }
 
 export interface AccountSummary {
