@@ -105,4 +105,20 @@ describe("collectOrphanFiles (integration reelle, filesystem + SQLite)", () => {
 
     expect(await exists(referenced)).toBe(true);
   });
+
+  it("ne supprime jamais un fichier library-photos copie par valeur sur une plante, sans PlantLibraryEntry locale", async () => {
+    // Cas reel (incident du 2026-09-22) : une plante importee depuis un
+    // autre serveur (export/import) ou identifiee via une fiche depuis
+    // supprimee peut referencer un /library-photos/... sans qu'aucune
+    // PlantLibraryEntry ne pointe (plus) vers ce meme fichier localement.
+    const referenced = await writeLibraryPhoto("gc-plant-cover.jpg", true);
+    const plant = await db.plant.create({ data: { userId, name: "Plante GC", photoUrl: "/library-photos/gc-plant-cover.jpg" } });
+
+    try {
+      await collectOrphanFiles();
+      expect(await exists(referenced)).toBe(true);
+    } finally {
+      await db.plant.delete({ where: { id: plant.id } });
+    }
+  });
 });

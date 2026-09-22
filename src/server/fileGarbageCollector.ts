@@ -79,21 +79,41 @@ async function collectOrphanUploads(now: number): Promise<number> {
 }
 
 /**
- * Meme principe que collectOrphanUploads(), pour /library-photos -- pas de
- * table dediee ici, la seule source de verite est
- * PlantLibraryEntry.careProfile.imageUrl.
+ * Meme principe que collectOrphanUploads(), pour /library-photos --
+ * PlantLibraryEntry.careProfile.imageUrl est la source "canonique", mais
+ * une plante peut aussi copier cette URL par valeur dans son propre
+ * photoUrl/PlantPhoto.url/Note.photoUrl (identification par photo, ou
+ * import/export entre serveurs -- voir /api/export et /api/import) sans
+ * qu'aucune PlantLibraryEntry locale n'existe pour cette espece. Ignorer
+ * ces references a deja supprime a tort des photos de plantes reellement
+ * utilisees (incident du 2026-09-22, immediatement apres un redemarrage :
+ * cf. copie manuelle sur data-hosted pour un compte migre depuis
+ * l'instance privee, jamais passee par mirrorLibraryImage() localement).
  */
 async function collectOrphanLibraryPhotos(now: number): Promise<number> {
   const files = await listFiles(LIBRARY_PHOTOS_DIR);
   if (files.length === 0) return 0;
 
-  const entries = await db.plantLibraryEntry.findMany({ select: { careProfile: true } });
+  const [entries, plants, notes] = await Promise.all([
+    db.plantLibraryEntry.findMany({ select: { careProfile: true } }),
+    db.plant.findMany({ select: { photoUrl: true, photos: { select: { url: true } } } }),
+    db.note.findMany({ select: { photoUrl: true } }),
+  ]);
   const referenced = new Set<string>();
   for (const entry of entries) {
     const imageUrl = (entry.careProfile as { imageUrl?: string } | null)?.imageUrl;
     if (imageUrl?.startsWith("/library-photos/")) {
       referenced.add(path.basename(imageUrl));
     }
+  }
+  for (const plant of plants) {
+    if (plant.photoUrl?.startsWith("/library-photos/")) referenced.add(path.basename(plant.photoUrl));
+    for (const photo of plant.photos) {
+      if (photo.url.startsWith("/library-photos/")) referenced.add(path.basename(photo.url));
+    }
+  }
+  for (const note of notes) {
+    if (note.photoUrl?.startsWith("/library-photos/")) referenced.add(path.basename(note.photoUrl));
   }
 
   let deleted = 0;
