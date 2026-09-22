@@ -1,19 +1,31 @@
 /**
- * Client pour l'API d'identification par photo Pl@ntNet
- * (https://my.plantnet.org/doc/api/identify). Retour utilisateurs (2026-09) :
- * demande d'identification par photo, deja testee un an plus tot en interne
- * sans bon resultat -- un test manuel du 2026-09-20 sur 4 vraies photos de
- * plantes Jungly (organe "leaf" precise explicitement) a donne 3
- * identifications exactes a >70% de confiance et une quatrieme juste au
- * niveau du genre, donc nettement mieux qu'attendu.
+ * Client pour les API Pl@ntNet (https://my.plantnet.org/doc/api/) --
+ * identification d'espece (`identify`) et identification de maladies/
+ * nuisibles (`diseases/identify`, lancee le 2025-12-02, verifie sur la doc
+ * officielle et le changelog le 2026-09-23).
+ *
+ * Retour utilisateurs (2026-09) sur `identify` : demande d'identification
+ * par photo, deja testee un an plus tot en interne sans bon resultat -- un
+ * test manuel du 2026-09-20 sur 4 vraies photos de plantes Jungly (organe
+ * "leaf" precise explicitement) a donne 3 identifications exactes a >70%
+ * de confiance et une quatrieme juste au niveau du genre, donc nettement
+ * mieux qu'attendu.
  *
  * Projet "all" (flore mondiale) plutot que "weurope" : la bibliotheque
  * Jungly couvre des especes d'interieur originaires de partout, pas
  * seulement la flore sauvage d'Europe de l'Ouest.
  */
 import { z } from "zod";
+import { isPlantnetQuotaAvailable, incrementPlantnetUsage } from "@/server/plantnet/quota";
 
-const BASE_URL = "https://my-api.plantnet.org/v2/identify/all";
+const IDENTIFY_URL = "https://my-api.plantnet.org/v2/identify/all";
+const DISEASES_URL = "https://my-api.plantnet.org/v2/diseases/identify";
+
+// Pl@ntNet accepte jusqu'a 5 images du MEME individu par requete, et ca
+// ameliore reellement le resultat (agregation ponderee : fleur > fruit >
+// feuille > plante entiere > ecorce) -- verifie sur my.plantnet.org/doc/
+// getting-started/faq le 2026-09-23. Au-dela, l'API rejette la requete.
+export const PLANTNET_MAX_IMAGES = 5;
 
 export class PlantnetError extends Error {
   constructor(
@@ -22,6 +34,19 @@ export class PlantnetError extends Error {
   ) {
     super(message);
     this.name = "PlantnetError";
+  }
+}
+
+/**
+ * Distincte de PlantnetError generique : le blocage vient d'ICI (compteur
+ * local, voir quota.ts), pas d'une reponse HTTP de Pl@ntNet -- status 429
+ * quand meme (meme mapping cote apiError.ts) puisque la situation vecue par
+ * l'appelant est identique ("reessayer plus tard").
+ */
+export class PlantnetQuotaExceededError extends PlantnetError {
+  constructor() {
+    super("Quota Pl@ntNet quotidien atteint pour cette instance (voir Parametres > A propos), reessayer demain.", 429);
+    this.name = "PlantnetQuotaExceededError";
   }
 }
 
@@ -37,9 +62,18 @@ function getApiKey(): string {
 // choix par defaut cote UI car la terminologie botanique (feuille/fleur/
 // fruit/ecorce) n'est pas evidente pour un utilisateur non initie. Les 4
 // valeurs manuelles restent proposees en repli, "leaf" etant la seule
-// testee manuellement avec de bons resultats.
+// testee manuellement avec de bons resultats. Ce sont les 5 SEULES valeurs
+// acceptees par le parametre `organs` de l'API (docs.plantnet.org/reference/
+// organs liste un glossaire plus large qui NE s'applique PAS a ce
+// parametre -- verifie le 2026-09-23).
 export const PLANTNET_ORGANS = ["auto", "leaf", "flower", "fruit", "bark"] as const;
 export type PlantnetOrgan = (typeof PLANTNET_ORGANS)[number];
+
+export interface PlantnetImageInput {
+  buffer: Buffer;
+  filename: string;
+  organ: PlantnetOrgan;
+}
 
 // Validation minimale et permissive (meme raisonnement que
 // src/server/perenual/client.ts) : uniquement les champs reellement lus
@@ -65,33 +99,57 @@ export interface PlantnetCandidate {
   score: number;
 }
 
-/**
- * Identifie une plante a partir d'une photo. Renvoie un tableau vide (pas
- * une erreur) quand Pl@ntNet ne reconnait aucune espece sur l'image --
- * documente comme "404 Species not found", un resultat normal (mauvaise
- * photo, sujet non vegetal) plutot qu'une panne.
- */
-export async function identifyPlant(imageBuffer: Buffer, filename: string, organ: PlantnetOrgan): Promise<PlantnetCandidate[]> {
-  const url = new URL(BASE_URL);
-  url.searchParams.set("api-key", getApiKey());
-  url.searchParams.set("nb-results", "5");
-
+function buildImagesForm(images: PlantnetImageInput[]): FormData {
+  if (images.length === 0 || images.length > PLANTNET_MAX_IMAGES) {
+    throw new PlantnetError(`Entre 1 et ${PLANTNET_MAX_IMAGES} images attendues, ${images.length} recue(s).`);
+  }
   const form = new FormData();
-  form.append("images", new Blob([new Uint8Array(imageBuffer)]), filename);
-  form.append("organs", organ);
+  for (const image of images) {
+    form.append("images", new Blob([new Uint8Array(image.buffer)]), image.filename);
+    form.append("organs", image.organ);
+  }
+  return form;
+}
 
+/**
+ * Verifie le quota local PUIS envoie la requete -- incremente le compteur
+ * apres coup, que la reponse soit un succes, un "non reconnu", ou une
+ * erreur Pl@ntNet (facture cote leur depuis le 2026-02-13, voir quota.ts).
+ * Rien n'est incremente si `fetch` echoue avant d'atteindre Pl@ntNet.
+ */
+async function postToPlantnet(url: URL, form: FormData): Promise<Response> {
+  if (!(await isPlantnetQuotaAvailable())) {
+    throw new PlantnetQuotaExceededError();
+  }
   let res: Response;
   try {
     res = await fetch(url, { method: "POST", body: form });
   } catch {
     throw new PlantnetError("Pl@ntNet est injoignable pour le moment.");
   }
+  await incrementPlantnetUsage();
+  return res;
+}
+
+/**
+ * Identifie une plante a partir d'une a cinq photos du MEME individu.
+ * Renvoie un tableau vide (pas une erreur) quand Pl@ntNet ne reconnait
+ * aucune espece sur les images -- documente comme "404 Species not found",
+ * un resultat normal (mauvaise photo, sujet non vegetal) plutot qu'une
+ * panne.
+ */
+export async function identifyPlant(images: PlantnetImageInput[]): Promise<PlantnetCandidate[]> {
+  const url = new URL(IDENTIFY_URL);
+  url.searchParams.set("api-key", getApiKey());
+  url.searchParams.set("nb-results", "5");
+
+  const res = await postToPlantnet(url, buildImagesForm(images));
 
   if (res.status === 404) {
     return [];
   }
   if (res.status === 429) {
-    throw new PlantnetError("Quota Pl@ntNet atteint (500 identifications/jour, partage entre les instances), reessayer plus tard.", 429);
+    throw new PlantnetError("Quota Pl@ntNet atteint cote serveur Pl@ntNet, reessayer plus tard.", 429);
   }
   if (!res.ok) {
     throw new PlantnetError(`Pl@ntNet a repondu ${res.status}.`, res.status);
@@ -99,13 +157,91 @@ export async function identifyPlant(imageBuffer: Buffer, filename: string, organ
 
   const parsed = plantnetIdentifyResponseSchema.safeParse(await res.json());
   if (!parsed.success) {
-    console.error("Reponse Pl@ntNet inattendue :", parsed.error.flatten());
+    console.error("Reponse Pl@ntNet (identify) inattendue :", parsed.error.flatten());
     throw new PlantnetError("Reponse Pl@ntNet invalide.");
   }
 
   return parsed.data.results.map((r) => ({
     scientificName: r.species.scientificNameWithoutAuthor,
     commonNames: r.species.commonNames ?? [],
+    score: r.score,
+  }));
+}
+
+export interface PlantnetDiseaseCandidate {
+  name: string;
+  eppoCode: string | null;
+  score: number;
+}
+
+// Schema DELIBEREMENT tres permissif : la forme exacte de la reponse
+// /v2/diseases/identify n'a pas pu etre verifiee empiriquement (API lancee
+// le 2025-12-02, sortie grand public annoncee a partir de mars 2026 --
+// verifie sur my.plantnet.org/doc/api/diseases et le changelog le
+// 2026-09-23, mais aucun exemple de payload reel obtenu). Accepte
+// plusieurs noms de champs plausibles pour le nom/score/code EPPO plutot
+// que d'echouer bruyamment sur un premier vrai test -- A RECALER des le
+// premier appel reel (voir le console.error ci-dessous qui journalise la
+// reponse brute pour ajuster ce schema).
+const plantnetDiseaseCandidateSchema = z
+  .object({
+    score: z.number(),
+  })
+  .and(
+    z.record(z.string(), z.unknown()), // tolere tout champ additionnel, extrait au mieux ci-dessous
+  );
+
+const plantnetDiseasesResponseSchema = z.object({
+  results: z.array(plantnetDiseaseCandidateSchema).optional().default([]),
+});
+
+function extractDiseaseName(raw: Record<string, unknown>): string {
+  const disease = raw.disease as Record<string, unknown> | undefined;
+  const name = disease?.scientificName ?? disease?.name ?? raw.scientificName ?? raw.name;
+  return typeof name === "string" ? name : "Maladie non nommee (reponse Pl@ntNet inattendue)";
+}
+
+function extractEppoCode(raw: Record<string, unknown>): string | null {
+  const disease = raw.disease as Record<string, unknown> | undefined;
+  const code = disease?.eppoCode ?? raw.eppoCode ?? raw.eppo_code;
+  return typeof code === "string" ? code : null;
+}
+
+/**
+ * Identifie une maladie/un nuisible a partir d'une a cinq photos.
+ * `/v2/diseases/identify` partage le MEME quota que `identify` (verifie sur
+ * my.plantnet.org/doc/api/diseases le 2026-09-23) -- pas de comptage
+ * separe cote quota.ts. Couverture d'especes/pathologies volontairement
+ * limitee par Pl@ntNet au lancement : un tableau vide est un resultat
+ * normal, pas une erreur.
+ */
+export async function identifyDiseases(images: PlantnetImageInput[]): Promise<PlantnetDiseaseCandidate[]> {
+  const url = new URL(DISEASES_URL);
+  url.searchParams.set("api-key", getApiKey());
+  url.searchParams.set("nb-results", "5");
+
+  const res = await postToPlantnet(url, buildImagesForm(images));
+
+  if (res.status === 404) {
+    return [];
+  }
+  if (res.status === 429) {
+    throw new PlantnetError("Quota Pl@ntNet atteint cote serveur Pl@ntNet, reessayer plus tard.", 429);
+  }
+  if (!res.ok) {
+    throw new PlantnetError(`Pl@ntNet (diseases) a repondu ${res.status}.`, res.status);
+  }
+
+  const rawBody = await res.json();
+  const parsed = plantnetDiseasesResponseSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    console.error("Reponse Pl@ntNet (diseases) inattendue :", parsed.error.flatten(), JSON.stringify(rawBody).slice(0, 2000));
+    return []; // degrade en "aucun resultat" plutot que de casser tout le diagnostic pour un schema a recaler
+  }
+
+  return parsed.data.results.map((r) => ({
+    name: extractDiseaseName(r),
+    eppoCode: extractEppoCode(r),
     score: r.score,
   }));
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { StickyNote, type LucideIcon } from "lucide-react";
+import { StickyNote, Stethoscope, type LucideIcon } from "lucide-react";
 import { CARE_ICON, CARE_COLOR } from "@/components/careIcons";
 
 interface CareRuleLite {
@@ -161,6 +161,10 @@ export default function QuickActions({
         <ActionButton icon={CARE_ICON.PRUNING} color={CARE_COLOR.PRUNING} label="Tailler" active={open === "prune"} onClick={() => toggle("prune")} />
         <ActionButton icon={CARE_ICON.INSPECTION} color={CARE_COLOR.INSPECTION} label="Inspection" active={open === "inspect"} onClick={() => toggle("inspect")} />
         <ActionButton icon={StickyNote} label="Note" active={open === "note"} onClick={() => toggle("note")} />
+        {/* Navigue vers une page dediee plutot que d'ouvrir un panneau
+            inline : le diagnostic est un flux a plusieurs etapes (QCM puis
+            photos), pas une action rapide comme les boutons ci-dessus. */}
+        <ActionButton icon={Stethoscope} label="Diagnostiquer" active={false} onClick={() => router.push(`/plantes/${plantId}/diagnostic`)} />
       </div>
 
       {error && (

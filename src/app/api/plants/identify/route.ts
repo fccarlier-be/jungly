@@ -29,10 +29,10 @@ export async function POST(request: NextRequest) {
   try {
     const userId = await requireUserId();
 
-    // Quota Pl@ntNet gratuit : 500 identifications/jour, partage entre
-    // plantes-app et plantes-app-hosted (meme cle API, voir docker-compose.yml).
-    // Ce plafond par utilisateur est un garde-fou anti-boucle, pas une
-    // tentative de refleter precisement le quota reel.
+    // Garde-fou anti-boucle PAR UTILISATEUR, distinct du vrai quota
+    // Pl@ntNet (500/jour par instance, desormais reellement compte -- voir
+    // src/server/plantnet/quota.ts, verifie avant l'appel dans
+    // identifyPlant()).
     const { allowed, retryAfterSeconds } = checkRateLimit(`plant-identify:${userId}`, 10, 15 * 60 * 1000);
     if (!allowed) {
       return rateLimitResponse(retryAfterSeconds);
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       throw new BadRequestError("Image illisible ou dimensions excessives.");
     }
 
-    const candidates = await identifyPlant(processed, "photo.jpg", organ);
+    const candidates = await identifyPlant([{ buffer: processed, filename: "photo.jpg", organ }]);
     const libraryEntries = await db.plantLibraryEntry.findMany();
     const results = matchLibraryEntries(candidates, libraryEntries);
 

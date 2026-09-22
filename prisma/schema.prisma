@@ -63,16 +63,16 @@ model User {
   // compte auto-heberge (aucun achat associe).
   disabledAt   DateTime?
 
-  locations             Location[]
-  containers            Container[]
-  plants                Plant[]
-  fertilizers           Fertilizer[]
+  locations              Location[]
+  containers             Container[]
+  plants                 Plant[]
+  fertilizers            Fertilizer[]
   notificationPreference NotificationPreference?
-  pushSubscriptions     PushSubscription[]
-  weatherProfile        WeatherProfile?
-  uploads               Upload[]
-  passwordResetTokens   PasswordResetToken[]
-  feedbacks             Feedback[]
+  pushSubscriptions      PushSubscription[]
+  weatherProfile         WeatherProfile?
+  uploads                Upload[]
+  passwordResetTokens    PasswordResetToken[]
+  feedbacks              Feedback[]
 }
 
 /**
@@ -102,7 +102,6 @@ model PasswordResetToken {
  * ici, puisqu'il doit agreger les retours des DEUX instances (personnelle +
  * hebergee, deux bases Prisma separees) : voir memoire
  * jungly_feedback_ticket_roadmap_plan.md pour le plan complet.
- *
  * userId nullable : option "envoyer anonymement" (l'utilisateur reste
  * authentifie pour acceder a /feedback et televerser une capture -- voir
  * resolvePhotoUrl -- mais son identite n'est pas rattachee a CE retour).
@@ -143,10 +142,10 @@ enum FeedbackTopic {
 // ---------------------------------------------------------------------------
 
 model Location {
-  id     String @id @default(cuid())
+  id     String  @id @default(cuid())
   userId String
   name   String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   plants Plant[]
 
   @@unique([userId, name])
@@ -188,7 +187,7 @@ model Container {
 // ---------------------------------------------------------------------------
 
 model Plant {
-  id              String    @id @default(cuid())
+  id              String         @id @default(cuid())
   userId          String
   libraryEntryId  String?
   name            String
@@ -203,7 +202,7 @@ model Plant {
   positionX       Float?
   positionY       Float?
   acquiredAt      DateTime?
-  potShape        PotShape  @default(ROUND)
+  potShape        PotShape       @default(ROUND)
   potDiameterMm   Int?
   potLengthMm     Int?
   potWidthMm      Int?
@@ -217,19 +216,20 @@ model Plant {
   temperatureNote String?
   humidityNote    String?
   notes           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  location      Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
-  container     Container?         @relation(fields: [containerId], references: [id], onDelete: SetNull)
-  libraryEntry  PlantLibraryEntry? @relation(fields: [libraryEntryId], references: [id], onDelete: SetNull)
-  careRules     PlantCareRule[]
-  tasks         Task[]
-  careEvents    CareEvent[]
-  plantNotes    Note[]
-  sensors       Sensor[]
-  photos        PlantPhoto[]
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location        Location?          @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  container       Container?         @relation(fields: [containerId], references: [id], onDelete: SetNull)
+  libraryEntry    PlantLibraryEntry? @relation(fields: [libraryEntryId], references: [id], onDelete: SetNull)
+  careRules       PlantCareRule[]
+  tasks           Task[]
+  careEvents      CareEvent[]
+  plantNotes      Note[]
+  sensors         Sensor[]
+  photos          PlantPhoto[]
+  healthDiagnoses HealthDiagnosis[]
 
   @@index([userId])
 }
@@ -316,18 +316,18 @@ enum TaskStatus {
 }
 
 model Task {
-  id            String     @id @default(cuid())
-  plantId       String
-  careRuleId    String?
-  type          TaskType
-  title         String
-  description   String?
-  dueAt         DateTime
-  completedAt   DateTime?
-  status        TaskStatus @default(PENDING)
-  snoozedUntil  DateTime?
-  metadata      Json?
-  createdAt     DateTime   @default(now())
+  id           String     @id @default(cuid())
+  plantId      String
+  careRuleId   String?
+  type         TaskType
+  title        String
+  description  String?
+  dueAt        DateTime
+  completedAt  DateTime?
+  status       TaskStatus @default(PENDING)
+  snoozedUntil DateTime?
+  metadata     Json?
+  createdAt    DateTime   @default(now())
 
   plant     Plant          @relation(fields: [plantId], references: [id], onDelete: Cascade)
   careRule  PlantCareRule? @relation(fields: [careRuleId], references: [id], onDelete: SetNull)
@@ -373,19 +373,19 @@ model CareEvent {
 // ---------------------------------------------------------------------------
 
 model Fertilizer {
-  id             String   @id @default(cuid())
-  userId         String
-  name           String
-  manufacturer   String?
-  type           String?
-  nitrogen       Float?
-  phosphorus     Float?
-  potassium      Float?
-  defaultDosage  Float?
-  dosageUnit     String?
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  manufacturer  String?
+  type          String?
+  nitrogen      Float?
+  phosphorus    Float?
+  potassium     Float?
+  defaultDosage Float?
+  dosageUnit    String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -417,6 +417,73 @@ model Note {
   plant Plant @relation(fields: [plantId], references: [id], onDelete: Cascade)
 
   @@index([plantId])
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostic de sante par photo (QCM adaptatif + Pl@ntNet + moteur de regles
+// local, voir src/server/diagnosis/). Un HealthDiagnosis fige le resultat
+// au moment ou il a ete calcule (hypotheses, contexte local, resultat
+// Pl@ntNet) -- consulter l'historique d'une plante ne doit jamais dependre
+// d'un recalcul, dont l'issue peut changer si l'historique de soin evolue
+// entre-temps.
+// ---------------------------------------------------------------------------
+
+enum SymptomCategory {
+  YELLOW_LEAVES
+  BROWN_LEAVES
+  DROPPING_LEAVES
+  WILTING
+  SPOTS
+  PESTS
+  ABNORMAL_GROWTH
+  FLOWERING_ISSUE
+  OTHER
+}
+
+model HealthDiagnosis {
+  id        String   @id @default(cuid())
+  plantId   String
+  createdAt DateTime @default(now())
+
+  symptomCategory SymptomCategory
+  // Reponses du QCM adaptatif au-dela de la categorie racine (voir
+  // QcmAnswers dans src/server/diagnosis/types.ts) -- structure evolutive
+  // par categorie, Json plutot que des colonnes pour ne pas migrer a chaque
+  // ajustement de l'arbre de questions.
+  symptomAnswers  Json
+  // URLs /uploads/... des photos prises pour ce diagnostic (memes fichiers
+  // que la galerie, meme pipeline de traitement -- voir uploads.ts).
+  photoUrls       Json
+
+  // Resultat brut Pl@ntNet /v2/diseases/identify, null si non appele
+  // (categorie de symptome hors perimetre, ex. FLOWERING_ISSUE -- voir
+  // shouldCallDiseaseId) ou si Pl@ntNet etait injoignable/en quota depasse.
+  plantnetDiseaseResult Json?
+
+  // Sorti du moteur de regles (src/server/diagnosis/ruleEngine.ts), fige au
+  // moment du calcul -- voir Hypothesis[] dans types.ts.
+  hypotheses           Json
+  // Contexte local calcule au moment du diagnostic (ecart d'arrosage,
+  // stress thermique recent, etc. -- voir LocalContext dans types.ts) :
+  // conserve pour audit et amelioration future des regles, jamais recalcule
+  // a l'affichage.
+  localContextSnapshot Json
+
+  plant Plant @relation(fields: [plantId], references: [id], onDelete: Cascade)
+
+  @@index([plantId, createdAt])
+}
+
+// Compteur d'usage Pl@ntNet, journalier, par instance (une ligne par jour).
+// Chaque instance Jungly (personnelle, hebergee, ou une installation
+// self-hosted tierce) a sa PROPRE cle API Pl@ntNet et son propre quota
+// gratuit de 500/jour -- ce compteur est local a la base de CETTE instance,
+// aucune coordination inter-conteneurs necessaire. Remplace le message
+// d'erreur 429 qui laissait croire a un suivi reel du quota alors qu'aucun
+// compteur n'existait (audit du 2026-09-22).
+model PlantnetDailyUsage {
+  date  String @id // "YYYY-MM-DD", fuseau serveur (TZ=Europe/Brussels, voir docker-compose.yml)
+  count Int    @default(0)
 }
 
 // ---------------------------------------------------------------------------
@@ -476,7 +543,9 @@ model NotificationPreference {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-/** Abonnement Web Push d'un appareil/navigateur (phase 5). */
+/**
+ * Abonnement Web Push d'un appareil/navigateur (phase 5).
+ */
 model PushSubscription {
   id        String   @id @default(cuid())
   userId    String
@@ -503,7 +572,7 @@ enum SensorType {
 }
 
 model Sensor {
-  id         String   @id @default(cuid())
+  id         String     @id @default(cuid())
   plantId    String
   type       SensorType
   name       String
@@ -513,8 +582,8 @@ model Sensor {
   // mesures sans session utilisateur (voir POST /api/sensors/[id]/readings).
   // Le jeton en clair n'est jamais stocke -- visible une seule fois, a la
   // creation ou a la rotation (POST /api/sensors/:id/rotate).
-  apiKeyHash String   @unique
-  createdAt  DateTime @default(now())
+  apiKeyHash String     @unique
+  createdAt  DateTime   @default(now())
 
   plant    Plant           @relation(fields: [plantId], references: [id], onDelete: Cascade)
   readings SensorReading[]
