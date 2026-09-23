@@ -52,10 +52,11 @@ async function collectOrphanUploads(now: number): Promise<number> {
   const files = await listFiles(UPLOAD_DIR);
   if (files.length === 0) return 0;
 
-  const [uploadRows, plants, notes] = await Promise.all([
+  const [uploadRows, plants, notes, cuttingListings] = await Promise.all([
     db.upload.findMany({ select: { filename: true } }),
     db.plant.findMany({ select: { photoUrl: true, photos: { select: { url: true } } } }),
     db.note.findMany({ select: { photoUrl: true } }),
+    db.cuttingListing.findMany({ select: { photoUrls: true } }),
   ]);
 
   const referenced = new Set<string>();
@@ -66,6 +67,9 @@ async function collectOrphanUploads(now: number): Promise<number> {
   }
   for (const note of notes) {
     if (note.photoUrl) referenced.add(path.basename(note.photoUrl));
+  }
+  for (const listing of cuttingListings) {
+    for (const url of (listing.photoUrls as string[] | null) ?? []) referenced.add(path.basename(url));
   }
 
   let deleted = 0;

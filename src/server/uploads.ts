@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { db } from "@/server/db";
 import { BadRequestError } from "@/lib/errors";
 import { assertSafeExternalUrl, fetchWithSizeLimit } from "@/server/externalImageFetch";
+import { isCuttingListingPhoto } from "@/server/cuttings/photos";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 const ALLOWED_MIRROR_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -69,7 +70,7 @@ export async function deleteUploadedFileIfUnreferenced(url: string | null | unde
     where: { OR: [{ photoUrl: url }, { photos: { some: { url } } }, { plantNotes: { some: { photoUrl: url } } }] },
     select: { id: true },
   });
-  if (stillReferenced) {
+  if (stillReferenced || (await isCuttingListingPhoto(url))) {
     return;
   }
   await deleteUploadedFile(url);

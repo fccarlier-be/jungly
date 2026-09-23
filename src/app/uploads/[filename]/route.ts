@@ -4,6 +4,8 @@ import { requireUserId } from "@/lib/session";
 import { handleApiError, NotFoundError } from "@/lib/apiError";
 import { db } from "@/server/db";
 import { resolveUploadedFilePath } from "@/server/uploads";
+import { isCuttingsMarketplaceEnabled } from "@/lib/features";
+import { isCuttingListingPhoto } from "@/server/cuttings/photos";
 
 type Params = { params: Promise<{ filename: string }> };
 
@@ -44,7 +46,11 @@ export async function GET(_request: NextRequest, { params }: Params) {
         },
         select: { id: true },
       });
-      if (!owned) {
+      // Photo d'une annonce de boutures : visible de TOUS les comptes
+      // connectes (c'est l'objet meme d'une annonce), pas seulement de son
+      // auteur -- sans ca, les autres membres voyaient une image cassee.
+      const sharedCuttingPhoto = !owned && isCuttingsMarketplaceEnabled() && (await isCuttingListingPhoto(url));
+      if (!owned && !sharedCuttingPhoto) {
         throw new NotFoundError("Ce fichier n'existe plus.");
       }
     }

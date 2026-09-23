@@ -11,7 +11,8 @@ export interface CuttingListingCardData {
   type: string;
   status: string;
   photoUrls: string[];
-  owner: { id: string; name: string | null };
+  owner: { id: string; pseudo: string | null };
+  unreadCount?: number;
 }
 
 const STATUS_BADGE_CLASS: Record<CuttingListingStatus, string> = {
@@ -43,6 +44,15 @@ export default function CuttingListingCard({ listing, showStatus = false }: { li
             <Leaf size={40} strokeWidth={1.5} />
           </div>
         )}
+        {(listing.unreadCount ?? 0) > 0 && (
+          <span
+            className="absolute right-2.5 top-2.5 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold"
+            style={{ background: "var(--accent)", color: "var(--accent-ink, #fff)" }}
+            aria-label={`${listing.unreadCount} message(s) non lu(s)`}
+          >
+            {listing.unreadCount}
+          </span>
+        )}
         <span className={`badge absolute left-2.5 top-2.5 ${showStatus ? STATUS_BADGE_CLASS[status] : "badge-today"}`} style={{ background: "var(--surface)" }}>
           {showStatus ? CUTTING_LISTING_STATUS_LABEL[status] : CUTTING_LISTING_TYPE_LABEL[type]}
         </span>
@@ -50,7 +60,7 @@ export default function CuttingListingCard({ listing, showStatus = false }: { li
       <div className="space-y-1 p-3">
         <p className="truncate font-medium leading-tight">{listing.title}</p>
         {listing.species && <p className="text-muted truncate text-xs italic">{listing.species}</p>}
-        <p className="text-muted truncate text-xs">{listing.owner.name ?? "Un membre"}</p>
+        <p className="text-muted truncate text-xs">par {listing.owner.pseudo ?? "membre sans pseudo"}</p>
       </div>
     </Link>
   );

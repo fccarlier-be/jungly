@@ -13,6 +13,18 @@ export const createCuttingListingSchema = z.object({
 
 export type CreateCuttingListingInput = z.infer<typeof createCuttingListingSchema>;
 
+// 3 a 24 caracteres, lettres/chiffres d'abord, puis espaces . _ - autorises.
+export const setPseudoSchema = z.object({
+  pseudo: z
+    .string()
+    .trim()
+    .min(3, "Le pseudo doit faire au moins 3 caractères.")
+    .max(24, "Le pseudo ne peut pas dépasser 24 caractères.")
+    .regex(/^[\p{L}\p{N}][\p{L}\p{N} ._-]*$/u, "Lettres, chiffres, espaces, points, tirets et underscores uniquement."),
+});
+
+export const markThreadReadSchema = z.object({ withUserId: z.string().min(1) });
+
 export const sendCuttingMessageSchema = z.object({
   recipientId: z.string().min(1),
   body: z.string().trim().min(1).max(2000),

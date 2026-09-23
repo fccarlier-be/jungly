@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Camera, Loader2, X } from "lucide-react";
+import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 import { CUTTING_LISTING_TYPES, CUTTING_LISTING_TYPE_LABEL, MAX_CUTTING_PHOTOS, type CuttingListingType } from "@/server/cuttings/types";
 
 export default function CuttingListingForm() {
@@ -133,7 +134,7 @@ export default function CuttingListingForm() {
         <div className="flex flex-wrap gap-2">
           {photoUrls.map((url) => (
             <div key={url} className="relative h-20 w-20 overflow-hidden rounded-lg" style={{ background: "var(--surface-alt)" }}>
-              <Image src={url} alt="" fill sizes="80px" className="object-cover" />
+              <Image src={url} alt="" fill sizes="80px" className="object-cover" unoptimized={bypassesImageOptimizer(url)} />
               <button
                 type="button"
                 onClick={() => removePhoto(url)}

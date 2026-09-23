@@ -1,18 +1,21 @@
 import { notFound } from "next/navigation";
 import { requireSessionUserId } from "@/lib/session";
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
+import { getPseudo } from "@/server/cuttings/pseudo";
 import CuttingListingForm from "@/components/CuttingListingForm";
+import PseudoForm from "@/components/PseudoForm";
 
 export default async function NewCuttingListingPage() {
   if (!isCuttingsMarketplaceEnabled()) {
     notFound();
   }
-  await requireSessionUserId();
+  const userId = await requireSessionUserId();
+  const pseudo = await getPseudo(userId);
 
   return (
     <div className="space-y-5">
       <h1 className="font-display text-2xl font-semibold">Publier une bouture</h1>
-      <CuttingListingForm />
+      {pseudo ? <CuttingListingForm /> : <PseudoForm initialPseudo={null} required />}
     </div>
   );
 }

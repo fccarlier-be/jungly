@@ -74,8 +74,16 @@ model User {
   // server/cuttings/notifications.ts). Null pour un compte qui n'a jamais
   // rien vu : toutes les annonces ouvertes comptent alors comme nouvelles.
   lastSeenCuttingsAt     DateTime?
+  // Pseudo PUBLIC affiche aux autres membres (annonces de boutures,
+  // messagerie) a la place du nom reel -- jamais expose autrement. Unique
+  // sans distinction de casse ni d'accents : pseudoKey en est la forme
+  // normalisee (voir server/cuttings/pseudo.ts), sans quoi "Léa" et "lea"
+  // seraient indiscernables a l'ecran tout en etant deux valeurs distinctes
+  // pour la contrainte d'unicite. Null tant que le compte n'en a pas choisi.
+  pseudo                 String?
+  pseudoKey              String?   @unique
 
-  locations                Location[]
+  locations               Location[]
   containers               Container[]
   plants                   Plant[]
   fertilizers              Fertilizer[]
