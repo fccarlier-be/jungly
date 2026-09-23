@@ -122,9 +122,24 @@ describe("sendBetaInvite (integration reelle SQLite)", () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
-  it("refuse une inscription qui n'est pas CONFIRMED", async () => {
+  it("invite et confirme automatiquement une inscription PENDING (mail de confirmation en spam)", async () => {
     const signup = await db.betaSignup.create({
       data: { email: `invite-pending-${Date.now()}@example.com`, token: `tok-${Date.now()}`, status: "PENDING" },
+    });
+    createdIds.push(signup.id);
+
+    await sendBetaInvite(signup.id, "https://play.google.com/apps/testing/org.fcold.plantes.twa");
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const updated = await db.betaSignup.findUniqueOrThrow({ where: { id: signup.id } });
+    expect(updated.status).toBe("CONFIRMED");
+    expect(updated.confirmedAt).not.toBeNull();
+    expect(updated.invitedAt).not.toBeNull();
+  });
+
+  it("refuse une inscription WAITLISTED", async () => {
+    const signup = await db.betaSignup.create({
+      data: { email: `invite-waitlisted-${Date.now()}@example.com`, token: `tok-${Date.now()}`, status: "WAITLISTED" },
     });
     createdIds.push(signup.id);
 

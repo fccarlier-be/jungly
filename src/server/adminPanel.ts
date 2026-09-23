@@ -212,7 +212,17 @@ export async function resendBetaEmail(id: string, template: ResendTemplate): Pro
 
 /**
  * Envoie le lien d'invitation au programme de test ferme Google Play --
- * reserve aux inscriptions CONFIRMED (les seules avec une place garantie).
+ * CONFIRMED ou PENDING (jamais WAITLISTED, qui n'a pas de place garantie).
+ * PENDING est accepte en plus de CONFIRMED depuis le 2026-09-23 : le mail de
+ * confirmation double opt-in atterrit en spam chez la quasi-totalite des
+ * inscrits (retour utilisateur), l'admin doit donc pouvoir inviter
+ * directement quelqu'un qui n'a jamais pu cliquer ce lien. Dans ce cas la
+ * signup passe CONFIRMED (confirmedAt = maintenant) : l'action d'invitation
+ * manuelle par l'administrateur fait office de confirmation, sinon la
+ * signup resterait PENDING pour toujours malgre une place bel et bien
+ * attribuee (et le compteur public /api/beta/count, qui ne compte que les
+ * CONFIRMED, resterait incoherent avec la realite).
+ *
  * Pas de garde sur invitedAt deja renseigne : un renvoi volontaire depuis le
  * panel doit rester possible (voir discussion du 2026-09-16).
  */
@@ -221,11 +231,17 @@ export async function sendBetaInvite(id: string, playConsoleUrl: string): Promis
   if (!signup) {
     throw new NotFoundError("Inscription introuvable.");
   }
-  if (signup.status !== "CONFIRMED") {
-    throw new ConflictError("Seule une inscription confirmée peut recevoir une invitation.");
+  if (signup.status === "WAITLISTED") {
+    throw new ConflictError("Une inscription en liste d'attente ne peut pas recevoir d'invitation.");
   }
 
   const { subject, html, text } = invitationEmail(playConsoleUrl, signup.email);
   await sendEmail(signup.email, subject, html, text);
-  await db.betaSignup.update({ where: { id }, data: { invitedAt: new Date() } });
+  await db.betaSignup.update({
+    where: { id },
+    data: {
+      invitedAt: new Date(),
+      ...(signup.status === "PENDING" ? { status: "CONFIRMED", confirmedAt: new Date() } : {}),
+    },
+  });
 }
