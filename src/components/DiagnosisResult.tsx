@@ -52,12 +52,13 @@ function ConfidenceBadge({ confidence }: { confidence: DiagnosisConfidence }) {
   );
 }
 
-// Point colore + libelle plutot qu'un simple intitule majuscule : distingue
-// "pour" de "contre" au premier coup d'oeil (retour "peu lisible", 2026-09-23)
-// sans introduire de nouvelle couleur -- reprend --primary (deja "positif"
-// dans le badge PROBABLE) et --danger (deja "attention" dans .badge-attention).
-const EVIDENCE_DOT_COLOR: Record<string, string> = {
-  for: "var(--primary)",
+// Couleur du libelle (pas de puce) plutot qu'un simple intitule neutre :
+// distingue "pour" de "contre" au premier coup d'oeil -- reprend --primary
+// (deja "positif" dans le badge PROBABLE) et --danger (deja "attention" dans
+// .badge-attention). Un point colore avait ete essaye avant mais lu comme une
+// puce de liste parasite (retour utilisateur, 2026-09-23).
+const EVIDENCE_TEXT_COLOR: Record<string, string> = {
+  for: "var(--primary-strong)",
   against: "var(--danger)",
 };
 
@@ -65,8 +66,10 @@ function HypothesisList({ title, items, tone }: { title: string; items: string[]
   if (items.length === 0) return null;
   return (
     <div className="border-t pt-2 first:border-t-0 first:pt-0" style={{ borderColor: "var(--border)" }}>
-      <p className="text-muted flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide">
-        {tone && <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: EVIDENCE_DOT_COLOR[tone] }} />}
+      <p
+        className="text-xs font-medium uppercase tracking-wide"
+        style={{ color: tone ? EVIDENCE_TEXT_COLOR[tone] : "var(--ink-muted)" }}
+      >
         {title}
       </p>
       <ul className="mt-1.5 list-disc space-y-1 pl-5 text-sm leading-relaxed">

@@ -356,6 +356,21 @@ function matchesKeywords(diseaseName: string, keywords: string[]): boolean {
   return keywords.some((keyword) => normalized.includes(keyword));
 }
 
+// Formulation qualitative par palier plutot qu'un pourcentage brut dans la
+// phrase de preuve -- le score reste visible tel quel dans l'encart
+// "Resultat visuel Pl@ntNet" (DiagnosisResult.tsx), mais "(score 46%)" cite
+// au milieu d'une phrase donne une fausse impression de precision (retour
+// utilisateur, 2026-09-23) alors que le principe du moteur est justement de
+// ne jamais afficher de pourcentage comme s'il s'agissait d'une certitude.
+function plantnetConfidencePhrase(score: number): string {
+  const percent = Math.round(score * 100);
+  if (percent <= 20) return "Pl@ntNet n'est pas sûr, mais évoque";
+  if (percent <= 40) return "Pl@ntNet suggère peut-être";
+  if (percent <= 60) return "Pl@ntNet suggère";
+  if (percent <= 80) return "Pl@ntNet penche pour";
+  return "Pl@ntNet est plutôt confiant sur";
+}
+
 /**
  * Ajoute (si pertinent) le resultat Pl@ntNet comme preuve POUR les
  * hypotheses deja generees par les regles locales. Un candidat qui ne
@@ -379,7 +394,7 @@ function attachPlantnetEvidence(hypotheses: Hypothesis[], plantnetDisease: Plant
       const hypothesis = byId.get(hypothesisId);
       if (hypothesis && matchesKeywords(candidate.name, keywords)) {
         hypothesis.evidenceFor.push(
-          `Pl@ntNet suggère "${candidate.name}" (score ${Math.round(candidate.score * 100)}%) -- un signal parmi d'autres, pas une conclusion à lui seul.`,
+          `${plantnetConfidencePhrase(candidate.score)} "${candidate.name}" -- un signal parmi d'autres, pas une conclusion à lui seul.`,
         );
       }
     }
