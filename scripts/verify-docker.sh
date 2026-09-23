@@ -32,5 +32,7 @@ docker run --rm \
   -v plantes-verify-npm-cache:/root/.npm \
   -w /app \
   -e DATABASE_URL="file:./ci.db" \
+  -e ENABLE_CUTTINGS_MARKETPLACE="true" \
+  -e CUTTINGS_MESSAGE_ENCRYPTION_KEY="Y2ktdGVzdC1rZXktbm90LWZvci1wcm9kLTMyYnl0ZSE=" \
   node:22 \
   sh -c "npm ci --silent && npx prisma generate >/dev/null && npx prisma migrate deploy >/dev/null && $CMD"

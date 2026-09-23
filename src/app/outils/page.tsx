@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { BookOpen, FlaskConical, Container, History, type LucideIcon } from "lucide-react";
+import { BookOpen, FlaskConical, Container, History, Leaf, type LucideIcon } from "lucide-react";
+import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 
 const TOOLS: Array<{ href: string; label: string; description: string; Icon: LucideIcon }> = [
   {
@@ -29,12 +30,26 @@ const TOOLS: Array<{ href: string; label: string; description: string; Icon: Luc
 ];
 
 export default function OutilsPage() {
+  // Reservee a l'instance hebergee (voir features.ts) : n'a de sens
+  // qu'entre comptes qui peuvent se rencontrer physiquement.
+  const tools = isCuttingsMarketplaceEnabled()
+    ? [
+        ...TOOLS,
+        {
+          href: "/boutures",
+          label: "Boutures",
+          description: "Donner ou échanger des boutures avec d'autres membres.",
+          Icon: Leaf,
+        },
+      ]
+    : TOOLS;
+
   return (
     <div className="space-y-5">
       <h1 className="font-display text-2xl font-semibold">Outils</h1>
 
       <div className="space-y-2.5">
-        {TOOLS.map(({ href, label, description, Icon }) => (
+        {tools.map(({ href, label, description, Icon }) => (
           <Link key={href} href={href} className="card flex items-center gap-3.5 p-4">
             <span
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"

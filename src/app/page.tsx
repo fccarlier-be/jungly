@@ -12,6 +12,8 @@ import NoScrollDashboard from "@/components/NoScrollDashboard";
 import UpcomingTaskCard from "@/components/UpcomingTaskCard";
 import { getLibraryImageMap } from "@/lib/libraryImages";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
+import { isCuttingsMarketplaceEnabled } from "@/lib/features";
+import CuttingsBanner from "@/components/CuttingsBanner";
 
 // Seulement "Bonjour"/"Bonsoir" (retour utilisateur) : "Bon après-midi" est
 // plus long et passait sur deux lignes sur mobile, decalant tout l'ecran.
@@ -150,6 +152,8 @@ export default async function DashboardPage() {
           </div>
         )}
       </div>
+
+      {isCuttingsMarketplaceEnabled() && <CuttingsBanner />}
 
       <NoScrollDashboard>
         <div className="space-y-7">

@@ -68,18 +68,29 @@ model User {
   // reapparait au prochain chargement (voir AnnouncementModal.tsx). Null
   // pour un compte qui n'a jamais rien acquitte.
   lastSeenAnnouncementId String?
+  // Horodatage du dernier passage sur /boutures (ou de la derniere fois que
+  // la banniere d'accueil a ete ignoree) -- sert a compter les annonces
+  // OUVERTES publiees par d'AUTRES comptes depuis cette date (voir
+  // server/cuttings/notifications.ts). Null pour un compte qui n'a jamais
+  // rien vu : toutes les annonces ouvertes comptent alors comme nouvelles.
+  lastSeenCuttingsAt     DateTime?
 
-  locations              Location[]
-  containers             Container[]
-  plants                 Plant[]
-  fertilizers            Fertilizer[]
-  notificationPreference NotificationPreference?
-  pushSubscriptions      PushSubscription[]
-  weatherProfile         WeatherProfile?
-  uploads                Upload[]
-  passwordResetTokens    PasswordResetToken[]
-  feedbacks              Feedback[]
-  lastSeenAnnouncement   Announcement? @relation(fields: [lastSeenAnnouncementId], references: [id], onDelete: SetNull)
+  locations                Location[]
+  containers               Container[]
+  plants                   Plant[]
+  fertilizers              Fertilizer[]
+  notificationPreference   NotificationPreference?
+  pushSubscriptions        PushSubscription[]
+  weatherProfile           WeatherProfile?
+  uploads                  Upload[]
+  passwordResetTokens      PasswordResetToken[]
+  feedbacks                Feedback[]
+  lastSeenAnnouncement     Announcement?     @relation(fields: [lastSeenAnnouncementId], references: [id], onDelete: SetNull)
+  cuttingListings          CuttingListing[]
+  sentCuttingMessages      CuttingMessage[]  @relation("CuttingMessageSender")
+  receivedCuttingMessages  CuttingMessage[]  @relation("CuttingMessageRecipient")
+  cuttingRatingsGiven      CuttingRating[]   @relation("CuttingRatingRater")
+  cuttingRatingsReceived   CuttingRating[]   @relation("CuttingRatingRatedUser")
 }
 
 /**
@@ -748,4 +759,101 @@ model WeatherProfile {
   updatedAt                  DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Don / echange de boutures entre comptes (instance hebergee uniquement,
+// voir src/lib/features.ts) -- ajoute le 2026-09-23.
+// ---------------------------------------------------------------------------
+
+enum CuttingListingType {
+  DON
+  ECHANGE
+}
+
+enum CuttingListingStatus {
+  OUVERTE
+  RESERVEE
+  TERMINEE
+  ANNULEE
+}
+
+/**
+ * Annonce de bouture a donner ou echanger. Au moins une photo est exigee a
+ * la creation (validation cote route, voir validation/cutting.ts) --
+ * exigence produit explicite, jamais une simple recommandation.
+ * `completedWithUserId` : qui a effectivement recu la bouture, renseigne au
+ * passage a TERMINEE -- determine qui peut laisser/recevoir une note (voir
+ * CuttingRating) et n'est jamais celui qui a simplement ecrit un message
+ * sans etre choisi.
+ */
+model CuttingListing {
+  id                   String               @id @default(cuid())
+  userId               String
+  title                String
+  species              String?
+  description          String?
+  type                 CuttingListingType
+  status               CuttingListingStatus @default(OUVERTE)
+  photoUrls            Json
+  completedWithUserId  String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages CuttingMessage[]
+  ratings  CuttingRating[]
+
+  @@index([status, createdAt])
+  @@index([userId])
+}
+
+/**
+ * Message prive entre deux comptes a propos d'UNE annonce. Le corps est
+ * chiffre au repos (AES-256-GCM, voir server/cuttings/crypto.ts) -- jamais
+ * stocke en clair, mais dechiffrable par le serveur (cle detenue par
+ * l'operateur, pas par les utilisateurs) : protege contre une fuite de la
+ * base ou une sauvegarde volee, pas un chiffrement de bout en bout (choix
+ * assume, voir la discussion produit du 2026-09-23).
+ */
+model CuttingMessage {
+  id             String   @id @default(cuid())
+  listingId      String
+  senderId       String
+  recipientId    String
+  bodyCiphertext String
+  bodyIv         String
+  bodyAuthTag    String
+  createdAt      DateTime @default(now())
+  readAt         DateTime?
+
+  listing   CuttingListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  sender    User           @relation("CuttingMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User           @relation("CuttingMessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([listingId, createdAt])
+  @@index([recipientId, readAt])
+}
+
+/**
+ * Note laissee par un participant a l'autre APRES le passage de l'annonce a
+ * TERMINEE (etat des boutures, correspondance avec les photos, conseils...).
+ * Une seule note par (listing, auteur) -- chacun des deux participants note
+ * l'autre une fois, jamais plus.
+ */
+model CuttingRating {
+  id          String   @id @default(cuid())
+  listingId   String
+  raterId     String
+  ratedUserId String
+  score       Int
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  listing   CuttingListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  rater     User           @relation("CuttingRatingRater", fields: [raterId], references: [id], onDelete: Cascade)
+  ratedUser User           @relation("CuttingRatingRatedUser", fields: [ratedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, raterId])
+  @@index([ratedUserId])
 }

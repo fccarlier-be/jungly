@@ -19,6 +19,11 @@ jobs:
       AUTH_SECRET: ci-placeholder-secret-not-used-in-production
       NEXTAUTH_URL: http://localhost:3000
       NEXT_PUBLIC_VAPID_PUBLIC_KEY: BCiFmzUvBhIhOHZ_ci_placeholder_not_used_in_production
+      # Active pour que le build/les tests couvrent les routes du don/echange
+      # de boutures -- cle jetable (jamais utilisee en production, voir
+      # docker-compose.yml pour la vraie).
+      ENABLE_CUTTINGS_MARKETPLACE: "true"
+      CUTTINGS_MESSAGE_ENCRYPTION_KEY: Y2ktdGVzdC1rZXktbm90LWZvci1wcm9kLTMyYnl0ZSE=
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
