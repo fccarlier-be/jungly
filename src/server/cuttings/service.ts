@@ -4,7 +4,11 @@ import { NotFoundError, ForbiddenError, ConflictError, ServiceUnavailableError }
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 import { encryptMessageBody, decryptMessageBody } from "@/server/cuttings/crypto";
 import { requirePseudo } from "@/server/cuttings/pseudo";
-import type { CreateCuttingListingInput, SendCuttingMessageInput, CreateCuttingRatingInput } from "@/server/validation/cutting";
+import type {
+  CreateCuttingListingInput,
+  SendCuttingMessageInput,
+  CreateCuttingRatingInput,
+} from "@/server/validation/cutting";
 
 /** A appeler en tete de chaque route de ce module -- feature reservee a l'instance hebergee (voir features.ts). */
 export function assertCuttingsMarketplaceEnabled(): void {
@@ -13,10 +17,17 @@ export function assertCuttingsMarketplaceEnabled(): void {
   }
 }
 
+/** Moyenne des notes recues (null tant qu'aucune) et nombre de notes. */
+export interface Reputation {
+  average: number | null;
+  count: number;
+}
+
 /** Seul le pseudo est jamais expose aux autres membres -- jamais le nom reel ni l'email. */
 export interface CuttingMember {
   id: string;
   pseudo: string | null;
+  reputation?: Reputation;
 }
 
 export interface CuttingListingSummary {
@@ -28,6 +39,10 @@ export interface CuttingListingSummary {
   photoUrls: string[];
   createdAt: string;
   owner: CuttingMember;
+  /** Nombre de boutures proposees au total. */
+  quantity: number;
+  /** Boutures pas encore remises (quantity moins la somme des transactions). */
+  remaining: number;
   /** Messages non lus pour l'appelant sur cette annonce (renseigne pour "Mes annonces" et "Messages"). */
   unreadCount?: number;
   /** Dernier message ou l'appelant est partie (renseigne pour "Messages"). */
@@ -35,6 +50,24 @@ export interface CuttingListingSummary {
 }
 
 const OWNER_SELECT = { select: { id: true, pseudo: true } } as const;
+const LISTING_INCLUDE = { user: OWNER_SELECT, transactions: { select: { quantity: true } } } as const;
+
+/** Une seule requete pour la reputation de plusieurs membres (moyenne + nombre de notes recues). */
+export async function getReputations(userIds: string[]): Promise<Map<string, Reputation>> {
+  const unique = Array.from(new Set(userIds));
+  if (unique.length === 0) return new Map();
+  const groups = await db.cuttingRating.groupBy({
+    by: ["ratedUserId"],
+    where: { ratedUserId: { in: unique } },
+    _avg: { score: true },
+    _count: { _all: true },
+  });
+  const map = new Map<string, Reputation>(unique.map((id) => [id, { average: null, count: 0 }]));
+  for (const g of groups) {
+    map.set(g.ratedUserId, { average: g._avg.score, count: g._count._all });
+  }
+  return map;
+}
 
 function toSummary(listing: {
   id: string;
@@ -44,8 +77,11 @@ function toSummary(listing: {
   status: string;
   photoUrls: unknown;
   createdAt: Date;
+  quantity: number;
   user: CuttingMember;
+  transactions: Array<{ quantity: number }>;
 }): CuttingListingSummary {
+  const given = listing.transactions.reduce((sum, t) => sum + t.quantity, 0);
   return {
     id: listing.id,
     title: listing.title,
@@ -55,17 +91,24 @@ function toSummary(listing: {
     photoUrls: (listing.photoUrls as string[] | null) ?? [],
     createdAt: listing.createdAt.toISOString(),
     owner: listing.user,
+    quantity: listing.quantity,
+    remaining: Math.max(0, listing.quantity - given),
   };
+}
+
+async function withOwnerReputations<T extends CuttingListingSummary>(summaries: T[]): Promise<T[]> {
+  const reputations = await getReputations(summaries.map((s) => s.owner.id));
+  return summaries.map((s) => ({ ...s, owner: { ...s.owner, reputation: reputations.get(s.owner.id) } }));
 }
 
 /** Annonces ouvertes de TOUS les comptes (y compris les siennes propres, affichees a part cote UI) -- tri par recence. */
 export async function listOpenListings(): Promise<CuttingListingSummary[]> {
   const listings = await db.cuttingListing.findMany({
     where: { status: "OUVERTE" },
-    include: { user: OWNER_SELECT },
+    include: LISTING_INCLUDE,
     orderBy: { createdAt: "desc" },
   });
-  return listings.map(toSummary);
+  return withOwnerReputations(listings.map(toSummary));
 }
 
 async function unreadCountsByListing(userId: string): Promise<Map<string, number>> {
@@ -79,7 +122,7 @@ async function unreadCountsByListing(userId: string): Promise<Map<string, number
 
 export async function listMyListings(userId: string): Promise<CuttingListingSummary[]> {
   const [listings, unread] = await Promise.all([
-    db.cuttingListing.findMany({ where: { userId }, include: { user: OWNER_SELECT }, orderBy: { createdAt: "desc" } }),
+    db.cuttingListing.findMany({ where: { userId }, include: LISTING_INCLUDE, orderBy: { createdAt: "desc" } }),
     unreadCountsByListing(userId),
   ]);
   return listings.map((l) => ({ ...toSummary(l), unreadCount: unread.get(l.id) ?? 0 }));
@@ -102,7 +145,7 @@ export async function listConversationListings(userId: string): Promise<CuttingL
 
   const listings = await db.cuttingListing.findMany({
     where: { id: { in: lastByListing.map((g) => g.listingId) } },
-    include: { user: OWNER_SELECT },
+    include: LISTING_INCLUDE,
   });
   const lastAt = new Map(lastByListing.map((g) => [g.listingId, g._max.createdAt]));
   return listings
@@ -126,9 +169,10 @@ export async function createListing(userId: string, input: CreateCuttingListingI
       species: input.species,
       description: input.description,
       type: input.type,
+      quantity: input.quantity,
       photoUrls: input.photoUrls,
     },
-    include: { user: OWNER_SELECT },
+    include: LISTING_INCLUDE,
   });
   return toSummary(listing);
 }
@@ -148,23 +192,94 @@ export interface CuttingParticipant extends CuttingMember {
   lastMessageAt: string;
 }
 
+/**
+ * Un echange REALISE (voir CuttingTransaction), vu par l'un de ses deux
+ * participants : `counterpart` est toujours l'AUTRE personne.
+ */
+export interface CuttingTransactionData {
+  id: string;
+  listingId: string;
+  listingTitle: string;
+  quantity: number;
+  createdAt: string;
+  iAmOwner: boolean;
+  counterpart: CuttingMember;
+  myRating: { score: number; comment: string | null } | null;
+  counterpartRating: { score: number; comment: string | null } | null;
+}
+
 export interface CuttingListingDetail extends CuttingListingSummary {
   description: string | null;
-  completedWithUserId: string | null;
   /** Uniquement les messages ou l'appelant est expediteur OU destinataire -- jamais les fils des autres. */
   messages: CuttingMessageData[];
   /** Membres (hors proprietaire) ayant ecrit sur cette annonce, le plus recent d'abord -- rempli uniquement cote proprietaire. */
   participants: CuttingParticipant[];
   /** Cote demandeur : messages du proprietaire pas encore lus. */
   unreadFromOwner: number;
-  myRating: { score: number; comment: string | null } | null;
-  counterpartRating: { score: number; comment: string | null } | null;
+  /** Echanges de cette annonce : tous pour le proprietaire, uniquement les siens pour un demandeur. */
+  transactions: CuttingTransactionData[];
+}
+
+const TRANSACTION_INCLUDE = {
+  listing: { select: { id: true, title: true, userId: true, user: OWNER_SELECT } },
+  recipient: OWNER_SELECT,
+  ratings: true,
+} as const;
+
+type TransactionRow = {
+  id: string;
+  listingId: string;
+  quantity: number;
+  createdAt: Date;
+  recipientId: string;
+  listing: { id: string; title: string; userId: string; user: CuttingMember };
+  recipient: CuttingMember;
+  ratings: Array<{ raterId: string; score: number; comment: string | null }>;
+};
+
+async function toTransactionData(userId: string, rows: TransactionRow[]): Promise<CuttingTransactionData[]> {
+  const counterparts = rows.map((r) => (r.listing.userId === userId ? r.recipient : r.listing.user));
+  const reputations = await getReputations(counterparts.map((c) => c.id));
+  return rows.map((r, i) => {
+    const iAmOwner = r.listing.userId === userId;
+    const counterpart = counterparts[i];
+    const mine = r.ratings.find((x) => x.raterId === userId) ?? null;
+    const theirs = r.ratings.find((x) => x.raterId !== userId) ?? null;
+    return {
+      id: r.id,
+      listingId: r.listingId,
+      listingTitle: r.listing.title,
+      quantity: r.quantity,
+      createdAt: r.createdAt.toISOString(),
+      iAmOwner,
+      counterpart: { ...counterpart, reputation: reputations.get(counterpart.id) },
+      myRating: mine ? { score: mine.score, comment: mine.comment } : null,
+      counterpartRating: theirs ? { score: theirs.score, comment: theirs.comment } : null,
+    };
+  });
+}
+
+/** Tous les echanges de l'appelant (en tant que proprietaire OU destinataire), les plus recents d'abord. */
+export async function listMyTransactions(userId: string): Promise<CuttingTransactionData[]> {
+  const rows = await db.cuttingTransaction.findMany({
+    where: { OR: [{ recipientId: userId }, { listing: { userId } }] },
+    include: TRANSACTION_INCLUDE,
+    orderBy: { createdAt: "desc" },
+  });
+  return toTransactionData(userId, rows);
+}
+
+/** Echanges a noter : ou l'appelant est partie et n'a pas encore laisse sa note. */
+export async function countRatingsToGive(userId: string): Promise<number> {
+  return db.cuttingTransaction.count({
+    where: { OR: [{ recipientId: userId }, { listing: { userId } }], ratings: { none: { raterId: userId } } },
+  });
 }
 
 export async function getListingDetail(listingId: string, userId: string): Promise<CuttingListingDetail> {
   const listing = await db.cuttingListing.findUnique({
     where: { id: listingId },
-    include: { user: OWNER_SELECT },
+    include: LISTING_INCLUDE,
   });
   if (!listing) {
     throw new NotFoundError("Annonce introuvable.");
@@ -172,7 +287,9 @@ export async function getListingDetail(listingId: string, userId: string): Promi
 
   const rawMessages = await db.cuttingMessage.findMany({
     where: { listingId, OR: [{ senderId: userId }, { recipientId: userId }] },
-    orderBy: { createdAt: "asc" },
+    // id en second critere : deux messages dans la meme milliseconde (test,
+    // envoi rapide) gardent quand meme un ordre stable (cuid croissant).
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     include: { sender: { select: { pseudo: true } } },
   });
   const messages: CuttingMessageData[] = rawMessages.map((m) => ({
@@ -197,9 +314,13 @@ export async function getListingDetail(listingId: string, userId: string): Promi
       others.set(otherId, entry);
     }
     if (others.size > 0) {
-      const users = await db.user.findMany({ where: { id: { in: Array.from(others.keys()) } }, select: { id: true, pseudo: true } });
+      const ids = Array.from(others.keys());
+      const [users, reputations] = await Promise.all([
+        db.user.findMany({ where: { id: { in: ids } }, select: { id: true, pseudo: true } }),
+        getReputations(ids),
+      ]);
       participants = users
-        .map((u) => ({ id: u.id, pseudo: u.pseudo, ...others.get(u.id)! }))
+        .map((u) => ({ id: u.id, pseudo: u.pseudo, reputation: reputations.get(u.id), ...others.get(u.id)! }))
         .sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt));
     }
   }
@@ -208,19 +329,20 @@ export async function getListingDetail(listingId: string, userId: string): Promi
     ? 0
     : rawMessages.filter((m) => m.senderId === listing.userId && m.recipientId === userId && m.readAt === null).length;
 
-  const ratings = await db.cuttingRating.findMany({ where: { listingId } });
-  const myRating = ratings.find((r) => r.raterId === userId) ?? null;
-  const counterpartRating = ratings.find((r) => r.raterId !== userId && r.ratedUserId === userId) ?? null;
+  const transactionRows = await db.cuttingTransaction.findMany({
+    where: { listingId, ...(isOwner ? {} : { recipientId: userId }) },
+    include: TRANSACTION_INCLUDE,
+    orderBy: { createdAt: "asc" },
+  });
 
+  const [summary] = await withOwnerReputations([toSummary(listing)]);
   return {
-    ...toSummary(listing),
+    ...summary,
     description: listing.description,
-    completedWithUserId: listing.completedWithUserId,
     messages,
     participants,
     unreadFromOwner,
-    myRating: myRating ? { score: myRating.score, comment: myRating.comment } : null,
-    counterpartRating: counterpartRating ? { score: counterpartRating.score, comment: counterpartRating.comment } : null,
+    transactions: await toTransactionData(userId, transactionRows),
   };
 }
 
@@ -288,76 +410,156 @@ export async function countUnreadMessages(userId: string): Promise<number> {
   return db.cuttingMessage.count({ where: { recipientId: userId, readAt: null } });
 }
 
+/**
+ * Retire l'annonce : ANNULEE si aucune bouture n'a encore ete remise, sinon
+ * TERMINEE (les echanges deja realises et leurs notes restent intacts, seul
+ * le stock restant n'est plus propose).
+ */
 export async function cancelListing(userId: string, listingId: string): Promise<void> {
-  const listing = await db.cuttingListing.findUnique({ where: { id: listingId } });
+  const listing = await db.cuttingListing.findUnique({ where: { id: listingId }, include: { transactions: { select: { id: true } } } });
   if (!listing) {
     throw new NotFoundError("Annonce introuvable.");
   }
   if (listing.userId !== userId) {
-    throw new ForbiddenError("Seul le propriétaire peut annuler cette annonce.");
+    throw new ForbiddenError("Seul le propriétaire peut retirer cette annonce.");
   }
   if (listing.status !== "OUVERTE") {
-    throw new ConflictError("Seule une annonce ouverte peut être annulée.");
+    throw new ConflictError("Seule une annonce ouverte peut être retirée.");
   }
-  await db.cuttingListing.update({ where: { id: listingId }, data: { status: "ANNULEE" } });
-}
-
-/**
- * Cloture l'annonce avec le compte choisi comme destinataire final --
- * n'importe qui ayant deja echange avec le proprietaire (voir
- * participants ci-dessus), pas necessairement le premier a avoir ecrit.
- */
-export async function completeListing(userId: string, listingId: string, completedWithUserId: string): Promise<void> {
-  const listing = await db.cuttingListing.findUnique({ where: { id: listingId } });
-  if (!listing) {
-    throw new NotFoundError("Annonce introuvable.");
-  }
-  if (listing.userId !== userId) {
-    throw new ForbiddenError("Seul le propriétaire peut clôturer cette annonce.");
-  }
-  if (listing.status !== "OUVERTE") {
-    throw new ConflictError("Seule une annonce ouverte peut être clôturée.");
-  }
-  const hasExchanged = await db.cuttingMessage.findFirst({
-    where: { listingId, OR: [{ senderId: completedWithUserId }, { recipientId: completedWithUserId }] },
+  await db.cuttingListing.update({
+    where: { id: listingId },
+    data: { status: listing.transactions.length > 0 ? "TERMINEE" : "ANNULEE" },
   });
-  if (!hasExchanged) {
-    throw new ConflictError("Ce compte n'a pas échangé de message sur cette annonce.");
-  }
-  await db.cuttingListing.update({ where: { id: listingId }, data: { status: "TERMINEE", completedWithUserId } });
 }
 
 /**
- * Reserve aux deux participants d'une annonce TERMINEE (le proprietaire et
- * completedWithUserId) -- l'un note l'autre, jamais l'inverse pour le meme
- * appelant (contrainte unique listingId+raterId cote schema).
+ * Enregistre qu'`quantity` boutures ont ete remises a `recipientId` -- appele
+ * APRES la confirmation explicite du proprietaire dans l'UI ("la transaction
+ * avec X a-t-elle bien eu lieu ?"). Le destinataire doit deja avoir echange
+ * avec le proprietaire sur cette annonce. Verification du stock et ecriture
+ * dans une meme transaction : deux enregistrements simultanes ne peuvent pas,
+ * a eux deux, depasser la quantite proposee. L'annonce passe TERMINEE
+ * quand le stock tombe a 0.
  */
-export async function createRating(raterId: string, listingId: string, input: CreateCuttingRatingInput): Promise<void> {
-  const listing = await db.cuttingListing.findUnique({ where: { id: listingId } });
-  if (!listing) {
-    throw new NotFoundError("Annonce introuvable.");
-  }
-  if (listing.status !== "TERMINEE" || !listing.completedWithUserId) {
-    throw new ConflictError("Cette annonce n'est pas encore terminée.");
+export async function recordTransaction(
+  ownerId: string,
+  listingId: string,
+  input: { recipientId: string; quantity: number },
+): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const listing = await tx.cuttingListing.findUnique({ where: { id: listingId }, include: { transactions: { select: { quantity: true } } } });
+    if (!listing) {
+      throw new NotFoundError("Annonce introuvable.");
+    }
+    if (listing.userId !== ownerId) {
+      throw new ForbiddenError("Seul le propriétaire peut enregistrer un échange.");
+    }
+    if (listing.status !== "OUVERTE") {
+      throw new ConflictError("Cette annonce n'est plus ouverte.");
+    }
+    if (input.recipientId === ownerId) {
+      throw new ConflictError("Impossible d'enregistrer un échange avec soi-même.");
+    }
+    const hasExchanged = await tx.cuttingMessage.findFirst({
+      where: { listingId, OR: [{ senderId: input.recipientId }, { recipientId: input.recipientId }] },
+      select: { id: true },
+    });
+    if (!hasExchanged) {
+      throw new ConflictError("Ce compte n'a pas échangé de message sur cette annonce.");
+    }
+
+    const remaining = listing.quantity - listing.transactions.reduce((sum, t) => sum + t.quantity, 0);
+    if (input.quantity > remaining) {
+      throw new ConflictError(`Il ne reste que ${remaining} bouture${remaining > 1 ? "s" : ""} sur cette annonce.`);
+    }
+
+    await tx.cuttingTransaction.create({ data: { listingId, recipientId: input.recipientId, quantity: input.quantity } });
+    if (input.quantity === remaining) {
+      await tx.cuttingListing.update({ where: { id: listingId }, data: { status: "TERMINEE" } });
+    }
+  });
+}
+
+/**
+ * Reserve aux deux participants d'une transaction (le proprietaire de
+ * l'annonce et son destinataire) -- l'un note l'autre, une seule fois par
+ * transaction (contrainte unique transactionId+raterId cote schema).
+ */
+export async function createRating(raterId: string, transactionId: string, input: CreateCuttingRatingInput): Promise<void> {
+  const transaction = await db.cuttingTransaction.findUnique({
+    where: { id: transactionId },
+    include: { listing: { select: { userId: true } } },
+  });
+  if (!transaction) {
+    throw new NotFoundError("Échange introuvable.");
   }
 
   let ratedUserId: string;
-  if (raterId === listing.userId) {
-    ratedUserId = listing.completedWithUserId;
-  } else if (raterId === listing.completedWithUserId) {
-    ratedUserId = listing.userId;
+  if (raterId === transaction.listing.userId) {
+    ratedUserId = transaction.recipientId;
+  } else if (raterId === transaction.recipientId) {
+    ratedUserId = transaction.listing.userId;
   } else {
     throw new ForbiddenError("Seuls les deux participants à cet échange peuvent se noter.");
   }
 
-  const existing = await db.cuttingRating.findUnique({ where: { listingId_raterId: { listingId, raterId } } });
+  const existing = await db.cuttingRating.findUnique({ where: { transactionId_raterId: { transactionId, raterId } } });
   if (existing) {
-    throw new ConflictError("Vous avez déjà noté cet échange.");
+    throw new ConflictError("Tu as déjà noté cet échange.");
   }
 
   await db.cuttingRating.create({
-    data: { listingId, raterId, ratedUserId, score: input.score, comment: input.comment },
+    data: { transactionId, raterId, ratedUserId, score: input.score, comment: input.comment },
   });
+}
+
+export interface ReceivedRating {
+  id: string;
+  score: number;
+  comment: string | null;
+  createdAt: string;
+  raterPseudo: string | null;
+  listingTitle: string;
+}
+
+export interface MemberProfile {
+  id: string;
+  pseudo: string | null;
+  reputation: Reputation;
+  /** Nombre d'echanges realises (comme proprietaire ou destinataire). */
+  transactionCount: number;
+  ratings: ReceivedRating[];
+}
+
+/** Profil PUBLIC d'un membre : pseudo, moyenne et commentaires recus -- jamais nom reel ni email. */
+export async function getMemberProfile(memberId: string): Promise<MemberProfile> {
+  const member = await db.user.findUnique({ where: { id: memberId }, select: { id: true, pseudo: true } });
+  if (!member) {
+    throw new NotFoundError("Membre introuvable.");
+  }
+  const [reputations, transactionCount, ratings] = await Promise.all([
+    getReputations([memberId]),
+    db.cuttingTransaction.count({ where: { OR: [{ recipientId: memberId }, { listing: { userId: memberId } }] } }),
+    db.cuttingRating.findMany({
+      where: { ratedUserId: memberId },
+      include: { rater: { select: { pseudo: true } }, transaction: { select: { listing: { select: { title: true } } } } },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+  return {
+    id: member.id,
+    pseudo: member.pseudo,
+    reputation: reputations.get(memberId) ?? { average: null, count: 0 },
+    transactionCount,
+    ratings: ratings.map((r) => ({
+      id: r.id,
+      score: r.score,
+      comment: r.comment,
+      createdAt: r.createdAt.toISOString(),
+      raterPseudo: r.rater.pseudo,
+      listingTitle: r.transaction.listing.title,
+    })),
+  };
 }
 
 /**

@@ -3,9 +3,16 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Camera, Loader2, X } from "lucide-react";
+import { Ban, Camera, Loader2, X } from "lucide-react";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
-import { CUTTING_LISTING_TYPES, CUTTING_LISTING_TYPE_LABEL, MAX_CUTTING_PHOTOS, type CuttingListingType } from "@/server/cuttings/types";
+import {
+  CUTTING_LISTING_TYPES,
+  CUTTING_LISTING_TYPE_LABEL,
+  CUTTINGS_NO_SALE_RULE,
+  MAX_CUTTING_PHOTOS,
+  MAX_CUTTING_QUANTITY,
+  type CuttingListingType,
+} from "@/server/cuttings/types";
 
 export default function CuttingListingForm() {
   const router = useRouter();
@@ -13,6 +20,8 @@ export default function CuttingListingForm() {
   const [species, setSpecies] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<CuttingListingType>("DON");
+  const [quantity, setQuantity] = useState(1);
+  const [noSaleAccepted, setNoSaleAccepted] = useState(false);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -59,11 +68,18 @@ export default function CuttingListingForm() {
           species: species || undefined,
           description: description || undefined,
           type,
+          quantity,
           photoUrls,
+          noSaleAccepted,
         }),
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error ?? "Impossible de publier l'annonce.");
+      if (!res.ok) {
+        // Erreurs de validation (dont le refus d'un prix dans le texte) : le
+        // message utile est dans details, pas dans le "Donnees invalides." generique.
+        const fieldMessage = Object.values((body.details?.fieldErrors ?? {}) as Record<string, string[]>).flat()[0];
+        throw new Error(fieldMessage ?? body.error ?? "Impossible de publier l'annonce.");
+      }
       router.push(`/boutures/${body.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inattendue.");
@@ -79,6 +95,11 @@ export default function CuttingListingForm() {
           {error}
         </p>
       )}
+
+      <p className="flex gap-2 rounded-lg p-3 text-sm" style={{ background: "color-mix(in srgb, var(--warning) 14%, transparent)" }}>
+        <Ban size={18} className="mt-0.5 shrink-0" style={{ color: "var(--warning)" }} aria-hidden />
+        <span>{CUTTINGS_NO_SALE_RULE}</span>
+      </p>
 
       <div className="flex gap-2">
         {CUTTING_LISTING_TYPES.map((t) => (
@@ -106,6 +127,22 @@ export default function CuttingListingForm() {
           placeholder="Ex. Bouture de Pothos doré"
           className="input w-full"
         />
+      </div>
+
+      <div>
+        <label htmlFor="cutting-quantity" className="text-muted mb-1 block text-xs font-medium uppercase tracking-wide">
+          Nombre de boutures proposées
+        </label>
+        <input
+          id="cutting-quantity"
+          type="number"
+          min={1}
+          max={MAX_CUTTING_QUANTITY}
+          value={quantity}
+          onChange={(e) => setQuantity(Math.min(MAX_CUTTING_QUANTITY, Math.max(1, Number(e.target.value) || 1)))}
+          className="input w-24"
+        />
+        <p className="text-muted mt-1 text-xs">Tu pourras les répartir entre plusieurs personnes, un échange à la fois.</p>
       </div>
 
       <div>
@@ -158,9 +195,14 @@ export default function CuttingListingForm() {
         </div>
       </div>
 
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" checked={noSaleAccepted} onChange={(e) => setNoSaleAccepted(e.target.checked)} className="mt-0.5 h-4 w-4" />
+        <span>Je m&apos;engage à donner ou échanger ces boutures, sans jamais demander d&apos;argent.</span>
+      </label>
+
       <button
         type="submit"
-        disabled={submitting || uploading || !title.trim() || photoUrls.length === 0}
+        disabled={submitting || uploading || !title.trim() || photoUrls.length === 0 || !noSaleAccepted}
         className="btn-primary w-full rounded-lg py-2.5 text-sm font-semibold disabled:opacity-60"
       >
         {submitting ? "Publication..." : "Publier l'annonce"}

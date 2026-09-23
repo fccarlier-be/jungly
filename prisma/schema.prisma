@@ -99,6 +99,9 @@ model User {
   receivedCuttingMessages  CuttingMessage[]  @relation("CuttingMessageRecipient")
   cuttingRatingsGiven      CuttingRating[]   @relation("CuttingRatingRater")
   cuttingRatingsReceived   CuttingRating[]   @relation("CuttingRatingRatedUser")
+  cuttingTransactionsReceived CuttingTransaction[] @relation("CuttingTransactionRecipient")
+  cuttingReportsMade       CuttingReport[]   @relation("CuttingReportReporter")
+  cuttingReportsReceived   CuttingReport[]   @relation("CuttingReportReported")
 }
 
 /**
@@ -786,31 +789,44 @@ enum CuttingListingStatus {
   ANNULEE
 }
 
+enum CuttingReportReason {
+  VENTE
+  COMPORTEMENT
+  AUTRE
+}
+
+enum CuttingReportStatus {
+  OUVERT
+  TRAITE
+}
+
 /**
  * Annonce de bouture a donner ou echanger. Au moins une photo est exigee a
  * la creation (validation cote route, voir validation/cutting.ts) --
  * exigence produit explicite, jamais une simple recommandation.
- * `completedWithUserId` : qui a effectivement recu la bouture, renseigne au
- * passage a TERMINEE -- determine qui peut laisser/recevoir une note (voir
- * CuttingRating) et n'est jamais celui qui a simplement ecrit un message
- * sans etre choisi.
+ * `quantity` : nombre de boutures proposees AU TOTAL -- une annonce donne
+ * lieu a autant de CuttingTransaction que de destinataires (ex. 5 boutures :
+ * 3 a X, 1 a Y, 1 a Z = 3 transactions). Le stock restant se deduit
+ * (quantity - somme des transactions), l'annonce passe TERMINEE quand il
+ * tombe a 0. Jamais de vente : les boutures se donnent ou s'echangent.
  */
 model CuttingListing {
-  id                   String               @id @default(cuid())
-  userId               String
-  title                String
-  species              String?
-  description          String?
-  type                 CuttingListingType
-  status               CuttingListingStatus @default(OUVERTE)
-  photoUrls            Json
-  completedWithUserId  String?
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
+  id          String               @id @default(cuid())
+  userId      String
+  title       String
+  species     String?
+  description String?
+  type        CuttingListingType
+  status      CuttingListingStatus @default(OUVERTE)
+  photoUrls   Json
+  quantity    Int                  @default(1)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
 
-  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages CuttingMessage[]
-  ratings  CuttingRating[]
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages     CuttingMessage[]
+  transactions CuttingTransaction[]
+  reports      CuttingReport[]
 
   @@index([status, createdAt])
   @@index([userId])
@@ -844,24 +860,75 @@ model CuttingMessage {
 }
 
 /**
- * Note laissee par un participant a l'autre APRES le passage de l'annonce a
- * TERMINEE (etat des boutures, correspondance avec les photos, conseils...).
- * Une seule note par (listing, auteur) -- chacun des deux participants note
- * l'autre une fois, jamais plus.
+ * Un echange effectivement realise : `quantity` boutures remises par le
+ * proprietaire de l'annonce a `recipientId`. Enregistre par le proprietaire
+ * apres confirmation explicite ("la transaction avec X a-t-elle bien eu
+ * lieu ?") -- c'est ce qui ouvre la possibilite de se noter mutuellement.
  */
-model CuttingRating {
+model CuttingTransaction {
   id          String   @id @default(cuid())
   listingId   String
-  raterId     String
-  ratedUserId String
-  score       Int
-  comment     String?
+  recipientId String
+  quantity    Int
   createdAt   DateTime @default(now())
 
-  listing   CuttingListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  rater     User           @relation("CuttingRatingRater", fields: [raterId], references: [id], onDelete: Cascade)
-  ratedUser User           @relation("CuttingRatingRatedUser", fields: [ratedUserId], references: [id], onDelete: Cascade)
+  listing   CuttingListing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  recipient User            @relation("CuttingTransactionRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  ratings   CuttingRating[]
 
-  @@unique([listingId, raterId])
+  @@index([listingId])
+  @@index([recipientId])
+}
+
+/**
+ * Note laissee par un participant a l'autre APRES une transaction (etat des
+ * boutures, correspondance avec les photos, conseils...). Une seule note par
+ * (transaction, auteur) -- chacun des deux participants note l'autre une
+ * fois PAR transaction, jamais plus.
+ */
+model CuttingRating {
+  id            String   @id @default(cuid())
+  transactionId String
+  raterId       String
+  ratedUserId   String
+  score         Int
+  comment       String?
+  createdAt     DateTime @default(now())
+
+  transaction CuttingTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  rater       User               @relation("CuttingRatingRater", fields: [raterId], references: [id], onDelete: Cascade)
+  ratedUser   User               @relation("CuttingRatingRatedUser", fields: [ratedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, raterId])
   @@index([ratedUserId])
+}
+
+/**
+ * Signalement d'un membre (typiquement : tentative de VENDRE des boutures
+ * contre de l'argent, interdit -- l'outil ne doit jamais etre detourne en
+ * marketplace). `evidence*` : capture chiffree (meme cle que les messages)
+ * des derniers messages echanges entre les deux comptes sur cette annonce,
+ * prise AU MOMENT du signalement avec l'accord implicite de l'auteur --
+ * sans elle, l'administrateur ne pourrait pas verifier les faits (les
+ * messages sont chiffres au repos, jamais lisibles depuis l'admin).
+ */
+model CuttingReport {
+  id               String              @id @default(cuid())
+  reporterId       String
+  reportedUserId   String
+  listingId        String?
+  reason           CuttingReportReason
+  comment          String?
+  evidenceCiphertext String?
+  evidenceIv         String?
+  evidenceAuthTag    String?
+  status           CuttingReportStatus @default(OUVERT)
+  createdAt        DateTime            @default(now())
+  handledAt        DateTime?
+
+  reporter     User            @relation("CuttingReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser User            @relation("CuttingReportReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  listing      CuttingListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
 }

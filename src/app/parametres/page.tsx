@@ -9,6 +9,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 import AccountSettings from "@/components/AccountSettings";
 import WeatherSettings from "@/components/WeatherSettings";
 import UnitSettings from "@/components/UnitSettings";
+import { isCuttingsMarketplaceEnabled } from "@/lib/features";
+import { countOpenReports } from "@/server/cuttings/reports";
 
 export default async function SettingsPage() {
   const userId = await requireSessionUserId();
@@ -19,6 +21,9 @@ export default async function SettingsPage() {
     db.weatherProfile.findUnique({ where: { userId }, select: { city: true, wateringIntervalMultiplier: true } }),
     db.user.findUniqueOrThrow({ where: { id: userId }, select: { unitSystem: true, isAdmin: true } }),
   ]);
+
+  const cuttingsEnabled = isCuttingsMarketplaceEnabled();
+  const openReports = user.isAdmin && cuttingsEnabled ? await countOpenReports() : 0;
 
   return (
     <div className="space-y-6">
@@ -99,6 +104,11 @@ export default async function SettingsPage() {
             <Link href="/admin/annonce" className="chip inline-block rounded-lg py-2 px-4">
               Annonce de nouveautés
             </Link>
+            {cuttingsEnabled && (
+              <Link href="/admin/signalements" className="chip inline-block rounded-lg py-2 px-4">
+                Signalements de boutures{openReports > 0 ? ` (${openReports})` : ""}
+              </Link>
+            )}
           </div>
         </section>
       )}

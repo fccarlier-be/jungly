@@ -2,6 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { Leaf } from "lucide-react";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
+import ReputationBadge from "@/components/ReputationBadge";
+import type { Reputation } from "@/server/cuttings/service";
 import { CUTTING_LISTING_TYPE_LABEL, CUTTING_LISTING_STATUS_LABEL, type CuttingListingType, type CuttingListingStatus } from "@/server/cuttings/types";
 
 export interface CuttingListingCardData {
@@ -11,7 +13,9 @@ export interface CuttingListingCardData {
   type: string;
   status: string;
   photoUrls: string[];
-  owner: { id: string; pseudo: string | null };
+  owner: { id: string; pseudo: string | null; reputation?: Reputation };
+  quantity: number;
+  remaining: number;
   unreadCount?: number;
 }
 
@@ -60,7 +64,17 @@ export default function CuttingListingCard({ listing, showStatus = false }: { li
       <div className="space-y-1 p-3">
         <p className="truncate font-medium leading-tight">{listing.title}</p>
         {listing.species && <p className="text-muted truncate text-xs italic">{listing.species}</p>}
-        <p className="text-muted truncate text-xs">par {listing.owner.pseudo ?? "membre sans pseudo"}</p>
+        <p className="text-muted flex items-center gap-1.5 text-xs">
+          <span className="truncate">par {listing.owner.pseudo ?? "membre sans pseudo"}</span>
+          <ReputationBadge reputation={listing.owner.reputation} />
+        </p>
+        <p className="text-xs font-medium" style={{ color: "var(--primary-strong)" }}>
+          {listing.remaining === 0
+            ? "Plus de boutures"
+            : listing.quantity === 1
+              ? "1 bouture"
+              : `${listing.remaining} bouture${listing.remaining > 1 ? "s" : ""} restante${listing.remaining > 1 ? "s" : ""} sur ${listing.quantity}`}
+        </p>
       </div>
     </Link>
   );
