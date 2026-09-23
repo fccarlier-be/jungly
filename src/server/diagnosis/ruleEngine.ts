@@ -358,50 +358,34 @@ function matchesKeywords(diseaseName: string, keywords: string[]): boolean {
 
 /**
  * Ajoute (si pertinent) le resultat Pl@ntNet comme preuve POUR les
- * hypotheses deja generees par les regles, et renvoie separement les
- * candidats Pl@ntNet qui ne matchent aucune regle connue (pour leur creer
- * une hypothese dediee, cf computeHypotheses).
+ * hypotheses deja generees par les regles locales. Un candidat qui ne
+ * matche aucune regle connue n'obtient PAS sa propre carte d'hypothese --
+ * il est deja affiche tel quel dans l'encart "Resultat visuel Pl@ntNet"
+ * (voir DiagnosisResult.tsx), clairement labellise "une piste parmi
+ * d'autres, pas une conclusion" ; le re-afficher comme hypothese distincte
+ * pour CHAQUE candidat non apparie (jusqu'a 5) noyait le vrai contenu du
+ * diagnostic sous des cartes quasi identiques au texte generique --
+ * retour utilisateur, 2026-09-23.
  */
-function attachPlantnetEvidence(
-  hypotheses: Hypothesis[],
-  plantnetDisease: PlantnetDiseaseCandidate[] | null,
-): { hypotheses: Hypothesis[]; unmatched: PlantnetDiseaseCandidate[] } {
+function attachPlantnetEvidence(hypotheses: Hypothesis[], plantnetDisease: PlantnetDiseaseCandidate[] | null): Hypothesis[] {
   if (!plantnetDisease || plantnetDisease.length === 0) {
-    return { hypotheses, unmatched: [] };
+    return hypotheses;
   }
 
-  const unmatched: PlantnetDiseaseCandidate[] = [];
   const byId = new Map(hypotheses.map((h) => [h.id, h]));
 
   for (const candidate of plantnetDisease) {
-    let matchedAny = false;
     for (const [hypothesisId, keywords] of Object.entries(PLANTNET_KEYWORDS)) {
       const hypothesis = byId.get(hypothesisId);
       if (hypothesis && matchesKeywords(candidate.name, keywords)) {
         hypothesis.evidenceFor.push(
           `Pl@ntNet suggere "${candidate.name}" (score ${Math.round(candidate.score * 100)}%) -- un signal parmi d'autres, pas une conclusion a lui seul.`,
         );
-        matchedAny = true;
       }
-    }
-    if (!matchedAny) {
-      unmatched.push(candidate);
     }
   }
 
-  return { hypotheses, unmatched };
-}
-
-function unmatchedPlantnetHypothesis(candidate: PlantnetDiseaseCandidate): Hypothesis {
-  return {
-    id: `plantnet_${normalize(candidate.name).replace(/[^a-z0-9]+/g, "_")}`,
-    label: `Suggestion Pl@ntNet : ${candidate.name}`,
-    confidence: "POSSIBLE",
-    evidenceFor: [`Pl@ntNet suggere "${candidate.name}" (score ${Math.round(candidate.score * 100)}%), sans correspondance avec une regle locale connue.`],
-    evidenceAgainst: [],
-    verifications: ["Rechercher ce nom pour confirmer les symptomes typiques associes"],
-    actions: ["Comparer avec les symptomes observes avant d'agir", "Reprendre le diagnostic si cette piste ne correspond pas"],
-  };
+  return hypotheses;
 }
 
 function fallbackHypothesis(): Hypothesis {
@@ -439,12 +423,11 @@ export function computeHypotheses(input: {
 
   const triggered = RULES.map((rule) => rule(symptomVector, localContext)).filter((h): h is Hypothesis => h !== null);
 
-  const { hypotheses: withEvidence, unmatched } = attachPlantnetEvidence(triggered, plantnetDisease);
-  const withUnmatched = [...withEvidence, ...unmatched.map(unmatchedPlantnetHypothesis)];
+  const withEvidence = attachPlantnetEvidence(triggered, plantnetDisease);
 
-  if (withUnmatched.length === 0) {
+  if (withEvidence.length === 0) {
     return [fallbackHypothesis()];
   }
 
-  return sortByConfidence(withUnmatched);
+  return sortByConfidence(withEvidence);
 }

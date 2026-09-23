@@ -142,6 +142,12 @@ export async function identifyPlant(images: PlantnetImageInput[]): Promise<Plant
   const url = new URL(IDENTIFY_URL);
   url.searchParams.set("api-key", getApiKey());
   url.searchParams.set("nb-results", "5");
+  // Jungly est en francais : sans ce parametre, les noms communs renvoyes
+  // sont en anglais -- `lang` est documente explicitement sur CET endpoint
+  // (my.plantnet.org/doc/api/identify : "Set lang to a language code [...]
+  // to get contextualized results, such as common names"), verifie le
+  // 2026-09-23 suite a une question sur sa disponibilite ici aussi.
+  url.searchParams.set("lang", "fr");
 
   const res = await postToPlantnet(url, buildImagesForm(images));
 
@@ -216,6 +222,10 @@ export async function identifyDiseases(images: PlantnetImageInput[]): Promise<Pl
   const url = new URL(DISEASES_URL);
   url.searchParams.set("api-key", getApiKey());
   url.searchParams.set("nb-results", "5");
+  // `description` (voir extractDiseaseName) est renvoyee en anglais sans ce
+  // parametre -- constate en test reel (2026-09-23), confirme sur
+  // my.plantnet.org/doc/api/diseases.
+  url.searchParams.set("lang", "fr");
 
   const res = await postToPlantnet(url, buildImagesForm(images));
 

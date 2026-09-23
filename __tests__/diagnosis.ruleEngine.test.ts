@@ -333,16 +333,20 @@ describe("computeHypotheses - integration Pl@ntNet", () => {
     expect(result.some((h) => h.id.startsWith("plantnet_"))).toBe(false);
   });
 
-  it("un nom Pl@ntNet qui ne matche aucune regle connue devient sa propre hypothese POSSIBLE", () => {
+  it("un nom Pl@ntNet qui ne matche aucune regle connue n'ajoute PAS de carte dediee (deja affiche dans le Resultat visuel Pl@ntNet)", () => {
     const result = computeHypotheses({
       symptomVector: vector("OTHER", {}),
       localContext: neutralContext({ daysSinceAcquired: 400 }),
       plantnetDisease: [{ name: "Xylella fastidiosa", eppoCode: "XYLEFA", score: 0.5 }],
     });
-    const hypothesis = result.find((h) => h.id.startsWith("plantnet_"));
-    expect(hypothesis).toBeDefined();
-    expect(hypothesis?.confidence).toBe("POSSIBLE");
-    expect(hypothesis?.label).toContain("Xylella fastidiosa");
+    // Aucune regle locale ne se declenche pour OTHER sans autre signal : le
+    // candidat Pl@ntNet non apparie ne cree plus sa propre hypothese
+    // (redondant avec l'encart "Resultat visuel Pl@ntNet" -- retour
+    // utilisateur "peu lisible et pas jolie", 2026-09-23), on retombe sur le
+    // fallback honnete.
+    expect(result.some((h) => h.id.startsWith("plantnet_"))).toBe(false);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("unknown_cause");
   });
 
   it("plantnetDisease null ou vide n'ajoute aucune hypothese supplementaire", () => {

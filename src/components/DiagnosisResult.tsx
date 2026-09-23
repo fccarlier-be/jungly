@@ -35,12 +35,24 @@ function ConfidenceBadge({ confidence }: { confidence: DiagnosisConfidence }) {
   );
 }
 
-function HypothesisList({ title, items }: { title: string; items: string[] }) {
+// Point colore + libelle plutot qu'un simple intitule majuscule : distingue
+// "pour" de "contre" au premier coup d'oeil (retour "peu lisible", 2026-09-23)
+// sans introduire de nouvelle couleur -- reprend --primary (deja "positif"
+// dans le badge PROBABLE) et --danger (deja "attention" dans .badge-attention).
+const EVIDENCE_DOT_COLOR: Record<string, string> = {
+  for: "var(--primary)",
+  against: "var(--danger)",
+};
+
+function HypothesisList({ title, items, tone }: { title: string; items: string[]; tone?: "for" | "against" }) {
   if (items.length === 0) return null;
   return (
-    <div>
-      <p className="text-muted text-xs font-medium uppercase tracking-wide">{title}</p>
-      <ul className="list-disc space-y-0.5 pl-5 text-sm">
+    <div className="border-t pt-2 first:border-t-0 first:pt-0" style={{ borderColor: "var(--border)" }}>
+      <p className="text-muted flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide">
+        {tone && <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: EVIDENCE_DOT_COLOR[tone] }} />}
+        {title}
+      </p>
+      <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">
         {items.map((item, i) => (
           <li key={i}>{item}</li>
         ))}
@@ -51,13 +63,13 @@ function HypothesisList({ title, items }: { title: string; items: string[] }) {
 
 function HypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
   return (
-    <div className="card space-y-2.5 p-4">
+    <div className="card space-y-3 p-4">
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold">{hypothesis.label}</h3>
+        <h3 className="text-base font-semibold">{hypothesis.label}</h3>
         <ConfidenceBadge confidence={hypothesis.confidence} />
       </div>
-      <HypothesisList title="Éléments en faveur" items={hypothesis.evidenceFor} />
-      <HypothesisList title="Éléments qui contredisent" items={hypothesis.evidenceAgainst} />
+      <HypothesisList title="Éléments en faveur" items={hypothesis.evidenceFor} tone="for" />
+      <HypothesisList title="Éléments qui contredisent" items={hypothesis.evidenceAgainst} tone="against" />
       <HypothesisList title="Vérifications à faire" items={hypothesis.verifications} />
       <HypothesisList title="Actions recommandées" items={hypothesis.actions} />
     </div>
@@ -116,31 +128,42 @@ export default function DiagnosisResult({ result }: { result: DiagnosisResultDat
       </section>
 
       {plantnetDisease !== null && (
-        <section className="card space-y-2 border p-4" style={{ borderColor: "var(--warning)" }}>
-          <div>
+        <section
+          className="card space-y-2.5 p-4"
+          style={plantnetDisease.length > 0 ? { borderLeft: "3px solid var(--warning)" } : undefined}
+        >
+          <div className="flex items-baseline justify-between gap-2">
             <h2 className="font-semibold">Résultat visuel Pl@ntNet</h2>
-            <p className="text-muted text-xs">(une piste parmi d&apos;autres, pas une conclusion)</p>
+            <span className="chip shrink-0 rounded-full px-2 py-0.5 text-xs whitespace-nowrap">une piste, pas une conclusion</span>
           </div>
           {plantnetDisease.length === 0 ? (
             <p className="text-muted text-sm">Aucun signe de maladie détecté visuellement.</p>
           ) : (
-            <ul className="space-y-1 text-sm">
-              {plantnetDisease.map((candidate) => (
-                <li key={candidate.name} className="flex items-center justify-between gap-2">
-                  <span>
-                    {candidate.name}
-                    {candidate.eppoCode && <span className="text-muted"> ({candidate.eppoCode})</span>}
-                  </span>
-                  <span className="text-muted text-xs shrink-0">{Math.round(candidate.score * 100)}%</span>
-                </li>
-              ))}
+            <ul className="space-y-2 text-sm">
+              {plantnetDisease.map((candidate) => {
+                const percent = Math.round(candidate.score * 100);
+                return (
+                  <li key={candidate.name} className="space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>
+                        {candidate.name}
+                        {candidate.eppoCode && <span className="text-muted"> ({candidate.eppoCode})</span>}
+                      </span>
+                      <span className="text-muted shrink-0 text-xs tabular-nums">{percent}%</span>
+                    </div>
+                    <div className="h-1 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
+                      <div className="h-full rounded-full" style={{ width: `${percent}%`, background: "var(--warning)" }} />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
       )}
 
       <section className="space-y-2">
-        <h2 className="text-lg font-semibold">Hypothèses</h2>
+        <h2 className="font-semibold">Hypothèses</h2>
         {hypotheses.length === 0 ? (
           <p className="text-muted text-sm">Aucune hypothèse identifiée.</p>
         ) : (
