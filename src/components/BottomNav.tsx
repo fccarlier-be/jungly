@@ -2,12 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Sprout, ListChecks, Settings } from "lucide-react";
+import { Home, Sprout, Wrench, Settings } from "lucide-react";
 
+// "Taches" a ete retiree de cette barre (retour utilisateur, 2026-09-23) :
+// l'accueil affiche deja les taches du jour, la page complete reste
+// accessible depuis le bas de "Mes plantes". La place liberee accueille
+// "Outils" (bibliotheque, engrais, jardinieres, historique...), qui
+// vivaient avant eparpilles dans Parametres.
 const ITEMS = [
   { href: "/", label: "Accueil", Icon: Home },
   { href: "/plantes", label: "Mes plantes", Icon: Sprout },
-  { href: "/taches", label: "Tâches", Icon: ListChecks },
+  { href: "/outils", label: "Outils", Icon: Wrench },
   { href: "/parametres", label: "Paramètres", Icon: Settings },
 ];
 

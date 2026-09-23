@@ -62,6 +62,12 @@ model User {
   // remboursement serait lui-meme conteste/annule. Toujours null pour un
   // compte auto-heberge (aucun achat associe).
   disabledAt   DateTime?
+  // Derniere annonce (voir Announcement) que ce compte a explicitement
+  // acquittee ("ne plus voir jusqu'a la prochaine annonce") -- distinct
+  // d'avoir simplement FERME la modale sans cocher la case, auquel cas elle
+  // reapparait au prochain chargement (voir AnnouncementModal.tsx). Null
+  // pour un compte qui n'a jamais rien acquitte.
+  lastSeenAnnouncementId String?
 
   locations              Location[]
   containers             Container[]
@@ -73,6 +79,26 @@ model User {
   uploads                Upload[]
   passwordResetTokens    PasswordResetToken[]
   feedbacks              Feedback[]
+  lastSeenAnnouncement   Announcement? @relation(fields: [lastSeenAnnouncementId], references: [id], onDelete: SetNull)
+}
+
+/**
+ * Annonce de changement publiee par l'administrateur (voir
+ * requireAdminSessionUserId), affichee en modale au chargement de l'app pour
+ * tout compte dont User.lastSeenAnnouncementId differe de la derniere
+ * annonce publiee (voir getLatestAnnouncement). Une seule "derniere annonce"
+ * a la fois -- pas de systeme de fil/historique pour l'instant, publier une
+ * nouvelle annonce rend simplement la precedente invisible pour tout le
+ * monde (y compris ceux qui l'avaient deja vue, sans consequence puisqu'ils
+ * ne reverront que la nouvelle).
+ */
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+
+  seenBy User[]
 }
 
 /**

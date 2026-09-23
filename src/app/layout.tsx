@@ -5,9 +5,12 @@ import Script from "next/script";
 import { Leaf } from "lucide-react";
 import "./globals.css";
 import { auth } from "@/server/auth";
+import { db } from "@/server/db";
+import { getLatestAnnouncement } from "@/server/announcements";
 import BottomNav from "@/components/BottomNav";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import AuthSessionProvider from "@/components/AuthSessionProvider";
+import AnnouncementModal from "@/components/AnnouncementModal";
 
 const lora = Lora({
   subsets: ["latin"],
@@ -67,6 +70,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // s'executer sous la CSP, sans recourir a 'unsafe-inline' pour script-src.
   const nonce = (await headers()).get("x-nonce");
 
+  // Modale de nouveautes (voir AnnouncementModal.tsx) : seulement si une
+  // annonce existe ET que ce compte ne l'a pas deja acquittee -- une seule
+  // requete de plus au chargement, negligeable a cote des autres queries
+  // deja faites par chaque page.
+  let pendingAnnouncement: { id: string; title: string; body: string } | null = null;
+  if (session?.user?.id) {
+    const [latest, user] = await Promise.all([
+      getLatestAnnouncement(),
+      db.user.findUnique({ where: { id: session.user.id }, select: { lastSeenAnnouncementId: true } }),
+    ]);
+    if (latest && latest.id !== user?.lastSeenAnnouncementId) {
+      pendingAnnouncement = latest;
+    }
+  }
+
   return (
     <html lang="fr" className={`${lora.variable} ${inter.variable}`}>
       <body className="min-h-screen antialiased font-sans">
@@ -76,6 +94,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ServiceWorkerRegistration />
         {session?.user ? (
           <AuthSessionProvider>
+            {pendingAnnouncement && <AnnouncementModal announcement={pendingAnnouncement} />}
             {/* Bascule shell mobile/desktop a lg (1024px), pas md (768px) :
                 une tablette est plus large que 768px mais reste un appareil
                 tactile -- elle doit garder la nav du bas, pas la barre

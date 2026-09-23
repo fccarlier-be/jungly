@@ -52,24 +52,6 @@ export default async function SettingsPage() {
       </section>
 
       <section className="card p-4 space-y-2 text-sm">
-        <h2 className="font-semibold">Bibliothèque, engrais et historique</h2>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/bibliotheque" className="chip flex-1 rounded-lg py-2 text-center min-w-[8rem]">
-            Bibliothèque de plantes
-          </Link>
-          <Link href="/engrais" className="chip flex-1 rounded-lg py-2 text-center min-w-[8rem]">
-            Mes engrais
-          </Link>
-          <Link href="/jardinieres" className="chip flex-1 rounded-lg py-2 text-center min-w-[8rem]">
-            Mes jardinières
-          </Link>
-          <Link href="/historique" className="chip flex-1 rounded-lg py-2 text-center min-w-[8rem]">
-            Historique complet
-          </Link>
-        </div>
-      </section>
-
-      <section className="card p-4 space-y-2 text-sm">
         <h2 className="font-semibold">Unités</h2>
         <UnitSettings initial={user.unitSystem} />
       </section>
@@ -110,9 +92,14 @@ export default async function SettingsPage() {
       {user.isAdmin && (
         <section className="card p-4 space-y-2 text-sm">
           <h2 className="font-semibold">Administration</h2>
-          <Link href="/analytics" className="chip inline-block rounded-lg py-2 px-4">
-            Statistiques du site vitrine
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/analytics" className="chip inline-block rounded-lg py-2 px-4">
+              Statistiques du site vitrine
+            </Link>
+            <Link href="/admin/annonce" className="chip inline-block rounded-lg py-2 px-4">
+              Annonce de nouveautés
+            </Link>
+          </div>
         </section>
       )}
 

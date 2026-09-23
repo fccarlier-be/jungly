@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpDown, SlidersHorizontal } from "lucide-react";
+import { ArrowUpDown, SlidersHorizontal, ListChecks } from "lucide-react";
 import { requireSessionUserId } from "@/lib/session";
 import { db } from "@/server/db";
 import PlantCard from "@/components/PlantCard";
@@ -183,6 +183,14 @@ export default async function PlantsPage({
           ))}
         </div>
       )}
+
+      {/* "Taches" a quitte la barre de navigation du bas (retour utilisateur,
+          2026-09-23) : cet acces la remplace, ici plutot qu'ailleurs puisque
+          la liste des taches est fondamentalement derivee des plantes. */}
+      <Link href="/taches" className="card flex items-center justify-center gap-2 p-4 text-sm font-medium">
+        <ListChecks size={18} style={{ color: "var(--primary-strong)" }} />
+        Voir toutes mes tâches
+      </Link>
     </div>
   );
 }
