@@ -50,7 +50,18 @@ export interface CuttingListingSummary {
 }
 
 const OWNER_SELECT = { select: { id: true, pseudo: true } } as const;
-const LISTING_INCLUDE = { user: OWNER_SELECT, transactions: { select: { quantity: true } } } as const;
+// Seuls les echanges ACTIFS comptent dans le stock : un echange conteste
+// (voir contestTransaction) rend ses boutures a l'annonce.
+const LISTING_INCLUDE = { user: OWNER_SELECT, transactions: { where: { status: "ACTIVE" as const }, select: { quantity: true } } } as const;
+
+/**
+ * Membre ni suspendu (avertissements, voir moderation.ts) ni banni de l'app :
+ * ses annonces restent invisibles des autres et personne ne peut lui ecrire
+ * pendant la sanction -- il ne pourrait de toute facon pas repondre.
+ */
+function activeMemberWhere() {
+  return { disabledAt: null, OR: [{ cuttingsBannedUntil: null }, { cuttingsBannedUntil: { lte: new Date() } }] };
+}
 
 /** Une seule requete pour la reputation de plusieurs membres (moyenne + nombre de notes recues). */
 export async function getReputations(userIds: string[]): Promise<Map<string, Reputation>> {
@@ -104,7 +115,7 @@ async function withOwnerReputations<T extends CuttingListingSummary>(summaries: 
 /** Annonces ouvertes de TOUS les comptes (y compris les siennes propres, affichees a part cote UI) -- tri par recence. */
 export async function listOpenListings(): Promise<CuttingListingSummary[]> {
   const listings = await db.cuttingListing.findMany({
-    where: { status: "OUVERTE" },
+    where: { status: "OUVERTE", user: activeMemberWhere() },
     include: LISTING_INCLUDE,
     orderBy: { createdAt: "desc" },
   });
@@ -201,6 +212,8 @@ export interface CuttingTransactionData {
   listingId: string;
   listingTitle: string;
   quantity: number;
+  /** CONTESTEE : le destinataire affirme que l'echange n'a pas eu lieu -- plus de notes possibles. */
+  status: "ACTIVE" | "CONTESTEE";
   createdAt: string;
   iAmOwner: boolean;
   counterpart: CuttingMember;
@@ -230,6 +243,7 @@ type TransactionRow = {
   id: string;
   listingId: string;
   quantity: number;
+  status: string;
   createdAt: Date;
   recipientId: string;
   listing: { id: string; title: string; userId: string; user: CuttingMember };
@@ -250,6 +264,7 @@ async function toTransactionData(userId: string, rows: TransactionRow[]): Promis
       listingId: r.listingId,
       listingTitle: r.listing.title,
       quantity: r.quantity,
+      status: r.status === "CONTESTEE" ? "CONTESTEE" : "ACTIVE",
       createdAt: r.createdAt.toISOString(),
       iAmOwner,
       counterpart: { ...counterpart, reputation: reputations.get(counterpart.id) },
@@ -272,7 +287,7 @@ export async function listMyTransactions(userId: string): Promise<CuttingTransac
 /** Echanges a noter : ou l'appelant est partie et n'a pas encore laisse sa note. */
 export async function countRatingsToGive(userId: string): Promise<number> {
   return db.cuttingTransaction.count({
-    where: { OR: [{ recipientId: userId }, { listing: { userId } }], ratings: { none: { raterId: userId } } },
+    where: { status: "ACTIVE", OR: [{ recipientId: userId }, { listing: { userId } }], ratings: { none: { raterId: userId } } },
   });
 }
 
@@ -379,9 +394,12 @@ export async function sendMessage(senderId: string, listingId: string, input: Se
     }
   }
 
-  const recipient = await db.user.findUnique({ where: { id: input.recipientId }, select: { id: true } });
+  const recipient = await db.user.findUnique({ where: { id: input.recipientId }, select: { id: true, disabledAt: true, cuttingsBannedUntil: true } });
   if (!recipient) {
     throw new NotFoundError("Destinataire introuvable.");
+  }
+  if (recipient.disabledAt || (recipient.cuttingsBannedUntil && recipient.cuttingsBannedUntil.getTime() > Date.now())) {
+    throw new ConflictError("Ce membre est actuellement suspendu, il ne peut pas recevoir de message.");
   }
 
   const encrypted = encryptMessageBody(input.body);
@@ -416,7 +434,10 @@ export async function countUnreadMessages(userId: string): Promise<number> {
  * le stock restant n'est plus propose).
  */
 export async function cancelListing(userId: string, listingId: string): Promise<void> {
-  const listing = await db.cuttingListing.findUnique({ where: { id: listingId }, include: { transactions: { select: { id: true } } } });
+  const listing = await db.cuttingListing.findUnique({
+    where: { id: listingId },
+    include: { transactions: { where: { status: "ACTIVE" }, select: { id: true } } },
+  });
   if (!listing) {
     throw new NotFoundError("Annonce introuvable.");
   }
@@ -428,7 +449,7 @@ export async function cancelListing(userId: string, listingId: string): Promise<
   }
   await db.cuttingListing.update({
     where: { id: listingId },
-    data: { status: listing.transactions.length > 0 ? "TERMINEE" : "ANNULEE" },
+    data: { status: listing.transactions.length > 0 ? "TERMINEE" : "ANNULEE", retiredAt: new Date() },
   });
 }
 
@@ -447,7 +468,10 @@ export async function recordTransaction(
   input: { recipientId: string; quantity: number },
 ): Promise<void> {
   await db.$transaction(async (tx) => {
-    const listing = await tx.cuttingListing.findUnique({ where: { id: listingId }, include: { transactions: { select: { quantity: true } } } });
+    const listing = await tx.cuttingListing.findUnique({
+      where: { id: listingId },
+      include: { transactions: { where: { status: "ACTIVE" }, select: { quantity: true } } },
+    });
     if (!listing) {
       throw new NotFoundError("Annonce introuvable.");
     }
@@ -493,6 +517,9 @@ export async function createRating(raterId: string, transactionId: string, input
   if (!transaction) {
     throw new NotFoundError("Échange introuvable.");
   }
+  if (transaction.status === "CONTESTEE") {
+    throw new ConflictError("Cet échange a été contesté, il ne peut plus être noté.");
+  }
 
   let ratedUserId: string;
   if (raterId === transaction.listing.userId) {
@@ -510,6 +537,43 @@ export async function createRating(raterId: string, transactionId: string, input
 
   await db.cuttingRating.create({
     data: { transactionId, raterId, ratedUserId, score: input.score, comment: input.comment },
+  });
+}
+
+/**
+ * Le DESTINATAIRE conteste un echange enregistre a tort (mauvaise personne
+ * selectionnee, echange qui n'a pas eu lieu). Effets : l'echange passe
+ * CONTESTEE (conserve pour la trace), les boutures retournent au stock de
+ * l'annonce -- qui se rouvre si elle n'avait ete terminee QUE par
+ * epuisement du stock, pas retiree a la main --, et les notes deja laissees
+ * sur cet echange sont effacees. Refuse si le destinataire l'a lui-meme deja
+ * note : noter, c'est reconnaitre que l'echange a eu lieu (sans cette
+ * regle, on pourrait noter puis contester pour effacer la note recue).
+ */
+export async function contestTransaction(userId: string, transactionId: string): Promise<void> {
+  await db.$transaction(async (tx) => {
+    const transaction = await tx.cuttingTransaction.findUnique({
+      where: { id: transactionId },
+      include: { listing: { select: { id: true, status: true, retiredAt: true } }, ratings: { select: { raterId: true } } },
+    });
+    if (!transaction) {
+      throw new NotFoundError("Échange introuvable.");
+    }
+    if (transaction.recipientId !== userId) {
+      throw new ForbiddenError("Seul le destinataire de l'échange peut le contester.");
+    }
+    if (transaction.status === "CONTESTEE") {
+      throw new ConflictError("Cet échange a déjà été contesté.");
+    }
+    if (transaction.ratings.some((r) => r.raterId === userId)) {
+      throw new ConflictError("Tu as déjà noté cet échange, il ne peut plus être contesté.");
+    }
+
+    await tx.cuttingRating.deleteMany({ where: { transactionId } });
+    await tx.cuttingTransaction.update({ where: { id: transactionId }, data: { status: "CONTESTEE", contestedAt: new Date() } });
+    if (transaction.listing.status === "TERMINEE" && transaction.listing.retiredAt === null) {
+      await tx.cuttingListing.update({ where: { id: transaction.listing.id }, data: { status: "OUVERTE" } });
+    }
   });
 }
 
@@ -539,7 +603,7 @@ export async function getMemberProfile(memberId: string): Promise<MemberProfile>
   }
   const [reputations, transactionCount, ratings] = await Promise.all([
     getReputations([memberId]),
-    db.cuttingTransaction.count({ where: { OR: [{ recipientId: memberId }, { listing: { userId: memberId } }] } }),
+    db.cuttingTransaction.count({ where: { status: "ACTIVE", OR: [{ recipientId: memberId }, { listing: { userId: memberId } }] } }),
     db.cuttingRating.findMany({
       where: { ratedUserId: memberId },
       include: { rater: { select: { pseudo: true } }, transaction: { select: { listing: { select: { title: true } } } } },
@@ -573,6 +637,7 @@ export async function countNewListingsSince(userId: string): Promise<number> {
     where: {
       status: "OUVERTE",
       userId: { not: userId },
+      user: activeMemberWhere(),
       ...(user?.lastSeenCuttingsAt ? { createdAt: { gt: user.lastSeenCuttingsAt } } : {}),
     },
   });

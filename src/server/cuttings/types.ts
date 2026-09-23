@@ -55,3 +55,39 @@ const PRICE_PATTERN =
 export function mentionsPrice(text: string): boolean {
   return PRICE_PATTERN.test(text);
 }
+
+// ---------------------------------------------------------------------------
+// Avertissements et suspensions (voir CuttingWarning, moderation.ts)
+// ---------------------------------------------------------------------------
+
+/** Nombre d'avertissements par palier : chaque multiple de 3 declenche une sanction, de plus en plus lourde. */
+export const WARNINGS_PER_TIER = 3;
+
+export const CUTTING_WARNING_CONSEQUENCES = ["NONE", "BAN_WEEK", "BAN_MONTH", "BAN_PERMANENT"] as const;
+export type CuttingWarningConsequence = (typeof CUTTING_WARNING_CONSEQUENCES)[number];
+
+export const CUTTING_CONSEQUENCE_LABEL: Record<CuttingWarningConsequence, string> = {
+  NONE: "Aucune sanction pour l'instant",
+  BAN_WEEK: "Suspension d'une semaine du don/échange de boutures",
+  BAN_MONTH: "Suspension d'un mois du don/échange de boutures",
+  BAN_PERMANENT: "Bannissement définitif de l'application",
+};
+
+export const DAY_MS = 24 * 60 * 60 * 1000;
+export const BAN_DURATION_MS: Record<"BAN_WEEK" | "BAN_MONTH", number> = {
+  BAN_WEEK: 7 * DAY_MS,
+  BAN_MONTH: 30 * DAY_MS,
+};
+
+/**
+ * Sanction attachee au N-ieme avertissement recu (cumul sur la vie du
+ * compte) : 3e = 1 semaine, 6e = 1 mois, 9e = bannissement definitif de
+ * l'app entiere ; les autres rangs n'ont aucune sanction automatique.
+ */
+export function consequenceForRank(rank: number): CuttingWarningConsequence {
+  if (rank % WARNINGS_PER_TIER !== 0) return "NONE";
+  const tier = rank / WARNINGS_PER_TIER;
+  if (tier === 1) return "BAN_WEEK";
+  if (tier === 2) return "BAN_MONTH";
+  return "BAN_PERMANENT";
+}

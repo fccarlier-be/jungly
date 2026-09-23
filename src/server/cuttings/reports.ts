@@ -1,6 +1,7 @@
 import { db } from "@/server/db";
 import { NotFoundError, ConflictError } from "@/lib/errors";
 import { encryptMessageBody, decryptMessageBody } from "@/server/cuttings/crypto";
+import { consequenceForRank, type CuttingWarningConsequence } from "@/server/cuttings/types";
 import type { CreateCuttingReportInput } from "@/server/validation/cutting";
 
 const EVIDENCE_MESSAGE_LIMIT = 30;
@@ -98,6 +99,9 @@ export interface ReportData {
   evidence: EvidenceMessage[];
   /** Nombre total de signalements deja recus par ce membre (tous statuts) -- repere les recidivistes. */
   reportedTotal: number;
+  /** Avertissements deja adresses a ce membre, et ce que declencherait le PROCHAIN. */
+  reportedWarnings: number;
+  nextConsequence: CuttingWarningConsequence;
 }
 
 /** Reserve a l'administrateur (voir page /admin/signalements) : deja verifie par l'appelant. */
@@ -112,6 +116,8 @@ export async function listReports(): Promise<ReportData[]> {
   });
   const totals = await db.cuttingReport.groupBy({ by: ["reportedUserId"], _count: { _all: true } });
   const totalById = new Map(totals.map((t) => [t.reportedUserId, t._count._all]));
+  const warningGroups = await db.cuttingWarning.groupBy({ by: ["userId"], _count: { _all: true } });
+  const warningsById = new Map(warningGroups.map((w) => [w.userId, w._count._all]));
 
   return rows.map((r) => {
     let evidence: EvidenceMessage[] = [];
@@ -136,6 +142,8 @@ export async function listReports(): Promise<ReportData[]> {
       listing: r.listing,
       evidence,
       reportedTotal: totalById.get(r.reportedUserId) ?? 1,
+      reportedWarnings: warningsById.get(r.reportedUserId) ?? 0,
+      nextConsequence: consequenceForRank((warningsById.get(r.reportedUserId) ?? 0) + 1),
     };
   });
 }

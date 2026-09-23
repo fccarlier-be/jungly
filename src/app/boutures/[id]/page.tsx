@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { requireSessionUserId } from "@/lib/session";
+import { getCuttingsBanUntil } from "@/server/cuttings/access";
+import { listUnacknowledgedWarnings } from "@/server/cuttings/moderation";
+import SuspensionScreen from "@/components/SuspensionScreen";
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 import { getListingDetail } from "@/server/cuttings/service";
 import { getPseudo } from "@/server/cuttings/pseudo";
@@ -12,6 +15,10 @@ export default async function CuttingListingPage({ params }: { params: Promise<{
     notFound();
   }
   const userId = await requireSessionUserId();
+  const banUntil = await getCuttingsBanUntil(userId);
+  if (banUntil) {
+    return <SuspensionScreen until={banUntil} warnings={await listUnacknowledgedWarnings(userId)} />;
+  }
   const { id } = await params;
 
   const myPseudo = await getPseudo(userId);

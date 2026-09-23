@@ -24,7 +24,9 @@ set -e
 
 CMD="${1:-npm run lint && npm test -- --run && npm run build}"
 
-docker run --rm \
+# --cpus=5 : un `next build` sature sinon les 8 threads du serveur (i7-4790) et
+# ralentit tous les autres services (constate le 2026-09-24, load 7).
+docker run --rm --cpus=5 \
   -v "$(pwd)":/app \
   -v plantes-verify-node-modules:/app/node_modules \
   -v plantes-verify-next-cache:/app/.next \

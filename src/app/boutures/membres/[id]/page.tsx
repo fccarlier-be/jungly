@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Star } from "lucide-react";
 import { requireSessionUserId } from "@/lib/session";
+import { getCuttingsBanUntil } from "@/server/cuttings/access";
+import { listUnacknowledgedWarnings } from "@/server/cuttings/moderation";
+import SuspensionScreen from "@/components/SuspensionScreen";
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 import { NotFoundError } from "@/lib/errors";
 import { getMemberProfile } from "@/server/cuttings/service";
@@ -12,7 +15,11 @@ export default async function MemberProfilePage({ params }: { params: Promise<{ 
   if (!isCuttingsMarketplaceEnabled()) {
     notFound();
   }
-  await requireSessionUserId();
+  const userId = await requireSessionUserId();
+  const banUntil = await getCuttingsBanUntil(userId);
+  if (banUntil) {
+    return <SuspensionScreen until={banUntil} warnings={await listUnacknowledgedWarnings(userId)} />;
+  }
   const { id } = await params;
 
   let profile;

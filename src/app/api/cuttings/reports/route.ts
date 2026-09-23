@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
+import { requireCuttingsUserId } from "@/server/cuttings/guard";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { createCuttingReportSchema } from "@/server/validation/cutting";
-import { assertCuttingsMarketplaceEnabled } from "@/server/cuttings/service";
 import { createReport } from "@/server/cuttings/reports";
 
 export async function POST(request: NextRequest) {
   try {
-    assertCuttingsMarketplaceEnabled();
-    const userId = await requireUserId();
+    const userId = await requireCuttingsUserId();
 
     // Un signalement est rare et grave -- jamais un moyen de harceler.
     const { allowed, retryAfterSeconds } = checkRateLimit(`cutting-report:${userId}`, 10, 60 * 60 * 1000);

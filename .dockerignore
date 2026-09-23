@@ -9,3 +9,16 @@ data.smoke
 .git
 *.db
 *.db-journal
+
+# Donnees des autres instances/environnements (uploads et photos d'utilisateurs,
+# bases SQLite) : jamais utiles a un build, et copiees sinon dans chaque contexte
+# puis chaque couche de cache (~120 Mo par build, dont des photos de comptes).
+data-hosted
+data-test
+data-*/
+
+# Fichiers de travail locaux
+.claude
+Screenshot_*.png
+_check-*.cjs
+*.log

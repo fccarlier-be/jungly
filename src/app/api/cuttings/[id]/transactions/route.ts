@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
+import { requireCuttingsUserId } from "@/server/cuttings/guard";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { recordCuttingTransactionSchema } from "@/server/validation/cutting";
-import { assertCuttingsMarketplaceEnabled, recordTransaction } from "@/server/cuttings/service";
+import { recordTransaction } from "@/server/cuttings/service";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
-    assertCuttingsMarketplaceEnabled();
-    const userId = await requireUserId();
+    const userId = await requireCuttingsUserId();
 
     const { allowed, retryAfterSeconds } = checkRateLimit(`cutting-transaction:${userId}`, 60, 60 * 60 * 1000);
     if (!allowed) {

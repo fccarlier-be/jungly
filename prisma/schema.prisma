@@ -82,6 +82,10 @@ model User {
   // pour la contrainte d'unicite. Null tant que le compte n'en a pas choisi.
   pseudo                 String?
   pseudoKey              String?   @unique
+  // Suspension temporaire du don/echange de boutures (avertissements, voir
+  // CuttingWarning) -- active tant que cette date est dans le futur. Le
+  // bannissement DEFINITIF de l'app entiere passe lui par disabledAt.
+  cuttingsBannedUntil    DateTime?
 
   locations               Location[]
   containers               Container[]
@@ -102,6 +106,8 @@ model User {
   cuttingTransactionsReceived CuttingTransaction[] @relation("CuttingTransactionRecipient")
   cuttingReportsMade       CuttingReport[]   @relation("CuttingReportReporter")
   cuttingReportsReceived   CuttingReport[]   @relation("CuttingReportReported")
+  cuttingWarnings          CuttingWarning[]  @relation("CuttingWarningTarget")
+  cuttingWarningsIssued    CuttingWarning[]  @relation("CuttingWarningIssuer")
 }
 
 /**
@@ -800,6 +806,18 @@ enum CuttingReportStatus {
   TRAITE
 }
 
+enum CuttingTransactionStatus {
+  ACTIVE
+  CONTESTEE
+}
+
+enum CuttingWarningConsequence {
+  NONE
+  BAN_WEEK
+  BAN_MONTH
+  BAN_PERMANENT
+}
+
 /**
  * Annonce de bouture a donner ou echanger. Au moins une photo est exigee a
  * la creation (validation cote route, voir validation/cutting.ts) --
@@ -820,6 +838,10 @@ model CuttingListing {
   status      CuttingListingStatus @default(OUVERTE)
   photoUrls   Json
   quantity    Int                  @default(1)
+  // Renseigne quand le proprietaire RETIRE lui-meme l'annonce (voir
+  // cancelListing) -- distingue TERMINEE "retiree a la main" de TERMINEE
+  // "stock epuise" : seule la seconde se rouvre si un echange est conteste.
+  retiredAt   DateTime?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 
@@ -866,11 +888,16 @@ model CuttingMessage {
  * lieu ?") -- c'est ce qui ouvre la possibilite de se noter mutuellement.
  */
 model CuttingTransaction {
-  id          String   @id @default(cuid())
+  id          String                   @id @default(cuid())
   listingId   String
   recipientId String
   quantity    Int
-  createdAt   DateTime @default(now())
+  // CONTESTEE : le destinataire affirme que l'echange n'a pas eu lieu (voir
+  // contestTransaction) -- conserve pour la trace, mais ne compte plus dans
+  // le stock, ne peut plus etre note, et ses notes eventuelles sont effacees.
+  status      CuttingTransactionStatus @default(ACTIVE)
+  contestedAt DateTime?
+  createdAt   DateTime                 @default(now())
 
   listing   CuttingListing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
   recipient User            @relation("CuttingTransactionRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
@@ -929,6 +956,34 @@ model CuttingReport {
   reporter     User            @relation("CuttingReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
   reportedUser User            @relation("CuttingReportReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
   listing      CuttingListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  warnings     CuttingWarning[]
 
   @@index([status, createdAt])
+}
+
+/**
+ * Avertissement adresse par l'administrateur a un membre (typiquement a la
+ * suite d'un signalement). Le compte est CUMULATIF sur la vie du compte :
+ * 3e avertissement = suspension d'une semaine du don/echange, 6e = un mois,
+ * 9e = bannissement definitif de l'app entiere (voir moderation.ts,
+ * consequenceForRank). `rank` est le numero de CET avertissement.
+ * `acknowledgedAt` : le membre a lu et accepte l'avertissement (il reste
+ * affiche en alerte sur /boutures tant qu'il ne l'a pas fait).
+ */
+model CuttingWarning {
+  id             String                    @id @default(cuid())
+  userId         String
+  issuedById     String
+  reportId       String?
+  message        String
+  rank           Int
+  consequence    CuttingWarningConsequence @default(NONE)
+  acknowledgedAt DateTime?
+  createdAt      DateTime                  @default(now())
+
+  user     User           @relation("CuttingWarningTarget", fields: [userId], references: [id], onDelete: Cascade)
+  issuedBy User           @relation("CuttingWarningIssuer", fields: [issuedById], references: [id], onDelete: Cascade)
+  report   CuttingReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
 }

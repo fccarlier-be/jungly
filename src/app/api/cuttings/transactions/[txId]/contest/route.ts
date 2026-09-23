@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { handleApiError } from "@/lib/apiError";
 import { requireCuttingsUserId } from "@/server/cuttings/guard";
-import { cancelListing } from "@/server/cuttings/service";
+import { contestTransaction } from "@/server/cuttings/service";
 
-type Params = { params: Promise<{ id: string }> };
+type Params = { params: Promise<{ txId: string }> };
 
 export async function POST(_request: Request, { params }: Params) {
   try {
     const userId = await requireCuttingsUserId();
-    const { id } = await params;
-    await cancelListing(userId, id);
+    const { txId } = await params;
+    await contestTransaction(userId, txId);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return handleApiError(error);

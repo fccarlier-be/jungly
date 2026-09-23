@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
+import { requireAdminUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
-import { requireCuttingsUserId } from "@/server/cuttings/guard";
-import { cancelListing } from "@/server/cuttings/service";
+import { assertCuttingsMarketplaceEnabled } from "@/server/cuttings/service";
+import { liftSuspension } from "@/server/cuttings/moderation";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_request: Request, { params }: Params) {
   try {
-    const userId = await requireCuttingsUserId();
+    assertCuttingsMarketplaceEnabled();
+    await requireAdminUserId();
     const { id } = await params;
-    await cancelListing(userId, id);
+    await liftSuspension(id);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return handleApiError(error);

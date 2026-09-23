@@ -3,6 +3,7 @@ import { Star } from "lucide-react";
 import type { CuttingTransactionData } from "@/server/cuttings/service";
 import ReputationBadge from "@/components/ReputationBadge";
 import RatingForm from "@/components/RatingForm";
+import ContestTransactionButton from "@/components/ContestTransactionButton";
 
 const NO_PSEUDO = "membre sans pseudo";
 
@@ -54,22 +55,32 @@ export default function CuttingTransactionList({
               )}
             </div>
 
-            {t.myRating ? (
-              <p>
-                Ta note : <Stars score={t.myRating.score} />
-                {t.myRating.comment ? <span className="text-muted"> — {t.myRating.comment}</span> : null}
+            {t.status === "CONTESTEE" ? (
+              <p className="text-xs font-medium" style={{ color: "var(--danger)" }}>
+                Échange contesté par le destinataire : annulé, les boutures sont retournées à l&apos;annonce, plus de notes possibles.
               </p>
             ) : (
-              <RatingForm transactionId={t.id} counterpartPseudo={pseudo} />
-            )}
+              <>
+                {t.myRating ? (
+                  <p>
+                    Ta note : <Stars score={t.myRating.score} />
+                    {t.myRating.comment ? <span className="text-muted"> — {t.myRating.comment}</span> : null}
+                  </p>
+                ) : (
+                  <RatingForm transactionId={t.id} counterpartPseudo={pseudo} />
+                )}
 
-            {t.counterpartRating ? (
-              <p>
-                Note reçue de {pseudo} : <Stars score={t.counterpartRating.score} />
-                {t.counterpartRating.comment ? <span className="text-muted"> — {t.counterpartRating.comment}</span> : null}
-              </p>
-            ) : (
-              t.myRating && <p className="text-muted text-xs">{pseudo} n&apos;a pas encore laissé sa note.</p>
+                {t.counterpartRating ? (
+                  <p>
+                    Note reçue de {pseudo} : <Stars score={t.counterpartRating.score} />
+                    {t.counterpartRating.comment ? <span className="text-muted"> — {t.counterpartRating.comment}</span> : null}
+                  </p>
+                ) : (
+                  t.myRating && <p className="text-muted text-xs">{pseudo} n&apos;a pas encore laissé sa note.</p>
+                )}
+
+                {!t.iAmOwner && !t.myRating && <ContestTransactionButton transactionId={t.id} ownerPseudo={pseudo} />}
+              </>
             )}
           </div>
         );

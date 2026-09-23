@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Leaf, MessageCircle, X } from "lucide-react";
+import { Leaf, MessageCircle, TriangleAlert, X } from "lucide-react";
 
 interface Counts {
   newListings: number;
   unreadMessages: number;
   ratingsToGive: number;
+  warnings: number;
 }
 
 /**
@@ -24,12 +25,12 @@ export default function CuttingsBanner() {
 
   useEffect(() => {
     fetch("/api/cuttings/notifications")
-      .then((res) => (res.ok ? res.json() : { newListings: 0, unreadMessages: 0, ratingsToGive: 0 }))
-      .then((data) => setCounts({ newListings: data.newListings ?? 0, unreadMessages: data.unreadMessages ?? 0, ratingsToGive: data.ratingsToGive ?? 0 }))
-      .catch(() => setCounts({ newListings: 0, unreadMessages: 0, ratingsToGive: 0 }));
+      .then((res) => (res.ok ? res.json() : { newListings: 0, unreadMessages: 0, ratingsToGive: 0, warnings: 0 }))
+      .then((data) => setCounts({ newListings: data.newListings ?? 0, unreadMessages: data.unreadMessages ?? 0, ratingsToGive: data.ratingsToGive ?? 0, warnings: data.warnings ?? 0 }))
+      .catch(() => setCounts({ newListings: 0, unreadMessages: 0, ratingsToGive: 0, warnings: 0 }));
   }, []);
 
-  if (!counts || hidden || (counts.newListings === 0 && counts.unreadMessages === 0 && counts.ratingsToGive === 0)) return null;
+  if (!counts || hidden || (counts.newListings === 0 && counts.unreadMessages === 0 && counts.ratingsToGive === 0 && counts.warnings === 0)) return null;
 
   async function dismiss() {
     setHidden(true);
@@ -40,10 +41,10 @@ export default function CuttingsBanner() {
     }
   }
 
-  const { newListings, unreadMessages, ratingsToGive } = counts;
-  // Ce qui attend une action l'emporte : messages a lire, puis notes a donner.
-  const href = unreadMessages > 0 ? "/boutures?tab=messages" : ratingsToGive > 0 ? "/boutures?tab=echanges" : "/boutures";
-  const Icon = unreadMessages > 0 ? MessageCircle : Leaf;
+  const { newListings, unreadMessages, ratingsToGive, warnings } = counts;
+  // Ce qui attend une action l'emporte : avertissement a lire, messages, puis notes a donner.
+  const href = warnings > 0 ? "/boutures" : unreadMessages > 0 ? "/boutures?tab=messages" : ratingsToGive > 0 ? "/boutures?tab=echanges" : "/boutures";
+  const Icon = warnings > 0 ? TriangleAlert : unreadMessages > 0 ? MessageCircle : Leaf;
 
   return (
     <div className="card flex items-center gap-3 p-3.5" style={{ borderLeft: "3px solid var(--accent)" }}>
@@ -54,6 +55,11 @@ export default function CuttingsBanner() {
         <Icon size={17} />
       </span>
       <div className="min-w-0 flex-1 text-sm">
+        {warnings > 0 && (
+          <p className="font-semibold" style={{ color: "var(--danger)" }}>
+            Tu as reçu un avertissement de l&apos;administrateur.
+          </p>
+        )}
         {unreadMessages > 0 && (
           <p>
             {unreadMessages} message{unreadMessages > 1 ? "s" : ""} non lu{unreadMessages > 1 ? "s" : ""} sur les boutures.

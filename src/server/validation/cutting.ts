@@ -69,3 +69,7 @@ export const createCuttingRatingSchema = z.object({
 });
 
 export type CreateCuttingRatingInput = z.infer<typeof createCuttingRatingSchema>;
+
+export const warnMessageSchema = z.object({
+  message: z.string().trim().min(1, "Le message d'avertissement est obligatoire.").max(1000),
+});

@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
-import { assertCuttingsMarketplaceEnabled, listMyListings } from "@/server/cuttings/service";
+import { requireCuttingsUserId } from "@/server/cuttings/guard";
+import { listMyListings } from "@/server/cuttings/service";
 
 export async function GET() {
   try {
-    assertCuttingsMarketplaceEnabled();
-    const userId = await requireUserId();
+    const userId = await requireCuttingsUserId();
     const listings = await listMyListings(userId);
     return NextResponse.json(listings);
   } catch (error) {

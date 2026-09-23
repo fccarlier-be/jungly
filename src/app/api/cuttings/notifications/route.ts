@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireUserId } from "@/lib/session";
 import { handleApiError } from "@/lib/apiError";
+import { requireCuttingsUserId } from "@/server/cuttings/guard";
+import { countUnacknowledgedWarnings } from "@/server/cuttings/moderation";
 import {
-  assertCuttingsMarketplaceEnabled,
   countNewListingsSince,
   countRatingsToGive,
   countUnreadMessages,
@@ -11,14 +11,14 @@ import {
 
 export async function GET() {
   try {
-    assertCuttingsMarketplaceEnabled();
-    const userId = await requireUserId();
-    const [newListings, unreadMessages, ratingsToGive] = await Promise.all([
+    const userId = await requireCuttingsUserId();
+    const [newListings, unreadMessages, ratingsToGive, warnings] = await Promise.all([
       countNewListingsSince(userId),
       countUnreadMessages(userId),
       countRatingsToGive(userId),
+      countUnacknowledgedWarnings(userId),
     ]);
-    return NextResponse.json({ newListings, unreadMessages, ratingsToGive });
+    return NextResponse.json({ newListings, unreadMessages, ratingsToGive, warnings });
   } catch (error) {
     return handleApiError(error);
   }
@@ -28,8 +28,7 @@ export async function GET() {
 // donner reste un vrai "a faire", "Ignorer" ne peut pas le masquer.
 export async function POST() {
   try {
-    assertCuttingsMarketplaceEnabled();
-    const userId = await requireUserId();
+    const userId = await requireCuttingsUserId();
     await markCuttingsSeen(userId);
     return NextResponse.json({ ok: true });
   } catch (error) {

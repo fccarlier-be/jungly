@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Ban, Plus } from "lucide-react";
 import { requireSessionUserId } from "@/lib/session";
+import { getCuttingsBanUntil } from "@/server/cuttings/access";
+import { listUnacknowledgedWarnings } from "@/server/cuttings/moderation";
+import SuspensionScreen from "@/components/SuspensionScreen";
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 import {
   listOpenListings,
@@ -16,6 +19,7 @@ import { CUTTINGS_NO_SALE_RULE } from "@/server/cuttings/types";
 import { getPseudo } from "@/server/cuttings/pseudo";
 import CuttingListingCard from "@/components/CuttingListingCard";
 import PseudoForm from "@/components/PseudoForm";
+import WarningCards from "@/components/WarningCards";
 import CuttingTransactionList from "@/components/CuttingTransactionList";
 
 const TABS = [
@@ -41,6 +45,10 @@ export default async function BouturesPage({
     notFound();
   }
   const userId = await requireSessionUserId();
+  const banUntil = await getCuttingsBanUntil(userId);
+  if (banUntil) {
+    return <SuspensionScreen until={banUntil} warnings={await listUnacknowledgedWarnings(userId)} />;
+  }
   const { tab: requestedTab = "toutes" } = await searchParams;
   const tab = TABS.some((t) => t.value === requestedTab) ? requestedTab : "toutes";
 
@@ -50,7 +58,12 @@ export default async function BouturesPage({
   // (Outils).
   await markCuttingsSeen(userId);
 
-  const [pseudo, unreadTotal, ratingsToGive] = await Promise.all([getPseudo(userId), countUnreadMessages(userId), countRatingsToGive(userId)]);
+  const [pseudo, unreadTotal, ratingsToGive, warnings] = await Promise.all([
+    getPseudo(userId),
+    countUnreadMessages(userId),
+    countRatingsToGive(userId),
+    listUnacknowledgedWarnings(userId),
+  ]);
   const transactions = tab === "echanges" ? await listMyTransactions(userId) : [];
   const listings =
     tab === "echanges"
@@ -72,6 +85,8 @@ export default async function BouturesPage({
           </Link>
         )}
       </div>
+
+      {warnings.length > 0 && <WarningCards warnings={warnings} />}
 
       <PseudoForm initialPseudo={pseudo} required={!pseudo} />
 
