@@ -393,9 +393,7 @@ function attachPlantnetEvidence(hypotheses: Hypothesis[], plantnetDisease: Plant
     for (const [hypothesisId, keywords] of Object.entries(PLANTNET_KEYWORDS)) {
       const hypothesis = byId.get(hypothesisId);
       if (hypothesis && matchesKeywords(candidate.name, keywords)) {
-        hypothesis.evidenceFor.push(
-          `${plantnetConfidencePhrase(candidate.score)} "${candidate.name}" -- un signal parmi d'autres, pas une conclusion à lui seul.`,
-        );
+        hypothesis.evidenceFor.push(`${plantnetConfidencePhrase(candidate.score)} "${candidate.name}".`);
       }
     }
   }
