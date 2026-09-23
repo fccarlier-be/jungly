@@ -122,6 +122,7 @@ export interface LocalContext {
 }
 
 export interface PlantnetDiseaseCandidate {
+  /** Libelle lisible (champ `description` de l'API Pl@ntNet), jamais le code EPPO brut -- voir plantnet/client.ts. */
   name: string;
   eppoCode: string | null;
   score: number;

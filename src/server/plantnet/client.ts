@@ -169,42 +169,39 @@ export async function identifyPlant(images: PlantnetImageInput[]): Promise<Plant
 }
 
 export interface PlantnetDiseaseCandidate {
+  /** Libelle lisible (champ `description` de l'API), jamais le code EPPO brut -- voir extractDiseaseName(). */
   name: string;
   eppoCode: string | null;
   score: number;
 }
 
-// Schema DELIBEREMENT tres permissif : la forme exacte de la reponse
-// /v2/diseases/identify n'a pas pu etre verifiee empiriquement (API lancee
-// le 2025-12-02, sortie grand public annoncee a partir de mars 2026 --
-// verifie sur my.plantnet.org/doc/api/diseases et le changelog le
-// 2026-09-23, mais aucun exemple de payload reel obtenu). Accepte
-// plusieurs noms de champs plausibles pour le nom/score/code EPPO plutot
-// que d'echouer bruyamment sur un premier vrai test -- A RECALER des le
-// premier appel reel (voir le console.error ci-dessous qui journalise la
-// reponse brute pour ajuster ce schema).
-const plantnetDiseaseCandidateSchema = z
-  .object({
-    score: z.number(),
-  })
-  .and(
-    z.record(z.string(), z.unknown()), // tolere tout champ additionnel, extrait au mieux ci-dessous
-  );
+// Forme confirmee empiriquement le 2026-09-23 (premier vrai appel, voir
+// doc officielle my.plantnet.org/doc/api/diseases) : chaque resultat a
+// `name` (le CODE EPPO, ex. "PHYTOO" -- pas un nom lisible !), `score`
+// (0-1) et `description` (le libelle humain, ex. "Phytophthora sp.").
+// Avant ce correctif, `description` n'etait jamais lu : l'app affichait le
+// code EPPO brut a l'utilisateur ("Suggestion Pl@ntNet : PHYTOO"),
+// incomprehensible sans connaissance botanique -- retour utilisateur
+// (2026-09-23), premiere vraie utilisation de cet endpoint.
+const plantnetDiseaseCandidateSchema = z.object({
+  name: z.string().max(50), // code EPPO
+  score: z.number(),
+  description: z.string().max(300).optional(),
+});
 
 const plantnetDiseasesResponseSchema = z.object({
   results: z.array(plantnetDiseaseCandidateSchema).optional().default([]),
 });
 
-function extractDiseaseName(raw: Record<string, unknown>): string {
-  const disease = raw.disease as Record<string, unknown> | undefined;
-  const name = disease?.scientificName ?? disease?.name ?? raw.scientificName ?? raw.name;
-  return typeof name === "string" ? name : "Maladie non nommee (reponse Pl@ntNet inattendue)";
+function extractDiseaseName(raw: z.infer<typeof plantnetDiseaseCandidateSchema>): string {
+  // `description` est absente pour de rares codes EPPO trop generiques
+  // (constate en test reel) -- le code EPPO reste un dernier recours
+  // lisible pour un botaniste, preferable a une chaine vide.
+  return raw.description?.trim() || raw.name;
 }
 
-function extractEppoCode(raw: Record<string, unknown>): string | null {
-  const disease = raw.disease as Record<string, unknown> | undefined;
-  const code = disease?.eppoCode ?? raw.eppoCode ?? raw.eppo_code;
-  return typeof code === "string" ? code : null;
+function extractEppoCode(raw: z.infer<typeof plantnetDiseaseCandidateSchema>): string {
+  return raw.name;
 }
 
 /**
