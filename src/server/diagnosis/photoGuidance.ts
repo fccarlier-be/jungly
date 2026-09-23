@@ -14,7 +14,7 @@ const MAX_PHOTOS = 5;
 
 const GENERAL_PHOTO: PhotoRequest = {
   id: "general",
-  label: "Vue generale de la plante",
+  label: "Vue générale de la plante",
   organ: "auto",
   required: true,
 };
@@ -42,7 +42,7 @@ const LEAF_UNDERSIDE: PhotoRequest = {
 
 const PEST_CLOSEUP: PhotoRequest = {
   id: "pestCloseup",
-  label: "Gros plan tres rapproche des parasites ou des traces",
+  label: "Gros plan très rapproché des parasites ou des traces",
   organ: "leaf",
   required: true,
 };

@@ -55,10 +55,10 @@ const underwatering: Rule = (vector, ctx) => {
     id: "underwatering",
     label: "Sous-arrosage",
     confidence: ctx.wateringGapDays >= 3 ? "PROBABLE" : "POSSIBLE",
-    evidenceFor: [`Arrosage en retard de ${ctx.wateringGapDays} jour(s) par rapport a la regle theorique.`],
+    evidenceFor: [`Arrosage en retard de ${ctx.wateringGapDays} jour(s) par rapport à la règle théorique.`],
     evidenceAgainst: [],
-    verifications: ["Verifier la secheresse du substrat au toucher (2-3 cm de profondeur)"],
-    actions: ["Arroser normalement puis reprendre le rythme habituel", "Verifier que le pot draine correctement"],
+    verifications: ["Vérifier la sécheresse du substrat au toucher (2-3 cm de profondeur)"],
+    actions: ["Arroser normalement puis reprendre le rythme habituel", "Vérifier que le pot draine correctement"],
   };
 };
 
@@ -72,14 +72,14 @@ const overwateringRootRot: Rule = (vector, ctx) => {
 
   return {
     id: "overwatering_root_rot",
-    label: "Sur-arrosage / debut de pourriture racinaire",
+    label: "Sur-arrosage / début de pourriture racinaire",
     confidence: "POSSIBLE",
     evidenceFor: [
-      `Arrosage recent (il y a ${ctx.daysSinceLastWatering} jour(s)) alors que le symptome suggere un exces d'eau.`,
+      `Arrosage récent (il y a ${ctx.daysSinceLastWatering} jour(s)) alors que le symptôme suggère un excès d'eau.`,
     ],
     evidenceAgainst: [],
-    verifications: ["Verifier l'odeur et la texture du substrat/des racines (odeur de pourri, racines brunes et molles = signal fort)"],
-    actions: ["Espacer les prochains arrosages", "Rempoter dans un substrat frais si les racines sont abimees", "Verifier le drainage du pot"],
+    verifications: ["Vérifier l'odeur et la texture du substrat/des racines (odeur de pourri, racines brunes et molles = signal fort)"],
+    actions: ["Espacer les prochains arrosages", "Rempoter dans un substrat frais si les racines sont abîmées", "Vérifier le drainage du pot"],
   };
 };
 
@@ -102,12 +102,12 @@ const nitrogenDeficiency: Rule = (vector, ctx) => {
     evidenceFor: [
       "Jaunissement uniforme des vieilles feuilles, nervures comprises (signature classique d'une carence en azote).",
       ctx.fertilizingRuleIntervalDays == null
-        ? "Aucune regle de fertilisation active pour cette plante."
-        : `Fertilisation en retard (${ctx.daysSinceLastFertilizing} jour(s) depuis le dernier apport, regle a ${ctx.fertilizingRuleIntervalDays} jours).`,
+        ? "Aucune règle de fertilisation active pour cette plante."
+        : `Fertilisation en retard (${ctx.daysSinceLastFertilizing} jour(s) depuis le dernier apport, règle à ${ctx.fertilizingRuleIntervalDays} jours).`,
     ],
     evidenceAgainst: [],
-    verifications: ["Verifier la date du dernier apport d'engrais dans l'historique de la plante"],
-    actions: ["Reprendre un apport d'engrais equilibre adapte a la saison", "Mettre en place une regle de fertilisation reguliere si absente"],
+    verifications: ["Vérifier la date du dernier apport d'engrais dans l'historique de la plante"],
+    actions: ["Reprendre un apport d'engrais équilibré adapté à la saison", "Mettre en place une règle de fertilisation régulière si absente"],
   };
 };
 
@@ -121,10 +121,10 @@ const ironChlorosis: Rule = (vector) => {
     id: "iron_chlorosis",
     label: "Chlorose ferrique (carence en fer)",
     confidence: "POSSIBLE",
-    evidenceFor: ["Jaunissement des jeunes feuilles avec nervures restees vertes (signature classique de la chlorose ferrique)."],
+    evidenceFor: ["Jaunissement des jeunes feuilles avec nervures restées vertes (signature classique de la chlorose ferrique)."],
     evidenceAgainst: [],
-    verifications: ["Verifier le pH du substrat si connu (un substrat trop calcaire bloque l'absorption du fer)"],
-    actions: ["Apporter un engrais contenant du fer chelate (sequestrene)", "Eviter l'eau tres calcaire pour l'arrosage"],
+    verifications: ["Vérifier le pH du substrat si connu (un substrat trop calcaire bloque l'absorption du fer)"],
+    actions: ["Apporter un engrais contenant du fer chélaté (séquestrène)", "Éviter l'eau très calcaire pour l'arrosage"],
   };
 };
 
@@ -144,12 +144,12 @@ const naturalSenescence: Rule = (vector, ctx) => {
 
   return {
     id: "natural_senescence",
-    label: "Senescence naturelle (vieillissement normal)",
+    label: "Sénescence naturelle (vieillissement normal)",
     confidence: noAlarmingContext ? "PROBABLE" : "POSSIBLE",
-    evidenceFor: ["Une seule feuille agee isolee touchee, sans autre signal alarmant."],
+    evidenceFor: ["Une seule feuille âgée isolée touchée, sans autre signal alarmant."],
     evidenceAgainst: [],
-    verifications: ["Observer si d'autres feuilles sont touchees dans les jours suivants"],
-    actions: ["Retirer la feuille concernee si elle est entierement jaunie/tombee", "Pas d'action corrective necessaire dans l'immediat"],
+    verifications: ["Observer si d'autres feuilles sont touchées dans les jours suivants"],
+    actions: ["Retirer la feuille concernée si elle est entièrement jaunie/tombée", "Pas d'action corrective nécessaire dans l'immédiat"],
   };
 };
 
@@ -162,10 +162,10 @@ const heatStress: Rule = (vector, ctx) => {
     id: "heat_stress",
     label: "Stress thermique (coup de chaud)",
     confidence: "POSSIBLE",
-    evidenceFor: ["Temperatures recentes elevees (moyenne des maximales > 30C)."],
+    evidenceFor: ["Températures récentes élevées (moyenne des maximales > 30 °C)."],
     evidenceAgainst: [],
-    verifications: ["Verifier l'exposition directe au soleil aux heures les plus chaudes"],
-    actions: ["Eloigner temporairement la plante des fortes chaleurs/du plein soleil", "Augmenter legerement la frequence d'arrosage le temps de l'episode"],
+    verifications: ["Vérifier l'exposition directe au soleil aux heures les plus chaudes"],
+    actions: ["Éloigner temporairement la plante des fortes chaleurs/du plein soleil", "Augmenter légèrement la fréquence d'arrosage le temps de l'épisode"],
   };
 };
 
@@ -178,10 +178,10 @@ const coldShock: Rule = (vector, ctx) => {
     id: "cold_shock",
     label: "Choc du froid",
     confidence: "POSSIBLE",
-    evidenceFor: ["Temperatures recentes basses (moyenne des maximales < 15C) non prevues par une regle saisonniere."],
+    evidenceFor: ["Températures récentes basses (moyenne des maximales < 15 °C) non prévues par une règle saisonnière."],
     evidenceAgainst: [],
-    verifications: ["Verifier la proximite d'une fenetre/courant d'air froid"],
-    actions: ["Eloigner la plante des sources de froid (fenetre, courant d'air)", "Attendre le retour a une temperature stable avant d'agir davantage"],
+    verifications: ["Vérifier la proximité d'une fenêtre/courant d'air froid"],
+    actions: ["Éloigner la plante des sources de froid (fenêtre, courant d'air)", "Attendre le retour à une température stable avant d'agir davantage"],
   };
 };
 
@@ -192,12 +192,12 @@ const lightBurn: Rule = (vector, ctx) => {
 
   return {
     id: "light_burn",
-    label: "Exces de lumiere / brulure",
+    label: "Excès de lumière / brûlure",
     confidence: "POSSIBLE",
-    evidenceFor: ["L'exposition reelle de la plante ne correspond pas a l'exposition recommandee pour cette espece."],
+    evidenceFor: ["L'exposition réelle de la plante ne correspond pas à l'exposition recommandée pour cette espèce."],
     evidenceAgainst: [],
-    verifications: ["Verifier si les zones atteintes sont du cote le plus expose au soleil"],
-    actions: ["Deplacer la plante vers une exposition plus adaptee", "Filtrer la lumiere directe (voilage) si le deplacement n'est pas possible"],
+    verifications: ["Vérifier si les zones atteintes sont du côté le plus exposé au soleil"],
+    actions: ["Déplacer la plante vers une exposition plus adaptée", "Filtrer la lumière directe (voilage) si le déplacement n'est pas possible"],
   };
 };
 
@@ -209,12 +209,12 @@ const lowLightEtiolation: Rule = (vector, ctx) => {
 
   return {
     id: "low_light_etiolation",
-    label: "Manque de lumiere (etiolement)",
+    label: "Manque de lumière (étiolement)",
     confidence: "PROBABLE",
-    evidenceFor: ["Tiges qui s'etirent vers la lumiere, exposition reelle non adaptee a l'espece."],
+    evidenceFor: ["Tiges qui s'étirent vers la lumière, exposition réelle non adaptée à l'espèce."],
     evidenceAgainst: [],
-    verifications: ["Comparer la distance a la source de lumiere avec les recommandations de l'espece"],
-    actions: ["Rapprocher la plante d'une source de lumiere plus forte", "Tailler les tiges etiolees pour relancer une croissance compacte"],
+    verifications: ["Comparer la distance à la source de lumière avec les recommandations de l'espèce"],
+    actions: ["Rapprocher la plante d'une source de lumière plus forte", "Tailler les tiges étiolées pour relancer une croissance compacte"],
   };
 };
 
@@ -227,10 +227,10 @@ const mealybugs: Rule = (vector) => {
     id: "mealybugs",
     label: "Cochenilles",
     confidence: "POSSIBLE",
-    evidenceFor: ["Residu collant et/ou amas blancs cotonneux mentionnes, caracteristiques des cochenilles."],
+    evidenceFor: ["Résidu collant et/ou amas blancs cotonneux mentionnés, caractéristiques des cochenilles."],
     evidenceAgainst: [],
-    verifications: ["Chercher les amas blancs cotonneux a l'aisselle des feuilles et sous les feuilles"],
-    actions: ["Nettoyer a l'alcool a 70 sur coton-tige pour les foyers visibles", "Traiter au savon noir/huile horticole en cas d'infestation etendue"],
+    verifications: ["Chercher les amas blancs cotonneux à l'aisselle des feuilles et sous les feuilles"],
+    actions: ["Nettoyer à l'alcool à 70° sur coton-tige pour les foyers visibles", "Traiter au savon noir/huile horticole en cas d'infestation étendue"],
   };
 };
 
@@ -241,12 +241,12 @@ const spiderMites: Rule = (vector) => {
 
   return {
     id: "spider_mites",
-    label: "Araignees rouges",
+    label: "Araignées rouges",
     confidence: "POSSIBLE",
-    evidenceFor: ["Fines toiles mentionnees, caracteristiques des araignees rouges (souvent en air sec)."],
+    evidenceFor: ["Fines toiles mentionnées, caractéristiques des araignées rouges (souvent en air sec)."],
     evidenceAgainst: [],
-    verifications: ["Observer sous les feuilles a la loupe (petits points mobiles) et l'hygrometrie ambiante"],
-    actions: ["Augmenter l'hygrometrie (brumisation, coupelle d'eau)", "Doucher le feuillage puis traiter au savon noir si confirme"],
+    verifications: ["Observer sous les feuilles à la loupe (petits points mobiles) et l'hygrométrie ambiante"],
+    actions: ["Augmenter l'hygrométrie (brumisation, coupelle d'eau)", "Doucher le feuillage puis traiter au savon noir si confirmé"],
   };
 };
 
@@ -259,10 +259,10 @@ const aphids: Rule = (vector) => {
     id: "aphids",
     label: "Pucerons",
     confidence: "POSSIBLE",
-    evidenceFor: ["Parasites concentres sur les jeunes pousses/nouvelles tiges, typique des pucerons."],
+    evidenceFor: ["Parasites concentrés sur les jeunes pousses/nouvelles tiges, typique des pucerons."],
     evidenceAgainst: [],
-    verifications: ["Verifier la presence de petits insectes verts/noirs groupes sur les jeunes pousses"],
-    actions: ["Doucher les pousses concernees", "Traiter au savon noir si l'infestation persiste"],
+    verifications: ["Vérifier la présence de petits insectes verts/noirs groupés sur les jeunes pousses"],
+    actions: ["Doucher les pousses concernées", "Traiter au savon noir si l'infestation persiste"],
   };
 };
 
@@ -274,12 +274,12 @@ const powderyMildew: Rule = (vector) => {
 
   return {
     id: "powdery_mildew",
-    label: "Oidium (poudre blanche)",
+    label: "Oïdium (poudre blanche)",
     confidence: "PROBABLE",
-    evidenceFor: ["Taches blanches poudreuses, signature tres caracteristique de l'oidium."],
+    evidenceFor: ["Taches blanches poudreuses, signature très caractéristique de l'oïdium."],
     evidenceAgainst: [],
-    verifications: ["Frotter une tache pour confirmer l'aspect poudreux (farine) plutot qu'un depot fixe"],
-    actions: ["Isoler la plante des autres pour limiter la propagation", "Ameliorer la circulation d'air", "Traiter au fongicide adapte ou bicarbonate dilue"],
+    verifications: ["Frotter une tache pour confirmer l'aspect poudreux (farine) plutôt qu'un dépôt fixe"],
+    actions: ["Isoler la plante des autres pour limiter la propagation", "Améliorer la circulation d'air", "Traiter au fongicide adapté ou bicarbonate dilué"],
   };
 };
 
@@ -293,10 +293,10 @@ const fungalLeafSpot: Rule = (vector) => {
     id: "fungal_leaf_spot",
     label: "Tache fongique (type anthracnose / tache foliaire)",
     confidence: "POSSIBLE",
-    evidenceFor: ["Taches avec halo qui s'etendent dans le temps, evocateur d'une maladie fongique foliaire."],
+    evidenceFor: ["Taches avec halo qui s'étendent dans le temps, évocateur d'une maladie fongique foliaire."],
     evidenceAgainst: [],
-    verifications: ["Suivre l'evolution des taches sur quelques jours (photo a l'appui)"],
-    actions: ["Retirer les feuilles les plus atteintes", "Eviter de mouiller le feuillage a l'arrosage", "Traiter au fongicide adapte si ca s'aggrave"],
+    verifications: ["Suivre l'évolution des taches sur quelques jours (photo à l'appui)"],
+    actions: ["Retirer les feuilles les plus atteintes", "Éviter de mouiller le feuillage à l'arrosage", "Traiter au fongicide adapté si ça s'aggrave"],
   };
 };
 
@@ -308,10 +308,10 @@ const repottingShock: Rule = (vector, ctx) => {
     id: "repotting_acclimation_shock",
     label: "Choc de rempotage / acclimatation",
     confidence: "PEU_PROBABLE",
-    evidenceFor: [`Plante acquise il y a seulement ${ctx.daysSinceAcquired} jour(s) -- une periode d'acclimatation est encore plausible.`],
+    evidenceFor: [`Plante acquise il y a seulement ${ctx.daysSinceAcquired} jour(s) -- une période d'acclimatation est encore plausible.`],
     evidenceAgainst: [],
-    verifications: ["Comparer avec l'etat de la plante au moment de l'acquisition si des photos existent"],
-    actions: ["Laisser le temps a la plante de s'acclimater (eviter les changements supplementaires)", "Maintenir un entretien standard et stable"],
+    verifications: ["Comparer avec l'état de la plante au moment de l'acquisition si des photos existent"],
+    actions: ["Laisser le temps à la plante de s'acclimater (éviter les changements supplémentaires)", "Maintenir un entretien standard et stable"],
   };
 };
 
@@ -379,7 +379,7 @@ function attachPlantnetEvidence(hypotheses: Hypothesis[], plantnetDisease: Plant
       const hypothesis = byId.get(hypothesisId);
       if (hypothesis && matchesKeywords(candidate.name, keywords)) {
         hypothesis.evidenceFor.push(
-          `Pl@ntNet suggere "${candidate.name}" (score ${Math.round(candidate.score * 100)}%) -- un signal parmi d'autres, pas une conclusion a lui seul.`,
+          `Pl@ntNet suggère "${candidate.name}" (score ${Math.round(candidate.score * 100)}%) -- un signal parmi d'autres, pas une conclusion à lui seul.`,
         );
       }
     }
@@ -391,12 +391,12 @@ function attachPlantnetEvidence(hypotheses: Hypothesis[], plantnetDisease: Plant
 function fallbackHypothesis(): Hypothesis {
   return {
     id: "unknown_cause",
-    label: "Cause non determinee avec les informations disponibles",
+    label: "Cause non déterminée avec les informations disponibles",
     confidence: "PEU_PROBABLE",
     evidenceFor: [],
     evidenceAgainst: [],
-    verifications: ["Observer l'evolution sur quelques jours", "Verifier l'etat des racines et du substrat"],
-    actions: ["Maintenir un entretien standard", "Reprendre le diagnostic si le symptome persiste ou s'aggrave"],
+    verifications: ["Observer l'évolution sur quelques jours", "Vérifier l'état des racines et du substrat"],
+    actions: ["Maintenir un entretien standard", "Reprendre le diagnostic si le symptôme persiste ou s'aggrave"],
   };
 }
 

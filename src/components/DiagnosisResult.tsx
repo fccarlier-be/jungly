@@ -1,4 +1,21 @@
+import type { ReactNode } from "react";
+import { Sprout, Eye, ScanSearch, Lightbulb } from "lucide-react";
 import type { DiagnosisConfidence, DiagnosisResult as DiagnosisResultData, Hypothesis } from "@/server/diagnosis/types";
+
+// Identifiant stable du "constat d'echec" (voir ruleEngine.ts) : ce n'est pas
+// une hypothese comme les autres (rien a confirmer/infirmer), donc pas de
+// badge de confiance a cote -- "Peu probable" a cote de "Cause non
+// determinee" a ete lu comme contradictoire (retour utilisateur, 2026-09-23).
+const UNKNOWN_CAUSE_ID = "unknown_cause";
+
+function SectionHeading({ icon: Icon, children }: { icon: typeof Sprout; children: ReactNode }) {
+  return (
+    <h2 className="flex items-center gap-2 font-semibold">
+      <Icon size={18} style={{ color: "var(--primary-strong)" }} aria-hidden />
+      {children}
+    </h2>
+  );
+}
 
 const CONFIDENCE_LABEL: Record<DiagnosisConfidence, string> = {
   PROBABLE: "Probable",
@@ -52,7 +69,7 @@ function HypothesisList({ title, items, tone }: { title: string; items: string[]
         {tone && <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: EVIDENCE_DOT_COLOR[tone] }} />}
         {title}
       </p>
-      <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">
+      <ul className="mt-1.5 list-disc space-y-1 pl-5 text-sm leading-relaxed">
         {items.map((item, i) => (
           <li key={i}>{item}</li>
         ))}
@@ -62,11 +79,12 @@ function HypothesisList({ title, items, tone }: { title: string; items: string[]
 }
 
 function HypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
+  const isUnknownCause = hypothesis.id === UNKNOWN_CAUSE_ID;
   return (
     <div className="card space-y-3 p-4">
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-base font-semibold">{hypothesis.label}</h3>
-        <ConfidenceBadge confidence={hypothesis.confidence} />
+        {!isUnknownCause && <ConfidenceBadge confidence={hypothesis.confidence} />}
       </div>
       <HypothesisList title="Éléments en faveur" items={hypothesis.evidenceFor} tone="for" />
       <HypothesisList title="Éléments qui contredisent" items={hypothesis.evidenceAgainst} tone="against" />
@@ -88,17 +106,16 @@ function HypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
 export default function DiagnosisResult({ result }: { result: DiagnosisResultData }) {
   const { plantIdentification, observations, plantnetDisease, hypotheses } = result;
 
-  const sourceLabel =
-    plantIdentification.source === "existing"
-      ? "Déjà connue"
-      : plantIdentification.source === "plantnet"
-        ? "Confirmée par Pl@ntNet"
-        : null;
+  // "Deja connue" (fiche existante) n'apporte rien a l'utilisateur -- seule
+  // la provenance Pl@ntNet (une (re)identification fraiche pour CE
+  // diagnostic) est une information utile a afficher (retour utilisateur,
+  // 2026-09-23).
+  const sourceLabel = plantIdentification.source === "plantnet" ? "Confirmée par Pl@ntNet" : null;
 
   return (
     <div className="space-y-4">
       <section className="card space-y-1 p-4">
-        <h2 className="font-semibold">Identification</h2>
+        <SectionHeading icon={Sprout}>Identification</SectionHeading>
         {plantIdentification.commonName || plantIdentification.scientificName ? (
           <>
             <p className="text-sm font-medium">
@@ -115,7 +132,7 @@ export default function DiagnosisResult({ result }: { result: DiagnosisResultDat
       </section>
 
       <section className="card space-y-2 p-4">
-        <h2 className="font-semibold">Observations</h2>
+        <SectionHeading icon={Eye}>Observations</SectionHeading>
         {observations.length === 0 ? (
           <p className="text-muted text-sm">Aucune observation particulière.</p>
         ) : (
@@ -133,7 +150,7 @@ export default function DiagnosisResult({ result }: { result: DiagnosisResultDat
           style={plantnetDisease.length > 0 ? { borderLeft: "3px solid var(--warning)" } : undefined}
         >
           <div className="flex items-baseline justify-between gap-2">
-            <h2 className="font-semibold">Résultat visuel Pl@ntNet</h2>
+            <SectionHeading icon={ScanSearch}>Résultat visuel Pl@ntNet</SectionHeading>
             <span className="chip shrink-0 rounded-full px-2 py-0.5 text-xs whitespace-nowrap">une piste, pas une conclusion</span>
           </div>
           {plantnetDisease.length === 0 ? (
@@ -145,10 +162,7 @@ export default function DiagnosisResult({ result }: { result: DiagnosisResultDat
                 return (
                   <li key={candidate.name} className="space-y-1">
                     <div className="flex items-center justify-between gap-2">
-                      <span>
-                        {candidate.name}
-                        {candidate.eppoCode && <span className="text-muted"> ({candidate.eppoCode})</span>}
-                      </span>
+                      <span>{candidate.name}</span>
                       <span className="text-muted shrink-0 text-xs tabular-nums">{percent}%</span>
                     </div>
                     <div className="h-1 overflow-hidden rounded-full" style={{ background: "var(--border)" }}>
@@ -163,7 +177,7 @@ export default function DiagnosisResult({ result }: { result: DiagnosisResultDat
       )}
 
       <section className="space-y-2">
-        <h2 className="font-semibold">Hypothèses</h2>
+        <SectionHeading icon={Lightbulb}>Hypothèses</SectionHeading>
         {hypotheses.length === 0 ? (
           <p className="text-muted text-sm">Aucune hypothèse identifiée.</p>
         ) : (

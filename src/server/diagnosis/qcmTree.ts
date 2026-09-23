@@ -16,10 +16,10 @@ import type { QcmQuestion, SymptomCategory } from "@/server/diagnosis/types";
 // (signal potentiellement plus serieux) -- voir ruleEngine.ts.
 const AFFECTED_LEAF_COUNT_QUESTION: QcmQuestion = {
   id: "affectedLeafCount",
-  question: "Combien de feuilles sont concernees ?",
+  question: "Combien de feuilles sont concernées ?",
   multiple: false,
   options: [
-    { id: "single", label: "Une seule feuille isolee" },
+    { id: "single", label: "Une seule feuille isolée" },
     { id: "several", label: "Plusieurs feuilles" },
     { id: "most", label: "La plupart des feuilles" },
   ],
@@ -28,11 +28,11 @@ const AFFECTED_LEAF_COUNT_QUESTION: QcmQuestion = {
 const YELLOW_LEAVES_QUESTIONS: QcmQuestion[] = [
   {
     id: "leafAge",
-    question: "Les feuilles jaunes sont-elles plutot jeunes ou agees ?",
+    question: "Les feuilles jaunes sont-elles plutôt jeunes ou âgées ?",
     multiple: false,
     options: [
       { id: "young", label: "Jeunes (nouvelles pousses)" },
-      { id: "old", label: "Agees (bas de la plante)" },
+      { id: "old", label: "Âgées (bas de la plante)" },
       { id: "mixed", label: "Un peu des deux" },
     ],
   },
@@ -43,7 +43,7 @@ const YELLOW_LEAVES_QUESTIONS: QcmQuestion[] = [
     options: [
       { id: "greenVeins", label: "Nervures encore vertes" },
       { id: "yellowVeins", label: "Toute la feuille jaunit, nervures comprises" },
-      { id: "notSure", label: "Difficile a dire" },
+      { id: "notSure", label: "Difficile à dire" },
     ],
   },
   {
@@ -67,17 +67,17 @@ const BROWN_LEAVES_QUESTIONS: QcmQuestion[] = [
     options: [
       { id: "edges", label: "Bords ou pointes seulement" },
       { id: "wholeLeaf", label: "Toute la feuille" },
-      { id: "patches", label: "Par taches irregulieres" },
+      { id: "patches", label: "Par taches irrégulières" },
     ],
   },
   {
     id: "texture",
-    question: "La zone brunie est-elle seche et cassante, ou molle et spongieuse ?",
+    question: "La zone brunie est-elle sèche et cassante, ou molle et spongieuse ?",
     multiple: false,
     options: [
-      { id: "dryBrittle", label: "Seche et cassante" },
+      { id: "dryBrittle", label: "Sèche et cassante" },
       { id: "softMushy", label: "Molle et spongieuse" },
-      { id: "normalTexture", label: "Texture normale, juste decoloree" },
+      { id: "normalTexture", label: "Texture normale, juste décolorée" },
     ],
   },
   AFFECTED_LEAF_COUNT_QUESTION,
@@ -86,11 +86,11 @@ const BROWN_LEAVES_QUESTIONS: QcmQuestion[] = [
 const DROPPING_LEAVES_QUESTIONS: QcmQuestion[] = [
   {
     id: "leafAge",
-    question: "Les feuilles qui tombent sont-elles jeunes ou agees ?",
+    question: "Les feuilles qui tombent sont-elles jeunes ou âgées ?",
     multiple: false,
     options: [
       { id: "young", label: "Jeunes (nouvelles pousses)" },
-      { id: "old", label: "Agees (bas de la plante)" },
+      { id: "old", label: "Âgées (bas de la plante)" },
       { id: "mixed", label: "Un peu des deux" },
     ],
   },
@@ -101,7 +101,7 @@ const DROPPING_LEAVES_QUESTIONS: QcmQuestion[] = [
     options: [
       { id: "sudden", label: "Soudaine" },
       { id: "progressive", label: "Progressive" },
-      { id: "notSure", label: "Difficile a dire" },
+      { id: "notSure", label: "Difficile à dire" },
     ],
   },
   AFFECTED_LEAF_COUNT_QUESTION,
@@ -110,22 +110,22 @@ const DROPPING_LEAVES_QUESTIONS: QcmQuestion[] = [
 const WILTING_QUESTIONS: QcmQuestion[] = [
   {
     id: "soilMoisture",
-    question: "Le sol est-il sec ou humide au moment ou la plante flechit ?",
+    question: "Le sol est-il sec ou humide au moment où la plante fléchit ?",
     multiple: false,
     options: [
       { id: "dry", label: "Le sol est sec" },
       { id: "moist", label: "Le sol est humide" },
-      { id: "notSure", label: "Difficile a dire" },
+      { id: "notSure", label: "Difficile à dire" },
     ],
   },
   {
     id: "onset",
-    question: "Le flechissement est-il apparu soudainement ou progressivement ?",
+    question: "Le fléchissement est-il apparu soudainement ou progressivement ?",
     multiple: false,
     options: [
       { id: "sudden", label: "Soudain" },
       { id: "progressive", label: "Progressif" },
-      { id: "notSure", label: "Difficile a dire" },
+      { id: "notSure", label: "Difficile à dire" },
     ],
   },
 ];
@@ -149,27 +149,27 @@ const SPOTS_QUESTIONS: QcmQuestion[] = [
     options: [
       { id: "powdery", label: "Oui, poudreuses" },
       { id: "notPowdery", label: "Non, plates" },
-      { id: "notSure", label: "Difficile a dire" },
+      { id: "notSure", label: "Difficile à dire" },
     ],
   },
   {
     id: "halo",
-    question: "Les taches ont-elles un halo (aureole) autour ?",
+    question: "Les taches ont-elles un halo (auréole) autour ?",
     multiple: false,
     options: [
       { id: "withHalo", label: "Oui, avec un halo" },
       { id: "noHalo", label: "Non, pas de halo" },
-      { id: "notSure", label: "Difficile a dire" },
+      { id: "notSure", label: "Difficile à dire" },
     ],
   },
   {
     id: "evolution",
-    question: "Les taches s'etendent-elles ou restent-elles stables ?",
+    question: "Les taches s'étendent-elles ou restent-elles stables ?",
     multiple: false,
     options: [
-      { id: "spreading", label: "Elles s'etendent" },
+      { id: "spreading", label: "Elles s'étendent" },
       { id: "stable", label: "Elles restent stables" },
-      { id: "notSure", label: "Trop tot pour le dire" },
+      { id: "notSure", label: "Trop tôt pour le dire" },
     ],
   },
 ];
@@ -177,7 +177,7 @@ const SPOTS_QUESTIONS: QcmQuestion[] = [
 const PESTS_QUESTIONS: QcmQuestion[] = [
   {
     id: "visibility",
-    question: "Voyez-vous des insectes/parasites a l'oeil nu, ou seulement des traces ?",
+    question: "Voyez-vous des insectes/parasites à l'œil nu, ou seulement des traces ?",
     multiple: false,
     options: [
       { id: "visibleInsects", label: "Insectes visibles" },
@@ -193,14 +193,14 @@ const PESTS_QUESTIONS: QcmQuestion[] = [
     multiple: true,
     options: [
       { id: "webbing", label: "Fines toiles" },
-      { id: "stickyResidue", label: "Residu collant" },
+      { id: "stickyResidue", label: "Résidu collant" },
       { id: "cottonyDots", label: "Points blancs cotonneux" },
       { id: "blackDots", label: "Points noirs" },
     ],
   },
   {
     id: "location",
-    question: "Ou se trouvent-ils principalement ?",
+    question: "Où se trouvent-ils principalement ?",
     multiple: false,
     options: [
       { id: "youngShoots", label: "Jeunes pousses / nouvelles tiges" },
@@ -213,17 +213,17 @@ const PESTS_QUESTIONS: QcmQuestion[] = [
 const ABNORMAL_GROWTH_QUESTIONS: QcmQuestion[] = [
   {
     id: "growthType",
-    question: "Comment decririez-vous la croissance anormale ?",
+    question: "Comment décririez-vous la croissance anormale ?",
     multiple: false,
     options: [
       { id: "slowed", label: "Ralentie" },
-      { id: "deformed", label: "Deformee" },
-      { id: "etiolated", label: "Etiolee (tiges qui s'etirent vers la lumiere)" },
+      { id: "deformed", label: "Déformée" },
+      { id: "etiolated", label: "Étiolée (tiges qui s'étirent vers la lumière)" },
     ],
   },
   {
     id: "affectedPart",
-    question: "Quelle partie de la plante est concernee ?",
+    question: "Quelle partie de la plante est concernée ?",
     multiple: false,
     options: [
       { id: "newGrowth", label: "Nouvelles pousses seulement" },
@@ -236,20 +236,20 @@ const ABNORMAL_GROWTH_QUESTIONS: QcmQuestion[] = [
 const FLOWERING_ISSUE_QUESTIONS: QcmQuestion[] = [
   {
     id: "issueType",
-    question: "Quel est le probleme de floraison ?",
+    question: "Quel est le problème de floraison ?",
     multiple: false,
     options: [
       { id: "noFlowers", label: "Pas de fleurs du tout" },
       { id: "budDrop", label: "Boutons qui tombent avant ouverture" },
-      { id: "fastWilt", label: "Fleurs qui fletrissent vite" },
+      { id: "fastWilt", label: "Fleurs qui flétrissent vite" },
     ],
   },
   {
     id: "recentChange",
-    question: "Un changement recent a-t-il precede ce probleme (deplacement, rempotage, luminosite) ?",
+    question: "Un changement récent a-t-il précédé ce problème (déplacement, rempotage, luminosité) ?",
     multiple: false,
     options: [
-      { id: "yes", label: "Oui, un changement recent" },
+      { id: "yes", label: "Oui, un changement récent" },
       { id: "no", label: "Non, rien de particulier" },
       { id: "notSure", label: "Je ne sais pas" },
     ],
