@@ -72,6 +72,7 @@ function TaskRow({
   secondary,
   wrapClass,
   radius,
+  testId,
 }: {
   task: TaskCardData;
   lead: ReactNode;
@@ -79,6 +80,7 @@ function TaskRow({
   secondary: ReactNode;
   wrapClass: string;
   radius: string;
+  testId?: string;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -190,7 +192,7 @@ function TaskRow({
   return (
     <>
       <SwipeableCard onSwipeLeft={complete} onSwipeRight={swipeSnooze} disabled={pending} radius={radius}>
-        <div className={wrapClass} style={done ? { opacity: 0.4, transform: "scale(0.98)" } : { transition: "all 300ms" }}>
+        <div className={wrapClass} data-testid={testId} style={done ? { opacity: 0.4, transform: "scale(0.98)" } : { transition: "all 300ms" }}>
           <div className="flex items-center gap-3">
             {lead}
             <div className="min-w-0 flex-1">
@@ -296,6 +298,7 @@ export default function TaskCard({ tasks }: { tasks: TaskCardData[] }) {
         task={first}
         wrapClass="card-flat p-2.5"
         radius="1.1rem"
+        testId="task-card"
         lead={<PlantThumb task={first} size={48} badge />}
         primary={<p className="truncate text-base font-semibold leading-tight">{plantName || first.title}</p>}
         secondary={
@@ -309,7 +312,7 @@ export default function TaskCard({ tasks }: { tasks: TaskCardData[] }) {
   }
 
   return (
-    <div className="card-flat space-y-1 p-2.5">
+    <div className="card-flat space-y-1 p-2.5" data-testid="task-card">
       <div className="flex items-center gap-3 pb-1">
         <PlantThumb task={first} size={40} />
         <Link href={`/plantes/${first.plantId}`} className="min-w-0 flex-1 truncate text-base font-semibold leading-tight">

@@ -43,7 +43,7 @@ test("creer une plante, l'arroser, puis la supprimer", async ({ page }) => {
   // 2. La tache d'arrosage generee apparait sur /taches (section "A venir",
   // due dans 7 jours) et peut etre completee immediatement.
   await page.goto("/taches");
-  const taskCard = page.locator(".card", { hasText: plantName });
+  const taskCard = page.getByTestId("task-card").filter({ hasText: plantName });
   await expect(taskCard).toBeVisible();
   await taskCard.getByRole("button", { name: "Arrosée" }).click();
   // Ne PAS verifier que la plante disparait de /taches : completer une
