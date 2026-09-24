@@ -46,6 +46,10 @@ model User {
   email        String     @unique
   name         String?
   passwordHash String
+  // Incremente a chaque changement de secret (reinitialisation du mot de
+  // passe) : les JWT embarquent la valeur a la connexion et sont refuses des
+  // qu'elle ne correspond plus (voir sessionIsCurrent).
+  sessionVersion Int      @default(0)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   // Seul l'utilisateur seed (SEED_USER_EMAIL) l'est, voir prisma/seed.ts --

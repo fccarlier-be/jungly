@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
+import { sessionIsCurrent } from "@/lib/sessionVersion";
 import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 
 // Re-exportee pour compatibilite -- la definition vit desormais dans
@@ -24,9 +25,9 @@ export async function requireUserId(): Promise<string> {
   }
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, disabledAt: true },
+    select: { id: true, disabledAt: true, sessionVersion: true },
   });
-  if (!user || user.disabledAt) {
+  if (!user || user.disabledAt || !sessionIsCurrent(user.sessionVersion, session.user.sessionVersion)) {
     throw new UnauthorizedError();
   }
   return session.user.id;
@@ -59,9 +60,9 @@ export async function requireSessionUserId(): Promise<string> {
   }
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { id: true, disabledAt: true },
+    select: { id: true, disabledAt: true, sessionVersion: true },
   });
-  if (!user || user.disabledAt) {
+  if (!user || user.disabledAt || !sessionIsCurrent(user.sessionVersion, session.user.sessionVersion)) {
     redirect("/login");
   }
   return session.user.id;

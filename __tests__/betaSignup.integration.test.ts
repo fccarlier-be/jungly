@@ -56,7 +56,9 @@ describe("confirmBetaSignupByToken (integration reelle SQLite)", () => {
     expect(result.outcome).toBe("waitlisted");
     const stored = await db.betaSignup.findUniqueOrThrow({ where: { token } });
     expect(stored.status).toBe("WAITLISTED");
-  });
+    // ~12 ecritures SQLite sequentielles : depasse le delai par defaut (5 s)
+    // quand la machine est chargee par le reste de la suite.
+  }, 30_000);
 
   it("renvoie already-confirmed sans le reconfirmer", async () => {
     const email = `beta-already-${Date.now()}@example.com`;

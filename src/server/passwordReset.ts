@@ -65,7 +65,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
   await db.$transaction([
-    db.user.update({ where: { id: resetToken.userId }, data: { passwordHash } }),
+    db.user.update({ where: { id: resetToken.userId }, data: { passwordHash, sessionVersion: { increment: 1 } } }),
     db.passwordResetToken.update({ where: { id: resetToken.id }, data: { usedAt: new Date() } }),
     // Un mot de passe reinitialise invalide toute AUTRE demande en attente
     // pour ce compte -- sans ca, un ancien lien de reinitialisation (envoye

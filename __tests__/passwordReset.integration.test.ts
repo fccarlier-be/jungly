@@ -73,6 +73,8 @@ describe("resetPassword (integration reelle SQLite)", () => {
 
     const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
     expect(user.passwordHash).not.toBe("ancien-hash");
+    // Invalide les sessions JWT deja emises (voir sessionIsCurrent).
+    expect(user.sessionVersion).toBe(1);
 
     const updated = await db.passwordResetToken.findUniqueOrThrow({ where: { id: token.id } });
     expect(updated.usedAt).not.toBeNull();
