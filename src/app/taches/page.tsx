@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { effectiveDueDate, isTaskDueNow } from "@/server/careEngine/dueTasks";
 import TaskCard, { type TaskCardData } from "@/components/TaskCard";
 import EmptyState from "@/components/EmptyState";
+import { RestScene } from "@/components/art/paper";
 import { getLibraryImageMap } from "@/lib/libraryImages";
 
 export default async function TasksPage() {
@@ -47,7 +48,7 @@ export default async function TasksPage() {
       <h1 className="font-display text-2xl font-semibold">Tâches</h1>
 
       {nothingAtAll ? (
-        <EmptyState icon={<span className="text-4xl">🌤️</span>} title="Rien à l'horizon." description="Aucune tâche en attente, tes plantes sont tranquilles." />
+        <EmptyState icon={<RestScene className="h-24 w-auto" />} title="Rien à l'horizon." description="Aucune tâche en attente, tes plantes sont tranquilles." />
       ) : (
         <>
           <TaskSection title="En retard" tasks={overdue} emptyLabel="Aucune tâche en retard." />

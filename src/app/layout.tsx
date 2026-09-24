@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { Lora, Inter } from "next/font/google";
+import { Lora, Inter, Fraunces } from "next/font/google";
 import Script from "next/script";
+import type { CSSProperties } from "react";
 import { Leaf } from "lucide-react";
 import "./globals.css";
 import { auth } from "@/server/auth";
@@ -11,11 +12,19 @@ import BottomNav from "@/components/BottomNav";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import AuthSessionProvider from "@/components/AuthSessionProvider";
 import AnnouncementModal from "@/components/AnnouncementModal";
+import { PaperDefs, SplashArt } from "@/components/art/paper";
 
 const lora = Lora({
   subsets: ["latin"],
   variable: "--font-display",
   weight: ["500", "600", "700"],
+  display: "swap",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-logo",
+  weight: ["700", "800"],
   display: "swap",
 });
 
@@ -63,6 +72,21 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+// Splash une seule fois par demarrage a froid : sessionStorage est propre a
+// la session de l'onglet/de l'app (une navigation ou un rechargement ne le
+// rejoue pas). Le splash lui-meme est rendu cote serveur et s'efface par CSS.
+const SPLASH_INIT_SCRIPT = `
+(function () {
+  try {
+    if (sessionStorage.getItem('jungly-splash')) {
+      document.documentElement.setAttribute('data-splash', 'seen');
+    } else {
+      sessionStorage.setItem('jungly-splash', '1');
+    }
+  } catch (e) {}
+})();
+`;
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   // Pose par proxy.ts (Content-Security-Policy, nonce different a chaque
@@ -86,11 +110,28 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang="fr" className={`${lora.variable} ${inter.variable}`}>
+    <html lang="fr" className={`${lora.variable} ${inter.variable} ${fraunces.variable}`}>
       <body className="min-h-screen antialiased font-sans">
         <Script id="theme-init" strategy="beforeInteractive" nonce={nonce ?? undefined}>
           {THEME_INIT_SCRIPT}
         </Script>
+        <Script id="splash-init" strategy="beforeInteractive" nonce={nonce ?? undefined}>
+          {SPLASH_INIT_SCRIPT}
+        </Script>
+        <PaperDefs />
+        <div className="jg-splash" aria-hidden="true">
+          <div className="jg-splash-stage">
+            <SplashArt />
+            <div className="jg-splash-wm">
+              {"Jungly".split("").map((letter, i) => (
+                <span key={i} style={{ "--i": i } as CSSProperties}>
+                  {letter}
+                </span>
+              ))}
+            </div>
+            <div className="jg-splash-tag">Ta jungle, chez toi</div>
+          </div>
+        </div>
         <ServiceWorkerRegistration />
         {session?.user ? (
           <AuthSessionProvider>
@@ -107,7 +148,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 style={{ borderColor: "var(--border)" }}
               >
                 <div
-                  className="flex items-center gap-2 px-2 pb-6 pt-2 font-display text-xl font-semibold"
+                  className="flex items-center gap-2 px-2 pb-6 pt-2 font-logo text-2xl font-bold"
                   style={{ color: "var(--primary-strong)" }}
                 >
                   <Leaf size={20} strokeWidth={1.75} />

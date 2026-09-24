@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Sprout, Leaf, Coffee, Thermometer } from "lucide-react";
+import { Sprout, Thermometer } from "lucide-react";
 import { requireSessionUserId } from "@/lib/session";
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
@@ -14,12 +14,18 @@ import { getLibraryImageMap } from "@/lib/libraryImages";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 import CuttingsBanner from "@/components/CuttingsBanner";
+import { HomeBanner, PotSprout, RestScene, bannerVariantForHour } from "@/components/art/paper";
 
 // Seulement "Bonjour"/"Bonsoir" (retour utilisateur) : "Bon après-midi" est
 // plus long et passait sur deux lignes sur mobile, decalant tout l'ecran.
 function greeting(): string {
   const hour = new Date().getHours();
   return hour < 18 ? "Bonjour" : "Bonsoir";
+}
+
+function dateLabel(): string {
+  const label = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 function heroMessage(taskCount: number, overdueCount: number): string {
@@ -131,17 +137,24 @@ export default async function DashboardPage() {
   }
 
   const hero = heroMessage(tasks.length, overdueCount);
+  const bannerVariant = bannerVariantForHour(now.getHours());
 
   return (
     <div className="space-y-7">
-      <div className="animate-rise-in space-y-2">
-        <h1 className="font-display flex items-center gap-2 text-3xl font-semibold" style={{ color: "var(--primary-strong)" }}>
-          <span>
-            {greeting()}
-            {firstName ? ` ${firstName}` : ""}
-          </span>
-          <Leaf size={26} strokeWidth={1.75} />
-        </h1>
+      <div className="animate-rise-in space-y-3">
+        <div
+          className="relative h-40 overflow-hidden rounded-3xl sm:h-48"
+          style={{ color: bannerVariant === "nuit" ? "#f3ecd9" : "#0f2a20" }}
+        >
+          <HomeBanner variant={bannerVariant} className="absolute inset-0 h-full w-full" />
+          <div className="absolute left-5 top-5 max-w-[62%]">
+            <h1 className="font-logo text-3xl font-bold leading-tight">
+              {greeting()}
+              {firstName ? ` ${firstName}` : ""}
+            </h1>
+            <p className="text-sm opacity-85">{dateLabel()}</p>
+          </div>
+        </div>
         {hero && <p className="text-muted text-base">{hero}</p>}
         {weatherProfile && (
           <div className="text-muted flex items-center gap-1.5 text-sm">
@@ -160,7 +173,7 @@ export default async function DashboardPage() {
           {cards.length === 0 ? (
             plantCount === 0 ? (
               <EmptyState
-                icon={<Sprout size={40} strokeWidth={1.5} />}
+                icon={<PotSprout className="h-28 w-auto" />}
                 title="Ta jungle commence ici."
                 description="Ajoute ta première plante pour commencer à suivre ses besoins."
                 actionHref="/plantes/nouvelle"
@@ -168,7 +181,7 @@ export default async function DashboardPage() {
               />
             ) : (
               <EmptyState
-                icon={<Coffee size={40} strokeWidth={1.5} />}
+                icon={<RestScene className="h-24 w-auto" />}
                 title="Rien à faire aujourd'hui."
                 description="Tout va bien dans la jungle : toutes tes plantes sont à jour, prends un café."
               />

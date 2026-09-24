@@ -18,6 +18,9 @@ export default defineConfig({
     // suite reste largement sous la minute (~140 tests), et la fiabilite
     // prime sur la vitesse pour une suite de cette taille.
     fileParallelism: false,
+    // Les tests d'integration font de vraies ecritures SQLite (parfois des dizaines) :
+    // le delai par defaut (5 s) est depasse quand la machine est chargee.
+    testTimeout: 30_000,
   },
   resolve: {
     alias: {

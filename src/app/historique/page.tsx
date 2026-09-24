@@ -5,6 +5,7 @@ import { db } from "@/server/db";
 import { formatDate } from "@/lib/units";
 import { CareTypeIcon } from "@/components/careIcons";
 import EmptyState from "@/components/EmptyState";
+import { PotSprout } from "@/components/art/paper";
 
 function parseEventType(value?: string): CareEventType | undefined {
   return value && (Object.values(CareEventType) as string[]).includes(value) ? (value as CareEventType) : undefined;
@@ -57,7 +58,7 @@ export default async function HistoryPage({
       </div>
 
       {events.length === 0 ? (
-        <EmptyState icon={<span className="text-4xl">📜</span>} title="Rien à raconter, encore." description="Les arrosages et soins que tu enregistres apparaîtront ici." />
+        <EmptyState icon={<PotSprout className="h-24 w-auto" />} title="Rien à raconter, encore." description="Les arrosages et soins que tu enregistres apparaîtront ici." />
       ) : (
         <div className="space-y-2">
           {events.map((event) => (
