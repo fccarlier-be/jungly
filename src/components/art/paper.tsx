@@ -239,9 +239,9 @@ export function HomeBanner({ variant, className }: { variant: BannerVariant; cla
           </g>
         </>
       )}
-      <Wave y={118} amp={10} ph={0.5} fill={v.h[0]} />
-      <Wave y={141} amp={9} ph={2} fill={v.h[1]} />
-      <Wave y={165} amp={7} ph={4} fill={v.h[2]} />
+      <Wave y={130} amp={9} ph={0.5} fill={v.h[0]} />
+      <Wave y={150} amp={8} ph={2} fill={v.h[1]} />
+      <Wave y={170} amp={6} ph={4} fill={v.h[2]} />
       <Place x={46} y={196} rot={-14} s={0.52}>
         <Monstera id="hb-m1" c1={v.m[0]} c2={v.m[1]} />
       </Place>
@@ -458,7 +458,7 @@ export function PlantPlaceholder({ className }: { className?: string }) {
 export function BackgroundLeaves() {
   return (
     <div className="jg-bg" aria-hidden="true">
-      <svg className="jg-bg-a" viewBox="0 0 300 340" preserveAspectRatio="xMaxYMax meet" focusable="false">
+      <svg className="jg-bg-a" viewBox="-110 0 410 340" preserveAspectRatio="xMaxYMax meet" focusable="false">
         <Place x={200} y={352} rot={10} s={1.5}>
           <Monstera id="bg-m1" c1={C.fou} c2={C.pousse} />
         </Place>
@@ -469,7 +469,7 @@ export function BackgroundLeaves() {
           <Blade c1={C.pousse} c2={C.sous} c3={C.emer} />
         </Place>
       </svg>
-      <svg className="jg-bg-b" viewBox="0 0 300 340" preserveAspectRatio="xMinYMin meet" focusable="false">
+      <svg className="jg-bg-b" viewBox="0 0 410 340" preserveAspectRatio="xMinYMin meet" focusable="false">
         <Place x={120} y={-12} rot={186} s={1.15}>
           <Monstera id="bg-m2" c1={C.emer} c2={C.fou} />
         </Place>

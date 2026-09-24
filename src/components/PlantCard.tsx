@@ -62,9 +62,9 @@ export default function PlantCard({ plant }: { plant: PlantCardData }) {
         {chip && (
           <span className={`badge badge-${chip.tone === "attention" ? "attention" : "today"} absolute left-2.5 top-2.5`} style={{ background: "var(--surface)" }}>
             {chip.tone === "attention" ? (
-              <TriangleAlert size={12} />
+              <TriangleAlert size={16} />
             ) : (
-              plant.nextTask && <CareTypeIcon type={plant.nextTask.type} size={12} colored={false} />
+              plant.nextTask && <CareTypeIcon type={plant.nextTask.type} size={16} colored={false} />
             )}
             {chip.label}
           </span>
@@ -74,8 +74,8 @@ export default function PlantCard({ plant }: { plant: PlantCardData }) {
         <p className="truncate font-medium leading-tight">{plant.name}</p>
         {plant.scientificName && <p className="text-muted truncate text-xs italic">{plant.scientificName}</p>}
         {plant.nextTask && (
-          <p className="text-muted flex items-center gap-1 pt-0.5 text-xs">
-            <CareTypeIcon type={plant.nextTask.type} size={12} />
+          <p className="text-muted flex items-center gap-1.5 pt-0.5 text-sm">
+            <CareTypeIcon type={plant.nextTask.type} size={16} />
             {formatRelativeDueDate(plant.nextTask.dueAt)}
           </p>
         )}

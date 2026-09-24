@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Sprout, Thermometer } from "@/components/icons";
+import { Thermometer } from "@/components/icons";
 import { requireSessionUserId } from "@/lib/session";
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
@@ -14,7 +14,7 @@ import { getLibraryImageMap } from "@/lib/libraryImages";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 import CuttingsBanner from "@/components/CuttingsBanner";
-import { HomeBanner, PotSprout, RestScene, bannerVariantForHour } from "@/components/art/paper";
+import { HomeBanner, PlantPlaceholder, PotSprout, RestScene, bannerVariantForHour } from "@/components/art/paper";
 
 // Seulement "Bonjour"/"Bonsoir" (retour utilisateur) : "Bon après-midi" est
 // plus long et passait sur deux lignes sur mobile, decalant tout l'ecran.
@@ -64,12 +64,16 @@ export default async function DashboardPage() {
 
   const overdueCount = tasks.filter((t) => t.dueAt < startOfToday).length;
 
-  const libraryImageByName = await getLibraryImageMap(tasks.map((t) => t.plant.scientificName));
+  const libraryImageByName = await getLibraryImageMap([...tasks.map((t) => t.plant.scientificName), ...allPlants.map((p) => p.scientificName)]);
 
   const collection = allPlants.map((plant) => ({
     id: plant.id,
     name: plant.name,
-    image: plant.photoUrl || (plant.libraryEntry?.careProfile as { imageUrl?: string } | null)?.imageUrl || null,
+    image:
+      plant.photoUrl ||
+      (plant.libraryEntry?.careProfile as { imageUrl?: string } | null)?.imageUrl ||
+      (plant.scientificName ? libraryImageByName.get(plant.scientificName) : undefined) ||
+      null,
   }));
 
   const fertilizerIds = Array.from(
@@ -143,16 +147,16 @@ export default async function DashboardPage() {
     <div className="space-y-7">
       <div className="animate-rise-in space-y-3">
         <div
-          className="relative h-40 overflow-hidden rounded-3xl sm:h-48"
+          className="relative h-36 overflow-hidden rounded-3xl sm:h-44"
           style={{ color: bannerVariant === "nuit" ? "#f3ecd9" : "#0f2a20" }}
         >
           <HomeBanner variant={bannerVariant} className="absolute inset-0 h-full w-full" />
-          <div className="absolute left-5 top-5 max-w-[62%]">
-            <h1 className="font-logo text-3xl font-bold leading-tight">
+          <div className="absolute left-5 top-4 max-w-[64%]">
+            <h1 className="font-logo text-2xl font-bold leading-tight">
               {greeting()}
               {firstName ? ` ${firstName}` : ""}
             </h1>
-            <p className="text-sm opacity-85">{dateLabel()}</p>
+            <p className="mt-0.5 text-xs opacity-85">{dateLabel()}</p>
           </div>
         </div>
         {hero && <p className="text-muted text-base">{hero}</p>}
@@ -255,7 +259,7 @@ export default async function DashboardPage() {
                       unoptimized={bypassesImageOptimizer(plant.image)}
                     />
                   ) : (
-                    <Sprout size={22} strokeWidth={1.5} style={{ color: "var(--secondary)" }} />
+                    <PlantPlaceholder className="h-full w-full" />
                   )}
                 </div>
                 <p className="text-muted mt-1 truncate text-xs">{plant.name}</p>

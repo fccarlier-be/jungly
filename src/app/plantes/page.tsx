@@ -129,7 +129,7 @@ export default async function PlantsPage({
         <div className="flex shrink-0 gap-1.5 text-sm">
           <details className="relative">
             <summary className="chip flex list-none items-center gap-1.5 rounded-full px-3 py-1.5">
-              <ArrowUpDown size={14} />
+              <ArrowUpDown size={18} />
               <span className="hidden sm:inline">Trier</span>
             </summary>
             <div className="card absolute right-0 z-10 mt-1 w-44 space-y-0.5 p-1.5">
@@ -148,7 +148,7 @@ export default async function PlantsPage({
 
           <details className="relative">
             <summary className="chip flex list-none items-center gap-1.5 rounded-full px-3 py-1.5">
-              <SlidersHorizontal size={14} />
+              <SlidersHorizontal size={18} />
               <span className="hidden sm:inline">Filtrer</span>
             </summary>
             <div className="card absolute right-0 z-10 mt-1 w-44 space-y-0.5 p-1.5">
@@ -188,7 +188,7 @@ export default async function PlantsPage({
           2026-09-23) : cet acces la remplace, ici plutot qu'ailleurs puisque
           la liste des taches est fondamentalement derivee des plantes. */}
       <Link href="/taches" className="card flex items-center justify-center gap-2 p-4 text-sm font-medium">
-        <ListChecks size={18} style={{ color: "var(--primary-strong)" }} />
+        <ListChecks size={22} style={{ color: "var(--primary-strong)" }} />
         Voir toutes mes tâches
       </Link>
     </div>

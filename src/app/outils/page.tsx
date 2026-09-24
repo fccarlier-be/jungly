@@ -29,6 +29,15 @@ const TOOLS: Array<{ href: string; label: string; description: string; Icon: Luc
   },
 ];
 
+// Une couleur par outil (papier decoupe) : repere rapide, comme les soins.
+const TOOL_COLOR: Record<string, string> = {
+  "/bibliotheque": "#1f7a4f",
+  "/engrais": "#d08a1e",
+  "/jardinieres": "#c4523a",
+  "/historique": "#3a7ca8",
+  "/boutures": "#5f9e2f",
+};
+
 export default function OutilsPage() {
   // Reservee a l'instance hebergee (voir features.ts) : n'a de sens
   // qu'entre comptes qui peuvent se rencontrer physiquement.
@@ -52,7 +61,12 @@ export default function OutilsPage() {
         {tools.map(({ href, label, description, Icon }) => (
           <Link key={href} href={href} className="card flex items-center gap-3.5 p-4">
             <span
-              className="icon-disc flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+              style={{
+                background: TOOL_COLOR[href] ?? "var(--primary)",
+                color: "#fff8e8",
+                boxShadow: `0 2px 0 color-mix(in srgb, ${TOOL_COLOR[href] ?? "var(--primary)"} 60%, #000)`,
+              }}
             >
               <Icon size={22} />
             </span>

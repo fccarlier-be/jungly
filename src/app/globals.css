@@ -200,7 +200,7 @@ h1.font-display::before {
 }
 .jg-bg svg {
   position: absolute;
-  height: min(380px, 60vw);
+  height: min(380px, 70vw);
   width: auto;
 }
 .jg-bg-a { right: -24px; bottom: 56px; }

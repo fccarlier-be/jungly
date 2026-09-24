@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Sprout, Wrench, Settings } from "@/components/icons";
+// Icones lucide d'origine (retour utilisateur : preferees a celles en papier decoupe pour le menu).
+import { Home, Sprout, Wrench, Settings } from "lucide-react";
 
 // "Taches" a ete retiree de cette barre (retour utilisateur, 2026-09-23) :
 // l'accueil affiche deja les taches du jour, la page complete reste
@@ -35,7 +36,7 @@ export default function BottomNav({ variant }: { variant: "bottom" | "sidebar" }
                   : { color: "var(--ink-muted)" }
               }
             >
-              <Icon size={20} />
+              <Icon size={18} strokeWidth={2} />
               {label}
             </Link>
           );
@@ -73,7 +74,7 @@ export default function BottomNav({ variant }: { variant: "bottom" | "sidebar" }
             }
             aria-current={active ? "page" : undefined}
           >
-            <Icon size={24} />
+            <Icon size={22} strokeWidth={active ? 2.4 : 2} />
             <span className={active ? "font-semibold" : undefined}>{label}</span>
           </Link>
         );

@@ -5,11 +5,12 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Check, Sprout } from "@/components/icons";
+import { Check } from "@/components/icons";
 import { formatRelativeDueDate } from "@/lib/units";
 import { CareAvatar } from "@/components/careIcons";
 import SwipeableCard from "@/components/SwipeableCard";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
+import { PlantPlaceholder } from "@/components/art/paper";
 
 export interface TaskCardData {
   id: string;
@@ -144,20 +145,26 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
     <>
     <SwipeableCard onSwipeLeft={complete} onSwipeRight={swipeSnooze} disabled={pending}>
     <div
-      className="card p-4 transition-all duration-300"
+      className="card p-3 transition-all duration-300"
       style={done ? { opacity: 0.4, transform: "scale(0.98)" } : undefined}
     >
-      <div className="flex items-start gap-3">
-        <CareAvatar type={task.type} size={40} />
+      <div className="flex items-center gap-3">
+        <CareAvatar type={task.type} size={36} />
         <Link href={`/plantes/${task.plantId}`} className="block min-w-0 flex-1">
-          <p className="text-muted text-sm">{task.title}</p>
-          {showPlantName && task.plant?.name && <p className="text-lg font-semibold leading-tight">{task.plant.name}</p>}
-          <p className="text-muted text-sm">{formatRelativeDueDate(task.dueAt)}</p>
-          {task.subtitle && <p className="text-muted mt-1 text-sm">{task.subtitle}</p>}
+          {showPlantName && task.plant?.name ? (
+            <p className="truncate text-base font-semibold leading-tight">{task.plant.name}</p>
+          ) : (
+            <p className="text-base font-semibold leading-tight">{task.title}</p>
+          )}
+          <p className="text-muted text-sm leading-snug">
+            {showPlantName && task.plant?.name ? `${task.title} · ` : ""}
+            {formatRelativeDueDate(task.dueAt)}
+          </p>
+          {task.subtitle && <p className="text-muted text-xs leading-snug">{task.subtitle}</p>}
         </Link>
         <Link
           href={`/plantes/${task.plantId}`}
-          className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl"
+          className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl"
           style={{ background: "var(--surface-alt)" }}
         >
           {task.plantImage ? (
@@ -165,21 +172,21 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
               src={task.plantImage}
               alt=""
               fill
-              sizes="56px"
+              sizes="48px"
               className="object-cover"
               unoptimized={bypassesImageOptimizer(task.plantImage)}
             />
           ) : (
-            <Sprout size={22} strokeWidth={1.5} style={{ color: "var(--secondary)" }} />
+            <PlantPlaceholder className="h-full w-full" />
           )}
         </Link>
       </div>
-      <div className="pl-12">
-        <div className="flex gap-2 pt-3">
+      <div className="pl-[48px]">
+        <div className="flex gap-2 pt-2.5">
           <button
             onClick={complete}
             disabled={pending}
-            className="btn-primary flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
+            className="btn-primary flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold disabled:opacity-60"
           >
             {done ? <Check size={16} className="animate-pop" /> : null}
             {COMPLETE_LABEL[task.type]}
@@ -188,7 +195,7 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
             ref={buttonRef}
             type="button"
             onClick={toggleMenu}
-            className="chip cursor-pointer rounded-xl px-3 py-2.5 text-sm"
+            className="chip cursor-pointer rounded-xl px-3 py-2 text-sm"
           >
             Reporter
           </button>
