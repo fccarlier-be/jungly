@@ -218,12 +218,12 @@ export default async function DashboardPage() {
         // contenu au-dessus (voir cette section jusqu'a la derniere fois).
         <section
           data-collection-bar
-          className="animate-rise-in fixed inset-x-0 bottom-16 z-10 space-y-3 py-3 lg:static lg:inset-auto lg:z-auto lg:py-0"
+          className="animate-rise-in fixed inset-x-0 bottom-16 z-10 space-y-1.5 py-2 lg:static lg:inset-auto lg:z-auto lg:py-0"
           style={{ background: "var(--bg)" }}
         >
           <div className="mx-auto flex max-w-3xl items-center justify-between px-4 lg:max-w-none lg:px-0">
-            <h2 className="text-lg font-semibold">Ma collection</h2>
-            <Link href="/plantes" className="text-sm font-medium" style={{ color: "var(--primary-strong)" }}>
+            <h2 className="text-base font-semibold">Ma collection</h2>
+            <Link href="/plantes" className="text-xs font-medium" style={{ color: "var(--primary-strong)" }}>
               Tout voir
             </Link>
           </div>
@@ -236,12 +236,12 @@ export default async function DashboardPage() {
               premier cercle) et annule visuellement l'espaceur au
               chargement. Pas d'equivalent a droite : la rangee reste bord a
               bord de ce cote en scrollant (coupe nette assumee). */}
-          <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
+          <div className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto pb-0.5">
             <div className="w-0 shrink-0 snap-start" aria-hidden />
             {collection.map((plant) => (
-              <Link key={plant.id} href={`/plantes/${plant.id}`} className="w-16 shrink-0 snap-start text-center">
+              <Link key={plant.id} href={`/plantes/${plant.id}`} className="w-14 shrink-0 snap-start text-center">
                 <div
-                  className="relative mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-full"
+                  className="relative mx-auto flex h-11 w-11 items-center justify-center overflow-hidden rounded-full"
                   style={{ background: "var(--surface-alt)" }}
                 >
                   {plant.image ? (
@@ -249,7 +249,7 @@ export default async function DashboardPage() {
                       src={plant.image}
                       alt=""
                       fill
-                      sizes="64px"
+                      sizes="44px"
                       className="object-cover"
                       unoptimized={bypassesImageOptimizer(plant.image)}
                     />
@@ -257,7 +257,7 @@ export default async function DashboardPage() {
                     <PlantPlaceholder className="h-full w-full" />
                   )}
                 </div>
-                <p className="text-muted mt-1 truncate text-xs">{plant.name}</p>
+                <p className="text-muted mt-0.5 truncate text-[11px] leading-tight">{plant.name}</p>
               </Link>
             ))}
           </div>
