@@ -203,6 +203,7 @@ function TaskRow({
               onClick={complete}
               disabled={pending}
               className="btn-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-full disabled:opacity-60"
+              style={{ boxShadow: "none" }}
               aria-label={COMPLETE_LABEL[task.type]}
               title={COMPLETE_LABEL[task.type]}
             >
