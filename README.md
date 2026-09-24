@@ -28,19 +28,18 @@ Copier `.env.example` en `.env` et renseigner :
 | `AUTH_SECRET` | Secret NextAuth, ex. `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | URL publique de l'app (`http://localhost:3000` en dev, `https://...` en prod) -- son schéma détermine si les cookies de session sont préfixés `__Secure-` |
 | `SEED_USER_EMAIL` / `SEED_USER_PASSWORD` | Identifiants du premier compte créé au démarrage (administrateur) |
-| `PLANTES_VAPID_PUBLIC_KEY` / `PLANTES_VAPID_PRIVATE_KEY` | Clés Web Push, générées une fois avec `npx web-push generate-vapid-keys` |
-| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Même valeur que `PLANTES_VAPID_PUBLIC_KEY`, exposée côté client |
+| `PLANTES_VAPID_PUBLIC_KEY` / `PLANTES_VAPID_PRIVATE_KEY` | Clés Web Push, générées une fois avec `npx web-push generate-vapid-keys`. La clé publique est lue au démarrage et transmise au navigateur par la page Paramètres |
 | `OPENPLANTBOOK_CLIENT_ID` / `OPENPLANTBOOK_CLIENT_SECRET` | Identifiants OAuth2 sur [open.plantbook.io](https://open.plantbook.io), pour la recherche d'espèces externes |
 | `PERENUAL_API_KEY` | Clé gratuite sur [perenual.com/docs/api](https://perenual.com/docs/api), utilisée en repli si OpenPlantbook n'a pas de résultat. Sans aucune des deux clés, la recherche externe est simplement désactivée, le reste de l'app fonctionne normalement. |
 
-**Note** : `NEXT_PUBLIC_*` est figé au moment du build, jamais relu au runtime -- en Docker, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` doit donc passer en `--build-arg`, pas seulement en variable d'environnement du conteneur.
+**Note** : toute la configuration d'instance est lue au démarrage du conteneur, rien n'est figé au build -- aucun `--build-arg` nécessaire (`GIT_SHA`, optionnel, sert seulement à afficher la révision). L'ancienne variable `NEXT_PUBLIC_VAPID_PUBLIC_KEY` reste acceptée en repli si `PLANTES_VAPID_PUBLIC_KEY` est absente.
 
 L'inscription est en libre-service (`/inscription`). Le compte `SEED_USER_EMAIL` est administrateur (seul rôle existant, réservé aux actions sur des données globales partagées, ex. resynchroniser une fiche de la bibliothèque de plantes) ; changer `SEED_USER_PASSWORD` puis relancer le seed met à jour son mot de passe.
 
 ## Installation
 
 ```bash
-docker build -t jungly --build-arg NEXT_PUBLIC_VAPID_PUBLIC_KEY=<votre_clé> .
+docker build -t jungly .
 
 docker run -d --name jungly -p 3000:3000 \
   --env-file .env \

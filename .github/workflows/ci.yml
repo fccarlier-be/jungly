@@ -18,7 +18,7 @@ jobs:
       DATABASE_URL: file:./ci.db
       AUTH_SECRET: ci-placeholder-secret-not-used-in-production
       NEXTAUTH_URL: http://localhost:3000
-      NEXT_PUBLIC_VAPID_PUBLIC_KEY: BCiFmzUvBhIhOHZ_ci_placeholder_not_used_in_production
+      PLANTES_VAPID_PUBLIC_KEY: BCiFmzUvBhIhOHZ_ci_placeholder_not_used_in_production
       # Active pour que le build/les tests couvrent les routes du don/echange
       # de boutures -- cle jetable (jamais utilisee en production, voir
       # docker-compose.yml pour la vraie).
@@ -85,7 +85,7 @@ jobs:
       # refuserait sinon en HTTP simple -- voir e2e/README.md, ce piege
       # n'existe qu'en ciblant la prod en HTTPS depuis une adresse interne.
       NEXTAUTH_URL: http://localhost:3000
-      NEXT_PUBLIC_VAPID_PUBLIC_KEY: BCiFmzUvBhIhOHZ_ci_placeholder_not_used_in_production
+      PLANTES_VAPID_PUBLIC_KEY: BCiFmzUvBhIhOHZ_ci_placeholder_not_used_in_production
       SEED_USER_EMAIL: e2e-ci-seed@example.com
       SEED_USER_PASSWORD: CiSeedPassword123!
       E2E_BASE_URL: http://localhost:3000
@@ -160,9 +160,9 @@ jobs:
   # verts. Jamais sur une pull request (aucune image publiee pour du code non
   # fusionne). Etiquetee sha-<commit> (a epingler cote VPS : deploiement et
   # retour arriere explicites) et main (derniere image verte, informative).
-  # Distincte d'une image "self-host" : la cle VAPID publique de l'instance
-  # hebergee y est figee au build (NEXT_PUBLIC_*), un auto-hebergeur doit
-  # toujours construire la sienne (`docker compose up`, voir README).
+  # Image generique : aucune cle ni configuration d'instance dedans (la cle
+  # VAPID publique est lue au runtime, voir getVapidPublicKey) -- tout vient
+  # du .env du VPS, rien n'est stocke cote GitHub.
   image:
     runs-on: ubuntu-latest
     needs: [test, e2e]
@@ -174,20 +174,6 @@ jobs:
       IMAGE: ghcr.io/${{ github.repository_owner }}/jungly-hosted
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      # Variable de depot (Settings > Secrets and variables > Actions >
-      # Variables), pas un secret : c'est une cle PUBLIQUE, deja envoyee a
-      # chaque navigateur. Echec explicite si elle manque -- sinon l'image
-      # se construirait quand meme, avec des notifications push cassees en
-      # silence sur la prod.
-      - name: Vérifie la clé VAPID publique de l'instance hébergée
-        env:
-          VAPID: ${{ vars.JUNGLY_HOSTED_VAPID_PUBLIC_KEY }}
-        run: |
-          if [ -z "$VAPID" ]; then
-            echo "::error::Variable de depot JUNGLY_HOSTED_VAPID_PUBLIC_KEY absente." >&2
-            exit 1
-          fi
 
       - name: SHA court
         id: sha
@@ -206,7 +192,6 @@ jobs:
           context: .
           push: true
           build-args: |
-            NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ vars.JUNGLY_HOSTED_VAPID_PUBLIC_KEY }}
             GIT_SHA=${{ steps.sha.outputs.short }}
           tags: |
             ${{ env.IMAGE }}:sha-${{ steps.sha.outputs.short }}
@@ -214,6 +199,6 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.description=Jungly - image de l'instance hebergee (jungly-app.fcold.org), pas pour l'auto-hebergement
+            org.opencontainers.image.description=Jungly - image utilisee par l'instance hebergee (jungly-app.fcold.org)
           cache-from: type=gha
           cache-to: type=gha,mode=max

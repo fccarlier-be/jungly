@@ -3,6 +3,22 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-24 — Clé VAPID publique lue au runtime (image Docker générique)
+
+Contexte : migration de l'instance hébergée vers un VPS qui tire une image construite par la CI (GHCR). La clé VAPID publique était figée au build via `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, ce qui obligeait à la stocker côté GitHub -- refusé par l'utilisateur, même pour une clé publique.
+
+### Modifié
+
+- **`getVapidPublicKey()`** (`src/server/notifications/webPush.ts`) : lit `PLANTES_VAPID_PUBLIC_KEY` au runtime, repli sur `NEXT_PUBLIC_VAPID_PUBLIC_KEY` pour les installations existantes. La page Paramètres la transmet en prop à `NotificationSettings` au lieu du `process.env.NEXT_PUBLIC_*` inliné au build.
+- **Dockerfile** : plus d'`ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY` -- aucune configuration d'instance dans l'image, une même image sert n'importe quelle instance.
+- **CI** : le job `image` ne dépend plus d'aucune variable de dépôt (contrôle `JUNGLY_HOSTED_VAPID_PUBLIC_KEY` et build arg retirés).
+- README / `.env.example` : plus de `--build-arg` à passer.
+
+### Vérifié
+
+- Lint, `tsc --noEmit`, 439 tests unitaires.
+- Image construite SANS aucune clé, lancée avec une clé factice en variable d'environnement : la page Paramètres (session réelle) contient bien cette clé.
+
 ## [Post-MVP] - 2026-09-21 — Refonte de jungly-admin (pas de dépôt git séparé, trace ici)
 
 Demande utilisateur : "une vraie refonte, pas des sparadraps" — tout était empilé sur une seule page, CSS/JS dupliqués intégralement entre `index.html` et `tickets.html`, thème suivant `prefers-color-scheme` (sombre sans le demander), aucun graphique alors que les données existaient déjà côté serveur.

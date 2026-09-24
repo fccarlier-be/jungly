@@ -3,9 +3,21 @@ import { db } from "@/server/db";
 
 let configured = false;
 
+/**
+ * Cle VAPID publique, lue au RUNTIME (environnement du conteneur) puis
+ * transmise au navigateur par la page Parametres -- jamais figee au build
+ * via NEXT_PUBLIC_*, pour qu'une meme image Docker serve n'importe quelle
+ * instance (image CI de l'instance hebergee, auto-hebergement). Repli sur
+ * NEXT_PUBLIC_VAPID_PUBLIC_KEY pour les installations existantes qui ne
+ * definissaient que celle-la.
+ */
+export function getVapidPublicKey(): string | null {
+  return process.env.PLANTES_VAPID_PUBLIC_KEY || process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || null;
+}
+
 function ensureConfigured() {
   if (configured) return;
-  const publicKey = process.env.PLANTES_VAPID_PUBLIC_KEY ?? process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const publicKey = getVapidPublicKey();
   const privateKey = process.env.PLANTES_VAPID_PRIVATE_KEY;
   if (!publicKey || !privateKey) {
     throw new Error("Cles VAPID manquantes (PLANTES_VAPID_PUBLIC_KEY / PLANTES_VAPID_PRIVATE_KEY).");

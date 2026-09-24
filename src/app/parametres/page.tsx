@@ -11,6 +11,7 @@ import WeatherSettings from "@/components/WeatherSettings";
 import UnitSettings from "@/components/UnitSettings";
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 import { countOpenReports } from "@/server/cuttings/reports";
+import { getVapidPublicKey } from "@/server/notifications/webPush";
 
 export default async function SettingsPage() {
   const userId = await requireSessionUserId();
@@ -43,6 +44,7 @@ export default async function SettingsPage() {
             overdueEnabled: preference.overdueEnabled,
             advanceReminderDays: preference.advanceReminderDays,
           }}
+          vapidPublicKey={getVapidPublicKey()}
         />
       </section>
 
