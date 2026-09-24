@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
-import { getLatestAnnouncement, createAnnouncement, markAnnouncementSeen } from "@/server/announcements";
+import { getLatestAnnouncement, getUnseenAnnouncements, createAnnouncement, markAnnouncementSeen } from "@/server/announcements";
 
 /**
  * Integration reelle (vraie base SQLite), meme pattern que les autres
@@ -50,6 +50,39 @@ describe("announcements (integration reelle SQLite)", () => {
 
     const user = await db.user.findUniqueOrThrow({ where: { id: userId } });
     expect(user.lastSeenAnnouncementId).toBe(announcement.id);
+  });
+
+  describe("getUnseenAnnouncements : la derniere, suivie des precedentes ratees", () => {
+    async function publish(...titles: string[]) {
+      const created = [];
+      for (const title of titles) {
+        created.push(await createAnnouncement({ title: `TEST-${title}`, body: `corps ${title}` }));
+        await new Promise((r) => setTimeout(r, 5));
+      }
+      return created;
+    }
+    const titlesOf = (list: Array<{ title: string }>) => list.filter((a) => a.title.startsWith("TEST-")).map((a) => a.title);
+
+    it("jamais rien vu : les 3 plus recentes, de la plus recente a la plus ancienne", async () => {
+      await publish("a1", "a2", "a3", "a4");
+      expect(titlesOf(await getUnseenAnnouncements(userId))).toEqual(["TEST-a4", "TEST-a3", "TEST-a2"]);
+    });
+
+    it("a deja vu une annonce recente : seules les plus recentes qu'elle restent", async () => {
+      const [, a2, a3, a4] = await publish("b1", "b2", "b3", "b4");
+      await markAnnouncementSeen(userId, a2.id);
+      expect(titlesOf(await getUnseenAnnouncements(userId))).toEqual(["TEST-b4", "TEST-b3"]);
+      await markAnnouncementSeen(userId, a3.id);
+      expect(titlesOf(await getUnseenAnnouncements(userId))).toEqual(["TEST-b4"]);
+      await markAnnouncementSeen(userId, a4.id);
+      expect(await getUnseenAnnouncements(userId)).toEqual([]);
+    });
+
+    it("la derniere vue est plus ancienne que la fenetre : les 3 plus recentes", async () => {
+      const [a1] = await publish("c1", "c2", "c3", "c4", "c5");
+      await markAnnouncementSeen(userId, a1.id);
+      expect(titlesOf(await getUnseenAnnouncements(userId))).toEqual(["TEST-c5", "TEST-c4", "TEST-c3"]);
+    });
   });
 
   it("une annonce supprimee libere lastSeenAnnouncementId (onDelete: SetNull)", async () => {

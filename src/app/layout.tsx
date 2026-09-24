@@ -6,8 +6,7 @@ import type { CSSProperties } from "react";
 import { Leaf } from "@/components/icons";
 import "./globals.css";
 import { auth } from "@/server/auth";
-import { db } from "@/server/db";
-import { getLatestAnnouncement } from "@/server/announcements";
+import { getUnseenAnnouncements } from "@/server/announcements";
 import BottomNav from "@/components/BottomNav";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import AuthSessionProvider from "@/components/AuthSessionProvider";
@@ -87,20 +86,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // s'executer sous la CSP, sans recourir a 'unsafe-inline' pour script-src.
   const nonce = (await headers()).get("x-nonce");
 
-  // Modale de nouveautes (voir AnnouncementModal.tsx) : seulement si une
-  // annonce existe ET que ce compte ne l'a pas deja acquittee -- une seule
-  // requete de plus au chargement, negligeable a cote des autres queries
-  // deja faites par chaque page.
-  let pendingAnnouncement: { id: string; title: string; body: string } | null = null;
-  if (session?.user?.id) {
-    const [latest, user] = await Promise.all([
-      getLatestAnnouncement(),
-      db.user.findUnique({ where: { id: session.user.id }, select: { lastSeenAnnouncementId: true } }),
-    ]);
-    if (latest && latest.id !== user?.lastSeenAnnouncementId) {
-      pendingAnnouncement = latest;
-    }
-  }
+  // Modale de nouveautes (voir AnnouncementModal.tsx) : les annonces recentes
+  // que ce compte n'a pas encore acquittees (la derniere, suivie des deux
+  // precedentes qu'il aurait pu rater) -- voir getUnseenAnnouncements.
+  const pendingAnnouncements = session?.user?.id ? await getUnseenAnnouncements(session.user.id) : [];
 
   return (
     <html lang="fr" className={`${inter.variable} ${fraunces.variable}`}>
@@ -129,7 +118,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ServiceWorkerRegistration />
         {session?.user ? (
           <AuthSessionProvider>
-            {pendingAnnouncement && <AnnouncementModal announcement={pendingAnnouncement} />}
+            {pendingAnnouncements.length > 0 && <AnnouncementModal announcements={pendingAnnouncements} />}
             {/* Bascule shell mobile/desktop a lg (1024px), pas md (768px) :
                 une tablette est plus large que 768px mais reste un appareil
                 tactile -- elle doit garder la nav du bas, pas la barre

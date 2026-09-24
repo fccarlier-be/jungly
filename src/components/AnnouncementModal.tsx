@@ -18,7 +18,9 @@ export interface AnnouncementModalData {
  * fermer l'acquitte cote serveur, elle ne reapparaitra plus jusqu'a la
  * PROCHAINE annonce publiee.
  */
-export default function AnnouncementModal({ announcement }: { announcement: AnnouncementModalData }) {
+export default function AnnouncementModal({ announcements }: { announcements: AnnouncementModalData[] }) {
+  // La plus recente en tete ; les suivantes sont celles que le membre a pu rater.
+  const [announcement, ...previous] = announcements;
   const [visible, setVisible] = useState(true);
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -54,7 +56,7 @@ export default function AnnouncementModal({ announcement }: { announcement: Anno
       aria-modal="true"
       aria-labelledby="announcement-title"
     >
-      <div className="card w-full max-w-sm space-y-4 p-5">
+      <div className="card max-h-[88vh] w-full max-w-sm space-y-4 overflow-y-auto p-5">
         <div className="flex items-start gap-3">
           <span
             className="icon-disc flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
@@ -69,6 +71,18 @@ export default function AnnouncementModal({ announcement }: { announcement: Anno
         </div>
 
         <p className="whitespace-pre-line text-sm leading-relaxed">{announcement.body}</p>
+
+        {previous.length > 0 && (
+          <div className="space-y-3 border-t pt-3" style={{ borderColor: "var(--border)" }}>
+            <p className="text-muted text-xs font-semibold uppercase tracking-wide">Précédemment</p>
+            {previous.map((item) => (
+              <div key={item.id} className="space-y-1">
+                <p className="text-sm font-semibold leading-tight">{item.title}</p>
+                <p className="text-muted whitespace-pre-line text-sm leading-relaxed">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         <label className="flex items-center gap-2 text-sm">
           <input

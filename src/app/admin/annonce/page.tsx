@@ -22,8 +22,8 @@ export default async function AdminAnnouncementPage() {
       <section className="card space-y-3 p-4 text-sm">
         <h2 className="font-semibold">Publier une nouvelle annonce</h2>
         <p className="text-muted">
-          Remplace l&apos;annonce actuelle pour tous les comptes — chacun la reverra à son prochain chargement de
-          l&apos;app, qu&apos;il ait déjà vu ou non la précédente.
+          Chaque compte la verra à son prochain chargement de l&apos;app. Elle s&apos;affiche en tête, suivie des deux
+          annonces précédentes que le membre n&apos;a pas encore vues (jamais celles qu&apos;il a déjà lues).
         </p>
         <AnnouncementAdminForm />
       </section>
