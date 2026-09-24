@@ -105,10 +105,25 @@ const sensorBackupSchema = z.object({
   readings: z.array(sensorReadingBackupSchema).max(MAX_READINGS_PER_SENSOR).default([]),
 });
 
+// Reference vers la fiche de bibliotheque d'une plante. Les fiches sont des
+// lignes propres a chaque serveur (ids differents d'une instance a l'autre) :
+// on exporte donc de quoi la RETROUVER (source + sourceId, ou source + noms
+// pour une fiche LOCAL saisie a la main) plutot que son id.
+const libraryEntryRefSchema = z.object({
+  source: z.string().max(MAX_SHORT_STRING),
+  sourceId: z.string().max(MAX_SHORT_STRING).nullable().optional(),
+  commonName: z.string().max(MAX_SHORT_STRING),
+  scientificName: z.string().max(MAX_SHORT_STRING).nullable().optional(),
+});
+
 const plantBackupSchema = z.object({
   name: z.string().max(MAX_SHORT_STRING),
   scientificName: z.string().max(MAX_SHORT_STRING).nullable().optional(),
   photoUrl: z.string().max(MAX_URL_STRING).nullable().optional(),
+  libraryEntry: libraryEntryRefSchema.nullable().optional(),
+  // Photo de la fiche de bibliotheque, embarquee dans l'archive : sert de
+  // couverture de repli quand le serveur cible ne connait pas cette fiche.
+  libraryImageUrl: z.string().max(MAX_URL_STRING).nullable().optional(),
   locationName: z.string().max(MAX_SHORT_STRING).nullable().optional(),
   acquiredAt: z.coerce.date().nullable().optional(),
   potShape: z.enum(["ROUND", "RECTANGULAR"]).optional(),

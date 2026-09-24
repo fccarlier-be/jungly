@@ -21,6 +21,18 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
  * (état dérivé, régénéré par le CareEngine) ne sont volontairement pas
  * exportés.
  */
+/**
+ * Photo mirroree localement de la fiche de bibliotheque d'une plante SANS
+ * photo propre : c'est celle que l'application affiche a la place. Sans elle
+ * dans l'archive, la plante perd son image des qu'elle est importee sur un
+ * serveur qui n'a pas cette fiche.
+ */
+function libraryImageOf(plant: { photoUrl: string | null; libraryEntry: { careProfile: unknown } | null }): string | null {
+  if (plant.photoUrl) return null;
+  const imageUrl = (plant.libraryEntry?.careProfile as { imageUrl?: string } | null)?.imageUrl;
+  return imageUrl?.startsWith("/library-photos/") ? imageUrl : null;
+}
+
 export async function GET() {
   try {
     const userId = await requireUserId();
@@ -40,6 +52,7 @@ export async function GET() {
         where: { userId },
         include: {
           location: true,
+          libraryEntry: true,
           careRules: true,
           careEvents: { orderBy: { performedAt: "asc" } },
           plantNotes: { orderBy: { createdAt: "asc" } },
@@ -74,6 +87,15 @@ export async function GET() {
           name: p.name,
           scientificName: p.scientificName,
           photoUrl: p.photoUrl,
+          libraryEntry: p.libraryEntry
+            ? {
+                source: p.libraryEntry.source,
+                sourceId: p.libraryEntry.sourceId,
+                commonName: p.libraryEntry.commonName,
+                scientificName: p.libraryEntry.scientificName,
+              }
+            : null,
+          libraryImageUrl: libraryImageOf(p),
           locationName: p.location?.name ?? null,
           acquiredAt: p.acquiredAt,
           potShape: p.potShape,
@@ -142,6 +164,7 @@ export async function GET() {
     const referencedUrls = new Set<string>();
     for (const p of data.plants) {
       if (p.photoUrl) referencedUrls.add(p.photoUrl);
+      if (p.libraryImageUrl) referencedUrls.add(p.libraryImageUrl);
       for (const url of p.photos) referencedUrls.add(url);
       for (const note of p.plantNotes) if (note.photoUrl) referencedUrls.add(note.photoUrl);
     }

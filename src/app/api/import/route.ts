@@ -21,6 +21,7 @@ import {
 import { ensurePendingTaskForRule } from "@/server/careEngine/service";
 import { resolveUploadedFilePath, deleteUploadedFile } from "@/server/uploads";
 import { resolveLibraryPhotoPath, deleteLibraryPhoto } from "@/server/libraryPhotos";
+import { findLibraryEntryId } from "@/server/libraryLink";
 import { generateSensorApiKey } from "@/server/sensorAuth";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
@@ -269,12 +270,19 @@ export async function POST(request: NextRequest) {
         for (const p of data.plants) {
           const locationId = p.locationName ? locationIdByName.get(p.locationName) : undefined;
 
+          // Lien vers la fiche de bibliotheque retrouvee sur CE serveur ; a
+          // defaut, la photo de la fiche (embarquee dans l'archive) sert de
+          // couverture pour que la plante ne perde pas son image.
+          const libraryEntryId = p.libraryEntry ? await findLibraryEntryId(tx, p.libraryEntry) : null;
+          const coverUrl = remapUrl(p.photoUrl) ?? (libraryEntryId ? null : remapUrl(p.libraryImageUrl));
+
           const plant = await tx.plant.create({
             data: {
               userId,
               name: p.name,
               scientificName: p.scientificName ?? undefined,
-              photoUrl: remapUrl(p.photoUrl) ?? undefined,
+              photoUrl: coverUrl ?? undefined,
+              libraryEntryId: libraryEntryId ?? undefined,
               locationId,
               acquiredAt: p.acquiredAt ?? undefined,
               potShape: p.potShape ?? undefined,
