@@ -473,3 +473,11 @@ export const UserRound = make(() => (
     <path d="M4.5 21a7.5 7.5 0 0 1 15 0Z" fillOpacity={0.6} />
   </>
 ));
+
+export const MoreHorizontal = make(() => (
+  <>
+    <circle cx={5.5} cy={12} r={2.1} />
+    <circle cx={12} cy={12} r={2.1} />
+    <circle cx={18.5} cy={12} r={2.1} />
+  </>
+));

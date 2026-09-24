@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Thermometer } from "@/components/icons";
 import { requireSessionUserId } from "@/lib/session";
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
@@ -14,6 +13,7 @@ import { getLibraryImageMap } from "@/lib/libraryImages";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 import CuttingsBanner from "@/components/CuttingsBanner";
+import { groupTasksByPlant } from "@/lib/taskGroups";
 import { HomeBanner, PlantPlaceholder, PotSprout, RestScene, bannerVariantForHour } from "@/components/art/paper";
 
 // Seulement "Bonjour"/"Bonsoir" (retour utilisateur) : "Bon après-midi" est
@@ -144,36 +144,31 @@ export default async function DashboardPage() {
   const bannerVariant = bannerVariantForHour(now.getHours());
 
   return (
-    <div className="space-y-7">
-      <div className="animate-rise-in space-y-3">
-        <div
-          className="relative h-36 overflow-hidden rounded-3xl sm:h-44"
-          style={{ color: bannerVariant === "nuit" ? "#f3ecd9" : "#0f2a20" }}
-        >
-          <HomeBanner variant={bannerVariant} className="absolute inset-0 h-full w-full" />
-          <div className="absolute left-5 top-4 max-w-[64%]">
-            <h1 className="font-logo text-2xl font-bold leading-tight">
-              {greeting()}
-              {firstName ? ` ${firstName}` : ""}
-            </h1>
-            <p className="mt-0.5 text-xs opacity-85">{dateLabel()}</p>
-          </div>
+    <div className="space-y-5" data-no-bg>
+      {/* Bandeau unique : salutation, date/meteo et message du jour dans le
+          ciel du paysage (les collines restent en bas, sous le texte). */}
+      <div
+        className="animate-rise-in relative h-32 overflow-hidden rounded-3xl"
+        style={{ color: bannerVariant === "nuit" ? "#f3ecd9" : "#0f2a20" }}
+      >
+        <HomeBanner variant={bannerVariant} compact className="absolute inset-0 h-full w-full" />
+        <div className="absolute left-4 top-3 max-w-[64%]">
+          <h1 className="font-logo truncate text-xl font-bold leading-tight">
+            {greeting()}
+            {firstName ? ` ${firstName}` : ""}
+          </h1>
+          <p className="truncate text-xs opacity-80">
+            {dateLabel()}
+            {weatherProfile ? ` · ${weatherProfile.city} ${multiplierShortLabel(weatherProfile.wateringIntervalMultiplier)}` : ""}
+          </p>
+          {hero && <p className="mt-1 text-xs font-medium leading-snug">{hero}</p>}
         </div>
-        {hero && <p className="text-muted text-base">{hero}</p>}
-        {weatherProfile && (
-          <div className="text-muted flex items-center gap-1.5 text-sm">
-            <Thermometer size={14} />
-            <span>
-              {weatherProfile.city} · {multiplierShortLabel(weatherProfile.wateringIntervalMultiplier)}
-            </span>
-          </div>
-        )}
       </div>
 
       {isCuttingsMarketplaceEnabled() && <CuttingsBanner />}
 
       <NoScrollDashboard>
-        <div className="space-y-7">
+        <div className="space-y-5">
           {cards.length === 0 ? (
             plantCount === 0 ? (
               <EmptyState
@@ -191,10 +186,10 @@ export default async function DashboardPage() {
               />
             )
           ) : (
-            <div className="space-y-3">
-              {cards.map((task, i) => (
-                <div key={task.id} className="animate-rise-in" style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}>
-                  <TaskCard task={task} />
+            <div className="space-y-2">
+              {groupTasksByPlant(cards).map((group, i) => (
+                <div key={group[0].plantId} className="animate-rise-in" style={{ animationDelay: `${Math.min(i, 6) * 40}ms` }}>
+                  <TaskCard tasks={group} />
                 </div>
               ))}
             </div>

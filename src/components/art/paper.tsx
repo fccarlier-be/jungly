@@ -215,43 +215,49 @@ export function bannerVariantForHour(hour: number): BannerVariant {
   return hour < 12 ? "matin" : "aprem";
 }
 
-export function HomeBanner({ variant, className }: { variant: BannerVariant; className?: string }) {
+export function HomeBanner({ variant, className, compact = false }: { variant: BannerVariant; className?: string; compact?: boolean }) {
   const v = VARIANTS[variant];
+  // Version "bandeau" (accueil) : plus large que haute, ciel degage pour le
+  // texte, collines et feuillages ramenes dans la bande du bas.
+  const H = compact ? 140 : 190;
+  const sy = compact ? 38 : v.sy;
+  const hills = compact ? [100, 115, 129] : [130, 150, 170];
+  const baseY = compact ? 152 : 196;
   return (
-    <svg className={className} viewBox="0 0 400 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
-      <rect width={400} height={190} fill={v.sky} />
+    <svg className={className} viewBox={`0 0 400 ${H}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+      <rect width={400} height={H} fill={v.sky} />
       {variant === "nuit" ? (
         <>
-          {STARS.map(([x, y]) => (
+          {STARS.filter(([, y]) => y < (compact ? 70 : 100)).map(([x, y]) => (
             <circle key={`${x}-${y}`} cx={x} cy={y} r={1.6} fill={C.papier} opacity={0.8} />
           ))}
           <g filter={CUT}>
-            <circle cx={v.sx} cy={v.sy} r={22} fill={C.papier} />
+            <circle cx={v.sx} cy={sy} r={22} fill={C.papier} />
           </g>
-          <circle cx={v.sx + 9} cy={v.sy - 5} r={19} fill={v.sky} />
+          <circle cx={v.sx + 9} cy={sy - 5} r={19} fill={v.sky} />
         </>
       ) : (
         <>
-          <circle cx={v.sx} cy={v.sy} r={46} fill={v.sun![2]} />
-          <circle cx={v.sx} cy={v.sy} r={34} fill={v.sun![1]} />
+          <circle cx={v.sx} cy={sy} r={46} fill={v.sun![2]} />
+          <circle cx={v.sx} cy={sy} r={34} fill={v.sun![1]} />
           <g filter={CUT}>
-            <circle cx={v.sx} cy={v.sy} r={22} fill={v.sun![0]} />
+            <circle cx={v.sx} cy={sy} r={22} fill={v.sun![0]} />
           </g>
         </>
       )}
-      <Wave y={130} amp={9} ph={0.5} fill={v.h[0]} />
-      <Wave y={150} amp={8} ph={2} fill={v.h[1]} />
-      <Wave y={170} amp={6} ph={4} fill={v.h[2]} />
-      <Place x={46} y={196} rot={-14} s={0.52}>
+      <Wave y={hills[0]} amp={compact ? 6 : 9} ph={0.5} fill={v.h[0]} h={H} />
+      <Wave y={hills[1]} amp={compact ? 5 : 8} ph={2} fill={v.h[1]} h={H} />
+      <Wave y={hills[2]} amp={compact ? 4 : 6} ph={4} fill={v.h[2]} h={H} />
+      <Place x={46} y={baseY} rot={-14} s={compact ? 0.36 : 0.52}>
         <Monstera id="hb-m1" c1={v.m[0]} c2={v.m[1]} />
       </Place>
-      <Place x={20} y={196} rot={8} s={0.8}>
+      <Place x={20} y={baseY} rot={8} s={compact ? 0.55 : 0.8}>
         <Frond len={120} bend={-45} n={11} L={34} W={8} c1={v.f[0]} c2={v.f[1]} />
       </Place>
-      <Place x={356} y={198} rot={18} s={0.5}>
+      <Place x={356} y={baseY + 2} rot={18} s={compact ? 0.36 : 0.5}>
         <Monstera id="hb-m2" c1={v.m[1]} c2={v.m[0]} />
       </Place>
-      <Place x={384} y={196} rot={-8} s={0.78}>
+      <Place x={384} y={baseY} rot={-8} s={compact ? 0.55 : 0.78}>
         <Frond len={116} bend={45} n={11} L={34} W={8} c1={v.f[0]} c2={v.f[1]} />
       </Place>
     </svg>

@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Check } from "@/components/icons";
+import { Check, MoreHorizontal } from "@/components/icons";
 import { formatRelativeDueDate } from "@/lib/units";
 import { CareAvatar } from "@/components/careIcons";
 import SwipeableCard from "@/components/SwipeableCard";
@@ -33,7 +33,53 @@ const COMPLETE_LABEL: Record<string, string> = {
   OTHER: "Terminée",
 };
 
-export default function TaskCard({ task, showPlantName = true }: { task: TaskCardData; showPlantName?: boolean }) {
+function PlantThumb({ task, size, badge }: { task: TaskCardData; size: number; badge?: boolean }) {
+  return (
+    <Link
+      href={`/plantes/${task.plantId}`}
+      className="relative block shrink-0"
+      style={{ width: size, height: size }}
+      aria-label={task.plant?.name ?? "Voir la plante"}
+    >
+      <span className="relative block h-full w-full overflow-hidden rounded-xl" style={{ background: "var(--surface-alt)" }}>
+        {task.plantImage ? (
+          <Image
+            src={task.plantImage}
+            alt=""
+            fill
+            sizes={`${size}px`}
+            className="object-cover"
+            unoptimized={bypassesImageOptimizer(task.plantImage)}
+          />
+        ) : (
+          <PlantPlaceholder className="h-full w-full" />
+        )}
+      </span>
+      {badge && <CareAvatar type={task.type} size={24} className="absolute -bottom-1 -right-1" />}
+    </Link>
+  );
+}
+
+/**
+ * Une tache = une ligne, avec SES PROPRES actions (valider, reporter) : dans
+ * une carte regroupant plusieurs soins d'une meme plante, valider l'arrosage
+ * ne touche jamais a la fertilisation.
+ */
+function TaskRow({
+  task,
+  lead,
+  primary,
+  secondary,
+  wrapClass,
+  radius,
+}: {
+  task: TaskCardData;
+  lead: ReactNode;
+  primary: ReactNode;
+  secondary: ReactNode;
+  wrapClass: string;
+  radius: string;
+}) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
@@ -143,110 +189,144 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
 
   return (
     <>
-    <SwipeableCard onSwipeLeft={complete} onSwipeRight={swipeSnooze} disabled={pending}>
-    <div
-      className="card p-3 transition-all duration-300"
-      style={done ? { opacity: 0.4, transform: "scale(0.98)" } : undefined}
-    >
-      <div className="flex items-center gap-3">
-        <CareAvatar type={task.type} size={36} />
-        <Link href={`/plantes/${task.plantId}`} className="block min-w-0 flex-1">
-          {showPlantName && task.plant?.name ? (
-            <p className="truncate text-base font-semibold leading-tight">{task.plant.name}</p>
-          ) : (
-            <p className="text-base font-semibold leading-tight">{task.title}</p>
-          )}
-          <p className="text-muted text-sm leading-snug">
-            {showPlantName && task.plant?.name ? `${task.title} · ` : ""}
-            {formatRelativeDueDate(task.dueAt)}
-          </p>
-          {task.subtitle && <p className="text-muted text-xs leading-snug">{task.subtitle}</p>}
-        </Link>
-        <Link
-          href={`/plantes/${task.plantId}`}
-          className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl"
-          style={{ background: "var(--surface-alt)" }}
-        >
-          {task.plantImage ? (
-            <Image
-              src={task.plantImage}
-              alt=""
-              fill
-              sizes="48px"
-              className="object-cover"
-              unoptimized={bypassesImageOptimizer(task.plantImage)}
-            />
-          ) : (
-            <PlantPlaceholder className="h-full w-full" />
-          )}
-        </Link>
-      </div>
-      <div className="pl-[48px]">
-        <div className="flex gap-2 pt-2.5">
-          <button
-            onClick={complete}
-            disabled={pending}
-            className="btn-primary flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold disabled:opacity-60"
-          >
-            {done ? <Check size={16} className="animate-pop" /> : null}
-            {COMPLETE_LABEL[task.type]}
-          </button>
-          <button
-            ref={buttonRef}
-            type="button"
-            onClick={toggleMenu}
-            className="chip cursor-pointer rounded-xl px-3 py-2 text-sm"
-          >
-            Reporter
-          </button>
-        </div>
-        {error && (
-          <p role="alert" className="pt-2 text-sm" style={{ color: "var(--danger)" }}>
-            {error}
-          </p>
-        )}
-      </div>
-    </div>
-    </SwipeableCard>
-    {menuOpen && menuPosition
-      ? createPortal(
-          <div
-            ref={menuRef}
-            className="card fixed z-50 w-48 space-y-1 p-2"
-            style={{ top: menuPosition.top, right: menuPosition.right }}
-          >
-            <button onClick={() => snoozeDays(1)} className="btn-ghost block w-full rounded-lg px-2 py-1.5 text-left text-sm">
-              Demain
-            </button>
-            <button onClick={() => snoozeDays(3)} className="btn-ghost block w-full rounded-lg px-2 py-1.5 text-left text-sm">
-              Dans 3 jours
-            </button>
-            <button onClick={() => snoozeDays(7)} className="btn-ghost block w-full rounded-lg px-2 py-1.5 text-left text-sm">
-              Dans 7 jours
-            </button>
-            <div className="flex gap-1 pt-1">
-              <input
-                type="date"
-                value={customDate}
-                onChange={(e) => setCustomDate(e.target.value)}
-                className="input w-full px-1.5 py-1 text-sm"
-              />
-              <button
-                onClick={() => {
-                  if (!customDate) return;
-                  setMenuOpen(false);
-                  void snooze(new Date(customDate));
-                }}
-                disabled={!customDate}
-                className="chip rounded-lg px-2 text-sm disabled:opacity-50"
-              >
-                OK
-              </button>
+      <SwipeableCard onSwipeLeft={complete} onSwipeRight={swipeSnooze} disabled={pending} radius={radius}>
+        <div className={wrapClass} style={done ? { opacity: 0.4, transform: "scale(0.98)" } : { transition: "all 300ms" }}>
+          <div className="flex items-center gap-3">
+            {lead}
+            <div className="min-w-0 flex-1">
+              {primary}
+              {secondary}
+              {task.subtitle && <p className="text-muted truncate text-xs leading-snug">{task.subtitle}</p>}
             </div>
-          </div>,
-          document.body,
-        )
-      : null}
+            <button
+              type="button"
+              onClick={complete}
+              disabled={pending}
+              className="btn-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-full disabled:opacity-60"
+              aria-label={COMPLETE_LABEL[task.type]}
+              title={COMPLETE_LABEL[task.type]}
+            >
+              <Check size={18} className={done ? "animate-pop" : undefined} />
+            </button>
+            <button
+              ref={buttonRef}
+              type="button"
+              onClick={toggleMenu}
+              className="chip flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full"
+              aria-label="Reporter"
+              title="Reporter"
+            >
+              <MoreHorizontal size={18} />
+            </button>
+          </div>
+          {error && (
+            <p role="alert" className="pt-2 text-sm" style={{ color: "var(--danger)" }}>
+              {error}
+            </p>
+          )}
+        </div>
+      </SwipeableCard>
+      {menuOpen && menuPosition
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className="card fixed z-50 w-48 space-y-1 p-2"
+              style={{ top: menuPosition.top, right: menuPosition.right }}
+            >
+              <button onClick={() => snoozeDays(1)} className="btn-ghost block w-full rounded-lg px-2 py-1.5 text-left text-sm">
+                Demain
+              </button>
+              <button onClick={() => snoozeDays(3)} className="btn-ghost block w-full rounded-lg px-2 py-1.5 text-left text-sm">
+                Dans 3 jours
+              </button>
+              <button onClick={() => snoozeDays(7)} className="btn-ghost block w-full rounded-lg px-2 py-1.5 text-left text-sm">
+                Dans 7 jours
+              </button>
+              <div className="flex gap-1 pt-1">
+                <input
+                  type="date"
+                  value={customDate}
+                  onChange={(e) => setCustomDate(e.target.value)}
+                  className="input w-full px-1.5 py-1 text-sm"
+                />
+                <button
+                  onClick={() => {
+                    if (!customDate) return;
+                    setMenuOpen(false);
+                    void snooze(new Date(customDate));
+                  }}
+                  disabled={!customDate}
+                  className="chip rounded-lg px-2 text-sm disabled:opacity-50"
+                >
+                  OK
+                </button>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
+  );
+}
+
+function dueLabel(task: TaskCardData): ReactNode {
+  const due = new Date(task.dueAt);
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const overdue = due.getTime() < startOfToday.getTime();
+  return (
+    <span style={overdue ? { color: "var(--accent)", fontWeight: 600 } : undefined}>{formatRelativeDueDate(task.dueAt)}</span>
+  );
+}
+
+/**
+ * Carte d'une plante : une seule tache = une ligne compacte (photo, nom,
+ * soin + echeance, valider, reporter) ; plusieurs taches de la meme plante =
+ * un en-tete (photo, nom) puis une ligne par tache, chacune avec ses propres
+ * boutons.
+ */
+export default function TaskCard({ tasks }: { tasks: TaskCardData[] }) {
+  const first = tasks[0];
+  const plantName = first.plant?.name ?? "";
+
+  if (tasks.length === 1) {
+    return (
+      <TaskRow
+        task={first}
+        wrapClass="card-flat p-2.5"
+        radius="1.1rem"
+        lead={<PlantThumb task={first} size={48} badge />}
+        primary={<p className="truncate text-base font-semibold leading-tight">{plantName || first.title}</p>}
+        secondary={
+          <p className="text-muted truncate text-sm leading-snug">
+            {plantName ? `${first.title} · ` : ""}
+            {dueLabel(first)}
+          </p>
+        }
+      />
+    );
+  }
+
+  return (
+    <div className="card-flat space-y-1 p-2.5">
+      <div className="flex items-center gap-3 pb-1">
+        <PlantThumb task={first} size={40} />
+        <Link href={`/plantes/${first.plantId}`} className="min-w-0 flex-1 truncate text-base font-semibold leading-tight">
+          {plantName}
+        </Link>
+        <span className="text-muted text-xs">{tasks.length} soins</span>
+      </div>
+      {tasks.map((task) => (
+        <TaskRow
+          key={task.id}
+          task={task}
+          wrapClass="rounded-xl bg-[var(--surface)] px-1 py-1.5"
+          radius="0.9rem"
+          lead={<CareAvatar type={task.type} size={32} />}
+          primary={<p className="text-sm font-medium leading-tight">{task.title}</p>}
+          secondary={<p className="text-muted text-sm leading-snug">{dueLabel(task)}</p>}
+        />
+      ))}
+    </div>
   );
 }

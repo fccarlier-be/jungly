@@ -2,6 +2,7 @@ import { requireSessionUserId } from "@/lib/session";
 import { db } from "@/server/db";
 import { effectiveDueDate, isTaskDueNow } from "@/server/careEngine/dueTasks";
 import TaskCard, { type TaskCardData } from "@/components/TaskCard";
+import { groupTasksByPlant } from "@/lib/taskGroups";
 import EmptyState from "@/components/EmptyState";
 import { RestScene } from "@/components/art/paper";
 import { getLibraryImageMap } from "@/lib/libraryImages";
@@ -68,8 +69,8 @@ function TaskSection({ title, tasks, emptyLabel }: { title: string; tasks: TaskC
         <p className="text-muted text-sm">{emptyLabel}</p>
       ) : (
         <div className="space-y-2">
-          {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} />
+          {groupTasksByPlant(tasks).map((group) => (
+            <TaskCard key={group[0].plantId} tasks={group} />
           ))}
         </div>
       )}

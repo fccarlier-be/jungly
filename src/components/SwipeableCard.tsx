@@ -17,11 +17,13 @@ export default function SwipeableCard({
   onSwipeLeft,
   onSwipeRight,
   disabled,
+  radius = "1.25rem",
 }: {
   children: ReactNode;
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
   disabled?: boolean;
+  radius?: string;
 }) {
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -52,12 +54,12 @@ export default function SwipeableCard({
   const progress = Math.min(Math.abs(dragX) / SWIPE_THRESHOLD_PX, 1);
 
   return (
-    <div className="relative overflow-hidden" style={{ borderRadius: "1.25rem" }}>
+    <div className="relative overflow-hidden" style={{ borderRadius: radius }}>
       {dragX !== 0 && (
         <div
           className="absolute inset-0 flex items-center"
           style={{
-            borderRadius: "1.25rem",
+            borderRadius: radius,
             background: revealRight ? "var(--warning)" : "var(--primary)",
             justifyContent: revealRight ? "flex-start" : "flex-end",
             opacity: progress,

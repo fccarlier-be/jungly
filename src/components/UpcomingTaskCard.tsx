@@ -67,7 +67,7 @@ export default function UpcomingTaskCard({ task }: { task: UpcomingTaskData }) {
   return (
     <div>
       <SwipeableCard onSwipeLeft={complete} onSwipeRight={snoozeOneMoreDay} disabled={pending}>
-        <div className="card flex items-center gap-3 px-3 py-2.5">
+        <div className="card-flat flex items-center gap-3 px-3 py-2.5">
           <CareAvatar type={task.type} size={34} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{task.plantName}</p>

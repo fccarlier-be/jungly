@@ -203,6 +203,9 @@ h1.font-display::before {
   height: min(380px, 70vw);
   width: auto;
 }
+body:has([data-no-bg]) .jg-bg {
+  display: none;
+}
 .jg-bg-a { right: -24px; bottom: 56px; }
 .jg-bg-b { left: -24px; top: -24px; }
 :root[data-theme="dark"] .jg-bg { opacity: 0.16; }
@@ -216,6 +219,13 @@ h1.font-display::before {
   border-radius: 1.4rem;
   box-shadow: var(--shadow-soft);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+/* Carte de liste : quasi plate (fine bordure), pour ne pas surcharger les ecrans denses. */
+.card-flat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1.1rem;
 }
 
 a.card:hover,
