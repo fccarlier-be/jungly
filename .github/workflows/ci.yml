@@ -153,3 +153,67 @@ jobs:
 
       - name: Tests E2E (instance éphémère)
         run: npx playwright test
+
+  # Image de l'instance HEBERGEE (jungly-app.fcold.org, VPS OVH), publiee sur
+  # GHCR puis tiree par le VPS -- le VPS ne compile rien, et ce qui tourne en
+  # production est exactement l'image issue d'un commit dont test + e2e sont
+  # verts. Jamais sur une pull request (aucune image publiee pour du code non
+  # fusionne). Etiquetee sha-<commit> (a epingler cote VPS : deploiement et
+  # retour arriere explicites) et main (derniere image verte, informative).
+  # Distincte d'une image "self-host" : la cle VAPID publique de l'instance
+  # hebergee y est figee au build (NEXT_PUBLIC_*), un auto-hebergeur doit
+  # toujours construire la sienne (`docker compose up`, voir README).
+  image:
+    runs-on: ubuntu-latest
+    needs: [test, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/jungly-hosted
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Variable de depot (Settings > Secrets and variables > Actions >
+      # Variables), pas un secret : c'est une cle PUBLIQUE, deja envoyee a
+      # chaque navigateur. Echec explicite si elle manque -- sinon l'image
+      # se construirait quand meme, avec des notifications push cassees en
+      # silence sur la prod.
+      - name: Vérifie la clé VAPID publique de l'instance hébergée
+        env:
+          VAPID: ${{ vars.JUNGLY_HOSTED_VAPID_PUBLIC_KEY }}
+        run: |
+          if [ -z "$VAPID" ]; then
+            echo "::error::Variable de depot JUNGLY_HOSTED_VAPID_PUBLIC_KEY absente." >&2
+            exit 1
+          fi
+
+      - name: SHA court
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: true
+          build-args: |
+            NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ vars.JUNGLY_HOSTED_VAPID_PUBLIC_KEY }}
+            GIT_SHA=${{ steps.sha.outputs.short }}
+          tags: |
+            ${{ env.IMAGE }}:sha-${{ steps.sha.outputs.short }}
+            ${{ env.IMAGE }}:main
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=Jungly - image de l'instance hebergee (jungly-app.fcold.org), pas pour l'auto-hebergement
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
