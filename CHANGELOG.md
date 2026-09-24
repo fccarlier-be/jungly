@@ -19,6 +19,33 @@ Contexte : migration de l'instance hébergée vers un VPS qui tire une image con
 - Lint, `tsc --noEmit`, 439 tests unitaires.
 - Image construite SANS aucune clé, lancée avec une clé factice en variable d'environnement : la page Paramètres (session réelle) contient bien cette clé.
 
+## [Post-MVP] - 2026-09-24 — Boutures, identité visuelle, durcissement (récapitulatif du 22 au 24 septembre)
+
+Entrée de rattrapage : ces changements ont été livrés commit par commit (voir `git log`), le changelog n'avait pas été tenu à jour depuis le 21.
+
+### Ajouté
+
+- **Diagnostic de santé par photo** (23/09) : questionnaire adaptatif (`qcmTree.ts`), photos guidées, contexte local de la plante, Pl@ntNet comme élément de preuve complémentaire d'un moteur de règles local (jamais un verdict à lui seul). Quota Pl@ntNet journalier suivi en base (`PlantnetDailyUsage`, plafond logiciel 480).
+- **Don et échange de boutures entre comptes** (23–24/09), réservé à l'instance hébergée (`ENABLE_CUTTINGS_MARKETPLACE`) : annonces avec photo obligatoire et quantité, pseudo public unique, messagerie privée chiffrée au repos (AES-256-GCM, `CUTTINGS_MESSAGE_ENCRYPTION_KEY`), plusieurs échanges par annonce avec confirmation explicite, notes mutuelles et réputation, contestation par le destinataire, règle « pas de vente » (refus des prix dans l'annonce, case d'engagement), signalements, page d'administration, avertissements cumulatifs (3ᵉ : suspension d'une semaine, 6ᵉ : un mois, 9ᵉ : bannissement définitif).
+- **Annonces de nouveautés** (23/09) : modale admin ; depuis le 24/09, la dernière annonce est suivie des deux précédentes que le membre n'a pas encore vues (`getUnseenAnnouncements`).
+- **Navigation** : « Outils » remplace « Tâches » dans le menu (la page Tâches reste accessible depuis « Mes plantes »).
+- **Identité visuelle « jungle en papier découpé »** (24/09) : splash animé (une fois par démarrage à froid), en-tête d'accueil qui suit l'heure, jeu d'icônes maison (`components/icons.tsx`) et illustrations SVG (`components/art/paper.tsx`), nouvelle palette et thème sombre vert nuit, Fraunces pour les titres, pastilles de soin, écrans vides et placeholders illustrés. Cartes de tâche compactes, soins d'une même plante regroupés (chaque tâche garde ses propres actions), bandeau « Ma collection » réduit.
+- **Photo depuis l'appareil** : bouton dédié pour prendre une photo (Android), sélecteur d'heure du digest en deux `<select>`.
+
+### Corrigé
+
+- **Export / import** : le lien plante → fiche de bibliothèque est conservé (référence `source`/`sourceId` ou noms pour une fiche locale, plus la photo de la fiche embarquée en repli). Avant, une plante sans photo perso perdait son image après import sur un autre serveur.
+- Photos de bibliothèque protégées du ramasse-miettes lorsqu'elles sont référencées directement ; photos d'annonces de boutures visibles des comptes connectés.
+
+### Sécurité
+
+- **Next.js 16.3.6** (correctif de sécurité du 22/09).
+- **Sessions révoquées à la réinitialisation du mot de passe** : `User.sessionVersion` incrémenté et embarqué dans le JWT ; une session émise avant est refusée (API et pages). Les sessions existantes valent la version 0 : personne n'est déconnecté au déploiement.
+
+### Tests
+
+- Timeout des tests Vitest porté à 30 s (les tests SQLite dépassaient 5 s sous charge). Les tests E2E ciblent la carte de tâche par `data-testid="task-card"`.
+
 ## [Post-MVP] - 2026-09-21 — Refonte de jungly-admin (pas de dépôt git séparé, trace ici)
 
 Demande utilisateur : "une vraie refonte, pas des sparadraps" — tout était empilé sur une seule page, CSS/JS dupliqués intégralement entre `index.html` et `tickets.html`, thème suivant `prefers-color-scheme` (sombre sans le demander), aucun graphique alors que les données existaient déjà côté serveur.
