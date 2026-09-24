@@ -15,7 +15,7 @@ export function feedbackConfirmationEmail(): EmailContent {
     html: emailShell(
       "Merci pour ton retour !",
       `<p style="font-size:0.95rem;line-height:1.6;">Ton retour vient d'être transmis au développeur de Jungly et sera étudié prochainement.</p>
-       <p style="margin:28px 0;"><a href="${TICKETS_URL}" style="background:#22361a;color:#f5f2e6;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Voir l'avancement des retours</a></p>
+       <p style="margin:28px 0;"><a href="${TICKETS_URL}" style="background:#17503a;color:#f5f2e6;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Voir l'avancement des retours</a></p>
        <p style="font-size:0.82rem;color:#6f7566;">Cette page regroupe les tickets ouverts, en cours et résolus.</p>`,
     ),
     text: `Ton retour vient d'être transmis au développeur de Jungly et sera étudié prochainement.

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Ban, Flag, Loader2 } from "lucide-react";
+import { Ban, Flag, Loader2 } from "@/components/icons";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 import {
   CUTTING_LISTING_TYPE_LABEL,

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Sprout, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "@/components/icons";
 import { formatRelativeDueDate } from "@/lib/units";
 import { computePlantStatus } from "@/lib/plantStatus";
 import { CareTypeIcon } from "@/components/careIcons";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
+import { PlantPlaceholder } from "@/components/art/paper";
 
 export interface PlantCardData {
   id: string;
@@ -56,9 +57,7 @@ export default function PlantCard({ plant }: { plant: PlantCardData }) {
             unoptimized={bypassesImageOptimizer(image)}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center" style={{ color: "var(--secondary)" }}>
-            <Sprout size={40} strokeWidth={1.5} />
-          </div>
+          <PlantPlaceholder className="h-full w-full" />
         )}
         {chip && (
           <span className={`badge badge-${chip.tone === "attention" ? "attention" : "today"} absolute left-2.5 top-2.5`} style={{ background: "var(--surface)" }}>

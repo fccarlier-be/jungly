@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { UserRound } from "lucide-react";
+import { UserRound } from "@/components/icons";
 
 /**
  * Choix/modification du pseudo public (voir User.pseudo) -- sans lui, un

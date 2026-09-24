@@ -428,3 +428,55 @@ export function CareDisc({ type, size = 40, className }: { type: string; size?: 
     </svg>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Placeholders et fond                                                */
+/* ------------------------------------------------------------------ */
+
+/** Vignette sans photo : un feuillage sur un disque de papier (aucun mask, donc reutilisable en liste). */
+export function PlantPlaceholder({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+      <rect width={100} height={100} fill="#dbe8d0" />
+      <circle cx={50} cy={58} r={34} fill="#c9dcbb" />
+      <Wave y={78} amp={4} ph={1} fill="#7cc08a" w={100} h={100} />
+      <Wave y={88} amp={3} ph={3} fill={C.fou} w={100} h={100} />
+      <Place x={38} y={96} rot={-8} s={0.32}>
+        <Blade c1={C.pousse} c2={C.sous} c3={C.emer} />
+      </Place>
+      <Place x={64} y={96} rot={12} s={0.28}>
+        <Blade c1={C.soleil} c2={C.sous} c3={C.fou} />
+      </Place>
+      <Place x={50} y={96} rot={0} s={0.42}>
+        <Frond len={100} bend={0} n={9} L={30} W={7} c1={C.fou} c2={C.emer} />
+      </Place>
+    </svg>
+  );
+}
+
+/** Feuillage de fond, tres discret, fixe derriere tout le contenu. */
+export function BackgroundLeaves() {
+  return (
+    <div className="jg-bg" aria-hidden="true">
+      <svg className="jg-bg-a" viewBox="0 0 300 340" preserveAspectRatio="xMaxYMax meet" focusable="false">
+        <Place x={200} y={352} rot={10} s={1.5}>
+          <Monstera id="bg-m1" c1={C.fou} c2={C.pousse} />
+        </Place>
+        <Place x={110} y={352} rot={-6} s={1}>
+          <Frond len={250} bend={-62} n={15} L={46} W={10} c1={C.fou} c2={C.emer} />
+        </Place>
+        <Place x={262} y={352} rot={22} s={0.8}>
+          <Blade c1={C.pousse} c2={C.sous} c3={C.emer} />
+        </Place>
+      </svg>
+      <svg className="jg-bg-b" viewBox="0 0 300 340" preserveAspectRatio="xMinYMin meet" focusable="false">
+        <Place x={120} y={-12} rot={186} s={1.15}>
+          <Monstera id="bg-m2" c1={C.emer} c2={C.fou} />
+        </Place>
+        <Place x={210} y={-12} rot={170} s={0.9}>
+          <Frond len={230} bend={56} n={14} L={42} W={9} c1={C.pousse} c2={C.fou} />
+        </Place>
+      </svg>
+    </div>
+  );
+}

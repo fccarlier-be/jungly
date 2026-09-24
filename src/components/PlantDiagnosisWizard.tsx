@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, Loader2 } from "lucide-react";
+import { Camera, Loader2 } from "@/components/icons";
 import {
   SYMPTOM_CATEGORIES,
   SYMPTOM_CATEGORY_LABEL,

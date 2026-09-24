@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { X } from "lucide-react";
+import { X } from "@/components/icons";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 
 const TOPIC_OPTIONS: { value: string; label: string }[] = [

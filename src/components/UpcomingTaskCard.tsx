@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CareTypeIcon, careSoftBackground } from "@/components/careIcons";
+import { CareAvatar } from "@/components/careIcons";
 import { formatRelativeDueDate } from "@/lib/units";
 import SwipeableCard from "@/components/SwipeableCard";
 
@@ -68,12 +68,7 @@ export default function UpcomingTaskCard({ task }: { task: UpcomingTaskData }) {
     <div>
       <SwipeableCard onSwipeLeft={complete} onSwipeRight={snoozeOneMoreDay} disabled={pending}>
         <div className="card flex items-center gap-3 px-3 py-2.5">
-          <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-            style={{ background: careSoftBackground(task.type) }}
-          >
-            <CareTypeIcon type={task.type} size={16} />
-          </div>
+          <CareAvatar type={task.type} size={34} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{task.plantName}</p>
             <p className="text-muted truncate text-xs">{task.title}</p>

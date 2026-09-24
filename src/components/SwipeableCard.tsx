@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type PointerEvent, type ReactNode } from "react";
-import { Check, Clock } from "lucide-react";
+import { Check, Clock } from "@/components/icons";
 
 const SWIPE_THRESHOLD_PX = 88;
 const MAX_DRAG_PX = 140;

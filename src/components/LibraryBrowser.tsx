@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronLeft, ChevronRight, Sprout, Sun, Thermometer, Droplets, Layers, Tag, ShieldAlert, Gauge, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Sprout, Sun, Thermometer, Droplets, Layers, Tag, ShieldAlert, Gauge, type LucideIcon } from "@/components/icons";
 import { CARE_ICON, CARE_COLOR } from "@/components/careIcons";
 import ExternalSpeciesSearch from "@/components/ExternalSpeciesSearch";
 

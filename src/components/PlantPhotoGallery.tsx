@@ -3,7 +3,7 @@
 import { useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Star, Trash2, Plus } from "lucide-react";
+import { Star, Trash2, Plus } from "@/components/icons";
 import { usePhotoViewer } from "./PhotoViewerProvider";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Megaphone } from "lucide-react";
+import { Megaphone } from "@/components/icons";
 
 export interface AnnouncementModalData {
   id: string;
@@ -57,10 +57,9 @@ export default function AnnouncementModal({ announcement }: { announcement: Anno
       <div className="card w-full max-w-sm space-y-4 p-5">
         <div className="flex items-start gap-3">
           <span
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-            style={{ background: "var(--primary-soft)", color: "var(--primary-strong)" }}
+            className="icon-disc flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
           >
-            <Megaphone size={18} />
+            <Megaphone size={20} />
           </span>
           <div className="min-w-0 space-y-1 pt-1">
             <h2 id="announcement-title" className="font-display text-lg font-semibold leading-tight">

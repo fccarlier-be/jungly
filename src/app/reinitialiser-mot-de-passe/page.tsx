@@ -1,18 +1,13 @@
 import { Suspense } from "react";
-import { Leaf } from "lucide-react";
+import { LoginArt } from "@/components/art/paper";
 import ResetPasswordForm from "@/components/ResetPasswordForm";
 
 export default function ResetPasswordPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4" style={{ background: "var(--bg)" }}>
       <div className="mb-6 flex flex-col items-center gap-3 text-center">
-        <div
-          className="flex h-14 w-14 items-center justify-center rounded-full"
-          style={{ background: "var(--primary-soft)", color: "var(--primary-strong)" }}
-        >
-          <Leaf size={26} strokeWidth={1.75} />
-        </div>
-        <h1 className="font-display text-2xl font-semibold" style={{ color: "var(--primary-strong)" }}>
+        <LoginArt className="h-20 w-auto" />
+        <h1 className="font-logo text-4xl font-bold" style={{ color: "var(--primary-strong)" }}>
           Jungly
         </h1>
         <p className="text-muted text-sm">Choisis un nouveau mot de passe.</p>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpDown, SlidersHorizontal, ListChecks } from "lucide-react";
+import { ArrowUpDown, SlidersHorizontal, ListChecks } from "@/components/icons";
 import { requireSessionUserId } from "@/lib/session";
 import { db } from "@/server/db";
 import PlantCard from "@/components/PlantCard";

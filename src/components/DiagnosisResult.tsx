@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Sprout, Eye, ScanSearch, Lightbulb } from "lucide-react";
+import { Sprout, Eye, ScanSearch, Lightbulb } from "@/components/icons";
 import type { DiagnosisConfidence, DiagnosisResult as DiagnosisResultData, Hypothesis } from "@/server/diagnosis/types";
 
 // Identifiant stable du "constat d'echec" (voir ruleEngine.ts) : ce n'est pas

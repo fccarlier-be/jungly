@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Sprout, Thermometer } from "lucide-react";
+import { Sprout, Thermometer } from "@/components/icons";
 import { requireSessionUserId } from "@/lib/session";
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";

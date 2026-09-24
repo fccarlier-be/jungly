@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Leaf, MessageCircle, TriangleAlert, X } from "lucide-react";
+import { Leaf, MessageCircle, TriangleAlert, X } from "@/components/icons";
 
 interface Counts {
   newListings: number;

@@ -3,7 +3,7 @@ import { CareEventType } from "@generated/prisma/client";
 import { requireSessionUserId } from "@/lib/session";
 import { db } from "@/server/db";
 import { formatDate } from "@/lib/units";
-import { CareTypeIcon } from "@/components/careIcons";
+import { CareAvatar } from "@/components/careIcons";
 import EmptyState from "@/components/EmptyState";
 import { PotSprout } from "@/components/art/paper";
 
@@ -63,7 +63,7 @@ export default async function HistoryPage({
         <div className="space-y-2">
           {events.map((event) => (
             <div key={event.id} className="card flex items-center gap-3 p-3 text-sm">
-              <CareTypeIcon type={event.type} size={16} className="shrink-0" />
+              <CareAvatar type={event.type} size={30} />
               <span className="flex-1 font-medium">{event.plant.name}</span>
               <span className="text-muted">{formatDate(event.performedAt)}</span>
               {(event.quantity != null || event.note) && (

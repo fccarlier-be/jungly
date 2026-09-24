@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Star } from "lucide-react";
+import { Star } from "@/components/icons";
 import { requireSessionUserId } from "@/lib/session";
 import { getCuttingsBanUntil } from "@/server/cuttings/access";
 import { listUnacknowledgedWarnings } from "@/server/cuttings/moderation";

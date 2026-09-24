@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { Pencil } from "@/components/icons";
 import QuickActions from "@/components/QuickActions";
 import PlantPhotoGallery from "@/components/PlantPhotoGallery";
 import PlantCoverPhoto from "@/components/PlantCoverPhoto";
 import StatusBadge from "@/components/StatusBadge";
-import { CareTypeIcon, careSoftBackground } from "@/components/careIcons";
+import { CareAvatar } from "@/components/careIcons";
 import type { PlantDetailData } from "@/lib/plantDetailData";
 import { RULE_LABEL } from "@/lib/careRuleLabels";
 
@@ -52,12 +52,7 @@ export default function PlantDetailView({ plant }: { plant: PlantDetailData }) {
               className="flex items-center gap-3 border-t p-3.5 first:border-t-0"
               style={{ borderColor: "var(--border)" }}
             >
-              <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                style={{ background: careSoftBackground(rule.type) }}
-              >
-                <CareTypeIcon type={rule.type} size={17} />
-              </div>
+              <CareAvatar type={rule.type} size={38} />
               <span className="flex-1 text-sm font-medium">{RULE_LABEL[rule.type]}</span>
               <span className="text-sm" style={rule.overdue ? { color: "var(--danger)", fontWeight: 600 } : undefined}>
                 {rule.statusLabel}
@@ -115,7 +110,7 @@ export default function PlantDetailView({ plant }: { plant: PlantDetailData }) {
         <div className="space-y-1.5">
           {plant.recentEvents.map((ev) => (
             <div key={ev.id} className="card flex items-center gap-3 p-3 text-sm">
-              <CareTypeIcon type={ev.type} size={16} className="shrink-0" />
+              <CareAvatar type={ev.type} size={30} />
               <span className="flex-1">{ev.dateLabel}</span>
               <span className="text-muted">{ev.detailLabel}</span>
             </div>

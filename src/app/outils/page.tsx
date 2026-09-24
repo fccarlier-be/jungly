@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, FlaskConical, Container, History, Leaf, type LucideIcon } from "lucide-react";
+import { BookOpen, FlaskConical, Container, History, Leaf, type LucideIcon } from "@/components/icons";
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 
 const TOOLS: Array<{ href: string; label: string; description: string; Icon: LucideIcon }> = [
@@ -52,10 +52,9 @@ export default function OutilsPage() {
         {tools.map(({ href, label, description, Icon }) => (
           <Link key={href} href={href} className="card flex items-center gap-3.5 p-4">
             <span
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-              style={{ background: "var(--primary-soft)", color: "var(--primary-strong)" }}
+              className="icon-disc flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
             >
-              <Icon size={19} />
+              <Icon size={22} />
             </span>
             <span className="min-w-0">
               <span className="block text-sm font-semibold">{label}</span>

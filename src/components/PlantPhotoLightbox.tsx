@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type TouchEvent } from "react";
 import Image from "next/image";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight } from "@/components/icons";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 
 const SWIPE_THRESHOLD_PX = 40;

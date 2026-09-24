@@ -1,4 +1,4 @@
-import { Ban } from "lucide-react";
+import { Ban } from "@/components/icons";
 import type { MemberWarning } from "@/server/cuttings/moderation";
 import WarningCards from "@/components/WarningCards";
 

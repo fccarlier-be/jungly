@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, Clock, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, XCircle } from "@/components/icons";
 
 type Status = "confirmed" | "waitlisted" | "already-confirmed" | "already-waitlisted" | "invalid";
 
@@ -43,10 +43,9 @@ export default async function BetaConfirmationPage({
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center" style={{ background: "var(--bg)" }}>
       <div
-        className="mb-5 flex h-14 w-14 items-center justify-center rounded-full"
-        style={{ background: "var(--primary-soft)", color: "var(--primary-strong)" }}
+        className="icon-disc mb-5 flex h-16 w-16 items-center justify-center rounded-full"
       >
-        <Icon size={26} strokeWidth={1.75} />
+        <Icon size={30} />
       </div>
       <h1 className="font-display text-2xl font-semibold" style={{ color: "var(--primary-strong)" }}>
         {content.title}

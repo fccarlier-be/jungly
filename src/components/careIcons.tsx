@@ -1,4 +1,5 @@
-import { Droplets, Sprout, Shovel, Scissors, Search, FileText, type LucideIcon } from "lucide-react";
+import { CareDisc, hasCareDisc } from "@/components/art/paper";
+import { Droplets, Sprout, Shovel, Scissors, Search, FileText, type LucideIcon } from "@/components/icons";
 
 export type CareType = "WATERING" | "FERTILIZING" | "REPOTTING" | "PRUNING" | "INSPECTION" | "OTHER";
 
@@ -58,5 +59,21 @@ export function CareTypeIcon({
         backfaceVisibility: "hidden",
       }}
     />
+  );
+}
+
+/**
+ * Pastille de soin : la version papier decoupe pour arroser/fertiliser/
+ * rempoter/tailler, un rond teinte avec l'icone pour les autres types.
+ */
+export function CareAvatar({ type, size = 36, className }: { type: string; size?: number; className?: string }) {
+  if (hasCareDisc(type)) return <CareDisc type={type} size={size} className={className} />;
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center rounded-full ${className ?? ""}`}
+      style={{ width: size, height: size, background: careSoftBackground(type) }}
+    >
+      <CareTypeIcon type={type} size={Math.round(size * 0.5)} />
+    </div>
   );
 }

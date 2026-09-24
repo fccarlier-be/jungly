@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { Sprout } from "lucide-react";
 import { usePhotoViewer } from "./PhotoViewerProvider";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
+import { PlantPlaceholder } from "@/components/art/paper";
 
 export default function PlantCoverPhoto({
   photos,
@@ -19,9 +19,7 @@ export default function PlantCoverPhoto({
 
   if (!displayUrl) {
     return (
-      <div className="flex h-full w-full items-center justify-center" style={{ color: "var(--secondary)" }}>
-        <Sprout size={56} strokeWidth={1.5} />
-      </div>
+      <PlantPlaceholder className="h-full w-full" />
     );
   }
 

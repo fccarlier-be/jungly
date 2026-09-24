@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera } from "lucide-react";
+import { Camera } from "@/components/icons";
 
 const ORGAN_OPTIONS: { value: string; label: string }[] = [
   { value: "auto", label: "Automatique" },

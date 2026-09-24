@@ -126,7 +126,7 @@ async function notifyWarnedMember(email: string, message: string, result: WarnRe
     const html = emailShell(
       `Avertissement n°${result.rank}`,
       `<p style="font-size:0.95rem;line-height:1.6;">L'administrateur de Jungly t'adresse l'avertissement suivant :</p>
-       <p style="font-size:0.95rem;line-height:1.6;background:#f6f2e8;border-radius:10px;padding:12px 14px;white-space:pre-line;">${escaped}</p>
+       <p style="font-size:0.95rem;line-height:1.6;background:#f4f0e2;border-radius:10px;padding:12px 14px;white-space:pre-line;">${escaped}</p>
        <p style="font-size:0.95rem;line-height:1.6;"><strong>${consequenceText}</strong></p>
        <p style="font-size:0.85rem;line-height:1.6;color:#6f7566;">${CUTTINGS_NO_SALE_RULE}</p>`,
     );

@@ -5,10 +5,9 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Check, Sprout } from "lucide-react";
+import { Check, Sprout } from "@/components/icons";
 import { formatRelativeDueDate } from "@/lib/units";
-import { CareTypeIcon, careSoftBackground } from "@/components/careIcons";
-import { CareDisc, hasCareDisc } from "@/components/art/paper";
+import { CareAvatar } from "@/components/careIcons";
 import SwipeableCard from "@/components/SwipeableCard";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 
@@ -149,16 +148,7 @@ export default function TaskCard({ task, showPlantName = true }: { task: TaskCar
       style={done ? { opacity: 0.4, transform: "scale(0.98)" } : undefined}
     >
       <div className="flex items-start gap-3">
-        {hasCareDisc(task.type) ? (
-          <CareDisc type={task.type} size={40} className="mt-0 shrink-0" />
-        ) : (
-          <div
-            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-            style={{ background: careSoftBackground(task.type) }}
-          >
-            <CareTypeIcon type={task.type} size={18} />
-          </div>
-        )}
+        <CareAvatar type={task.type} size={40} />
         <Link href={`/plantes/${task.plantId}`} className="block min-w-0 flex-1">
           <p className="text-muted text-sm">{task.title}</p>
           {showPlantName && task.plant?.name && <p className="text-lg font-semibold leading-tight">{task.plant.name}</p>}

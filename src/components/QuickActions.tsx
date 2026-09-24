@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { StickyNote, Stethoscope, type LucideIcon } from "lucide-react";
+import { StickyNote, Stethoscope, type LucideIcon } from "@/components/icons";
 import { CARE_ICON, CARE_COLOR } from "@/components/careIcons";
 
 interface CareRuleLite {

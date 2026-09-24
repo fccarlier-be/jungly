@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Sprout, Wrench, Settings } from "lucide-react";
+import { Home, Sprout, Wrench, Settings } from "@/components/icons";
 
 // "Taches" a ete retiree de cette barre (retour utilisateur, 2026-09-23) :
 // l'accueil affiche deja les taches du jour, la page complete reste
@@ -35,7 +35,7 @@ export default function BottomNav({ variant }: { variant: "bottom" | "sidebar" }
                   : { color: "var(--ink-muted)" }
               }
             >
-              <Icon size={18} strokeWidth={2} />
+              <Icon size={20} />
               {label}
             </Link>
           );
@@ -47,8 +47,12 @@ export default function BottomNav({ variant }: { variant: "bottom" | "sidebar" }
   return (
     <nav
       data-bottom-nav
-      className="fixed bottom-0 left-0 right-0 z-20 flex justify-around border-t py-1.5"
-      style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+      className="fixed bottom-0 left-0 right-0 z-20 flex justify-around border-t px-2 py-1.5"
+      style={{
+        borderColor: "var(--border)",
+        background: "var(--surface)",
+        boxShadow: "0 -8px 18px -12px rgba(15, 42, 32, 0.28)",
+      }}
       aria-label="Navigation principale"
     >
       {ITEMS.map(({ href, label, Icon }) => {
@@ -57,11 +61,19 @@ export default function BottomNav({ variant }: { variant: "bottom" | "sidebar" }
           <Link
             key={href}
             href={href}
-            className="flex min-w-[64px] flex-col items-center gap-1 rounded-xl px-2 py-1.5 text-[11px] transition-colors"
-            style={{ color: active ? "var(--primary-strong)" : "var(--ink-muted)" }}
+            className="flex min-w-[68px] flex-col items-center gap-0.5 rounded-2xl px-3 py-1.5 text-[11px] transition-colors"
+            style={
+              active
+                ? {
+                    color: "var(--primary-strong)",
+                    background: "var(--primary-soft)",
+                    boxShadow: "0 2px 0 color-mix(in srgb, var(--primary) 28%, transparent)",
+                  }
+                : { color: "var(--ink-muted)" }
+            }
             aria-current={active ? "page" : undefined}
           >
-            <Icon size={22} strokeWidth={active ? 2.4 : 2} />
+            <Icon size={24} />
             <span className={active ? "font-semibold" : undefined}>{label}</span>
           </Link>
         );

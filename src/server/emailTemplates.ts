@@ -6,10 +6,10 @@
 export function emailShell(title: string, bodyHtml: string): string {
   return `<!doctype html>
 <html lang="fr">
-<body style="margin:0;padding:32px 16px;background:#f6f2e8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#23281f;">
+<body style="margin:0;padding:32px 16px;background:#f4f0e2;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#23281f;">
   <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;">
-    <p style="font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#7c9473;margin:0 0 12px;">Jungly</p>
-    <h1 style="font-size:1.3rem;margin:0 0 16px;color:#22361a;">${title}</h1>
+    <p style="font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#3f9a58;margin:0 0 12px;">Jungly</p>
+    <h1 style="font-size:1.3rem;margin:0 0 16px;color:#17503a;">${title}</h1>
     ${bodyHtml}
   </div>
 </body>

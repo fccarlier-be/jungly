@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "@/components/icons";
 import PlantDiagnosisWizard from "@/components/PlantDiagnosisWizard";
 import DiagnosisResultView from "@/components/DiagnosisResult";
 import type { DiagnosisResult } from "@/server/diagnosis/types";

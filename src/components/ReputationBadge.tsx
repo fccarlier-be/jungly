@@ -1,4 +1,4 @@
-import { Star } from "lucide-react";
+import { Star } from "@/components/icons";
 import type { Reputation } from "@/server/cuttings/service";
 
 /** Moyenne et nombre de notes recues d'un membre ("Nouveau" tant qu'aucun echange n'a ete note). */

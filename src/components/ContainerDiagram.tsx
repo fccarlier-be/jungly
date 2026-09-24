@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { checkContainerCompatibility, type CompatibilityPlant } from "@/lib/containerCompatibility";
+import { TriangleAlert } from "@/components/icons";
 
 export interface ContainerPlantMarker extends CompatibilityPlant {
   positionX: number;
@@ -156,7 +157,7 @@ export default function ContainerDiagram({ containerId, shape, lengthMm, widthMm
           </p>
           {placingWarnings.map((w) => (
             <p key={w.kind} className="text-xs" style={{ color: "var(--warning)" }}>
-              ⚠ {w.message}
+              <TriangleAlert size={14} className="mr-1 inline -translate-y-px" />{w.message}
             </p>
           ))}
         </div>

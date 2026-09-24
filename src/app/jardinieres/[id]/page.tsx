@@ -4,6 +4,7 @@ import { requireSessionUserId } from "@/lib/session";
 import { db } from "@/server/db";
 import { normalizeWateringIntervalDays, checkContainerCompatibility } from "@/lib/containerCompatibility";
 import ContainerDiagram from "@/components/ContainerDiagram";
+import { TriangleAlert } from "@/components/icons";
 
 const PLANT_COMPAT_SELECT = {
   id: true,
@@ -60,7 +61,7 @@ export default async function ContainerDetailPage({ params }: { params: Promise<
           style={{ background: "color-mix(in srgb, var(--warning) 15%, var(--surface))", color: "var(--warning)" }}
         >
           {warnings.map((w) => (
-            <p key={w.kind}>⚠ {w.message}</p>
+            <p key={w.kind}><TriangleAlert size={14} className="mr-1 inline -translate-y-px" />{w.message}</p>
           ))}
         </div>
       )}

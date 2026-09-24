@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Ban, Camera, Loader2, X } from "lucide-react";
+import { Ban, Camera, Loader2, X } from "@/components/icons";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 import {
   CUTTING_LISTING_TYPES,

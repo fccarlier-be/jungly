@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Star } from "lucide-react";
+import { Star } from "@/components/icons";
 import { CUTTING_RATING_MIN, CUTTING_RATING_MAX } from "@/server/cuttings/types";
 
 /** Note (etoiles + commentaire) laissee a l'autre participant d'UNE transaction -- une seule fois. */

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "@/components/icons";
 import { CUTTING_CONSEQUENCE_LABEL, CUTTINGS_NO_SALE_RULE } from "@/server/cuttings/types";
 import type { MemberWarning } from "@/server/cuttings/moderation";
 

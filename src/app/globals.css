@@ -24,9 +24,9 @@
 .font-sans {
   font-family: var(--font-body);
 }
-/* Logo et grands titres d'accueil (Fraunces) -- Lora reste la police des titres courants. */
+/* Fraunces partout pour les titres (variable next/font --font-logo, alias --font-display). */
 .font-logo {
-  font-family: var(--font-logo), var(--font-display), Georgia, serif;
+  font-family: var(--font-display);
 }
 
 /*
@@ -42,20 +42,20 @@
      en un motif bruite -- alors que l'app gere deja elle-meme clair/sombre via
      prefers-color-scheme et [data-theme] ci-dessous. */
   color-scheme: light dark;
-  --bg: #f6f2e8;
-  --surface: #ffffff;
-  --surface-alt: #efe9db;
-  --ink: #23281f;
-  --ink-muted: #6f7566;
-  --border: #e3ddcc;
+  --bg: #f4f0e2;
+  --surface: #fffdf6;
+  --surface-alt: #ebe5cf;
+  --ink: #16281d;
+  --ink-muted: #5c6b5f;
+  --border: #ddd6bf;
 
-  --primary: #2f4a34;
-  --primary-strong: #22361a;
-  --primary-ink: #f5f2e6;
-  --primary-soft: #e3e9dc;
+  --primary: #17503a;
+  --primary-strong: #0f3a2a;
+  --primary-ink: #f6f1de;
+  --primary-soft: #dbe8d0;
 
-  --secondary: #7c9473;
-  --accent: #b3684a;
+  --secondary: #3f9a58;
+  --accent: #c4523a;
   --accent-ink: #ffffff;
   --warning: #c98a3e;
   --danger: #b3392f;
@@ -66,28 +66,28 @@
   --care-pruning: #c9702f;
   --care-inspection: #6b7066;
 
-  --shadow-soft: 0 1px 2px rgba(35, 40, 31, 0.04), 0 6px 16px -8px rgba(35, 40, 31, 0.12);
-  --shadow-lift: 0 4px 8px rgba(35, 40, 31, 0.06), 0 16px 32px -12px rgba(35, 40, 31, 0.18);
+  --shadow-soft: 0 2px 0 rgba(15, 42, 32, 0.08), 0 10px 20px -12px rgba(15, 42, 32, 0.3);
+  --shadow-lift: 0 3px 0 rgba(15, 42, 32, 0.1), 0 18px 30px -14px rgba(15, 42, 32, 0.4);
 }
 
 /* Systeme (par defaut) : suit les reglages de l'appareil, sauf si l'utilisateur a force un choix dans Parametres (data-theme sur <html>). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #12150f;
-    --surface: #23281e;
-    --surface-alt: #2f3526;
-    --ink: #f1ede2;
-    --ink-muted: #a9ad9d;
-    --border: #454c3a;
+    --bg: #0e1c15;
+    --surface: #16281e;
+    --surface-alt: #1e3527;
+    --ink: #eef2e4;
+    --ink-muted: #a3b4a6;
+    --border: #2b4536;
 
-    --primary: #86ac7a;
-    --primary-strong: #a3c797;
-    --primary-ink: #17201a;
-    --primary-soft: #2c3629;
+    --primary: #7cc48a;
+    --primary-strong: #a6dcaf;
+    --primary-ink: #0c1a12;
+    --primary-soft: #21402d;
 
-    --secondary: #9db692;
-    --accent: #d98a68;
-    --accent-ink: #12150f;
+    --secondary: #7fbf86;
+    --accent: #ee7d5f;
+    --accent-ink: #0e1c15;
     --warning: #e3a962;
     --danger: #e08277;
 
@@ -97,8 +97,8 @@
     --care-pruning: #e3a260;
     --care-inspection: #a9ad9d;
 
-    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.2), 0 6px 16px -8px rgba(0, 0, 0, 0.35);
-    --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.25), 0 16px 32px -12px rgba(0, 0, 0, 0.45);
+    --shadow-soft: 0 2px 0 rgba(0, 0, 0, 0.25), 0 10px 20px -12px rgba(0, 0, 0, 0.5);
+    --shadow-lift: 0 3px 0 rgba(0, 0, 0, 0.3), 0 18px 30px -14px rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -110,21 +110,21 @@
 /* Force sombre, meme si l'appareil est en mode clair. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #12150f;
-  --surface: #23281e;
-  --surface-alt: #2f3526;
-  --ink: #f1ede2;
-  --ink-muted: #a9ad9d;
-  --border: #454c3a;
+  --bg: #0e1c15;
+  --surface: #16281e;
+  --surface-alt: #1e3527;
+  --ink: #eef2e4;
+  --ink-muted: #a3b4a6;
+  --border: #2b4536;
 
-  --primary: #86ac7a;
-  --primary-strong: #a3c797;
-  --primary-ink: #17201a;
-  --primary-soft: #2c3629;
+  --primary: #7cc48a;
+  --primary-strong: #a6dcaf;
+  --primary-ink: #0c1a12;
+  --primary-soft: #21402d;
 
-  --secondary: #9db692;
-  --accent: #d98a68;
-  --accent-ink: #12150f;
+  --secondary: #7fbf86;
+  --accent: #ee7d5f;
+  --accent-ink: #0e1c15;
   --warning: #e3a962;
   --danger: #e08277;
 
@@ -134,8 +134,8 @@
   --care-pruning: #e3a260;
   --care-inspection: #a9ad9d;
 
-  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.2), 0 6px 16px -8px rgba(0, 0, 0, 0.35);
-  --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.25), 0 16px 32px -12px rgba(0, 0, 0, 0.45);
+  --shadow-soft: 0 2px 0 rgba(0, 0, 0, 0.25), 0 10px 20px -12px rgba(0, 0, 0, 0.5);
+  --shadow-lift: 0 3px 0 rgba(0, 0, 0, 0.3), 0 18px 30px -14px rgba(0, 0, 0, 0.6);
 }
 
 * {
@@ -169,15 +169,51 @@ textarea,
   user-select: text;
 }
 
+html {
+  --font-display: var(--font-logo), Georgia, serif;
+}
+
 h1, h2 {
   font-family: var(--font-display);
   letter-spacing: -0.01em;
 }
 
+/* Petite feuille decoupee devant chaque titre de page. */
+h1.font-display::before {
+  content: "";
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  margin-right: 0.45em;
+  vertical-align: -0.1em;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><defs><filter id='s' x='-20%' y='-20%' width='140%' height='150%'><feDropShadow dx='0' dy='1' stdDeviation='0.4' flood-color='%23000' flood-opacity='.3'/></filter></defs><g filter='url(%23s)'><path d='M3.5 20.5C3.5 10.5 9.5 3.5 21 2.8c0 11.2-6 17.7-15 17.7h-2.5Z' fill='%233f9a58'/><path d='M6.6 17.6 17 7.4' stroke='%23a9c94a' stroke-width='1.8' stroke-linecap='round' fill='none'/></g></svg>") center / contain no-repeat;
+}
+
+/* Feuillage decoratif fixe, derriere le contenu (voir BackgroundLeaves). */
+.jg-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.11;
+}
+.jg-bg svg {
+  position: absolute;
+  height: min(380px, 60vw);
+  width: auto;
+}
+.jg-bg-a { right: -24px; bottom: 56px; }
+.jg-bg-b { left: -24px; top: -24px; }
+:root[data-theme="dark"] .jg-bg { opacity: 0.16; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .jg-bg { opacity: 0.16; }
+}
+
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  border-radius: 1.4rem;
   box-shadow: var(--shadow-soft);
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
@@ -191,25 +227,30 @@ button.card:hover {
 .btn-primary {
   background: var(--primary);
   color: var(--primary-ink);
-  transition: filter 0.15s ease, transform 0.1s ease;
+  /* Epaisseur de papier : un bord plus sombre dessous, qui s'ecrase au clic. */
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--primary) 55%, #000);
+  transition: filter 0.15s ease, transform 0.1s ease, box-shadow 0.1s ease;
 }
 .btn-primary:hover {
   filter: brightness(1.08);
 }
 .btn-primary:active {
-  transform: scale(0.98);
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--primary) 55%, #000);
 }
 
 .btn-secondary {
   background: var(--primary-soft);
   color: var(--primary-strong);
-  transition: filter 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--primary) 22%, transparent);
+  transition: filter 0.15s ease, transform 0.1s ease, box-shadow 0.1s ease;
 }
 .btn-secondary:hover {
   filter: brightness(0.97);
 }
 .btn-secondary:active {
-  transform: scale(0.98);
+  transform: translateY(1px);
+  box-shadow: none;
 }
 
 .btn-ghost {
@@ -234,13 +275,15 @@ button.card:hover {
   background: var(--primary);
   border-color: transparent;
   color: var(--primary-ink);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--primary) 55%, #000);
 }
 
 .input {
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--ink);
-  border-radius: 0.75rem;
+  border-radius: 0.9rem;
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--border) 45%, transparent);
   /* 16px minimum : en dessous, Safari iOS zoome automatiquement la page au focus. */
   font-size: 16px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -249,6 +292,13 @@ button.card:hover {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+/* Pastille d'icone "papier decoupe" : disque plein, bord plus sombre dessous. */
+.icon-disc {
+  background: var(--primary);
+  color: var(--primary-ink);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--primary) 55%, #000);
 }
 
 .text-muted {
@@ -318,7 +368,7 @@ button.card:hover {
   z-index: 9999;
   background: #0f2a20;
   overflow: hidden;
-  animation: jg-splash-out 0.3s ease 1.4s both;
+  animation: jg-splash-out 0.4s ease 2.1s both;
 }
 .jg-splash-stage {
   position: relative;
@@ -338,7 +388,7 @@ button.card:hover {
   right: 0;
   top: 14%;
   text-align: center;
-  font-family: var(--font-logo), var(--font-display), Georgia, serif;
+  font-family: var(--font-display);
   font-weight: 800;
   font-size: clamp(52px, 15vw, 84px);
   line-height: 1;
@@ -348,8 +398,8 @@ button.card:hover {
 }
 .jg-splash-wm span {
   display: inline-block;
-  animation: jg-rise 0.45s cubic-bezier(0.2, 1.2, 0.4, 1) both;
-  animation-delay: calc(0.55s + var(--i) * 0.05s);
+  animation: jg-rise 0.55s cubic-bezier(0.2, 1.2, 0.4, 1) both;
+  animation-delay: calc(0.9s + var(--i) * 0.08s);
 }
 .jg-splash-tag {
   position: absolute;
@@ -361,16 +411,16 @@ button.card:hover {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #cfe0c6;
-  animation: jg-fade 0.5s ease 0.9s both;
+  animation: jg-fade 0.6s ease 1.55s both;
 }
 .jg-splash-hills {
-  animation: jg-fade 0.4s ease both;
+  animation: jg-fade 0.6s ease 0.6s both;
 }
 .jg-grow {
   transform-box: view-box;
   transform-origin: 0 0;
-  animation: jg-grow 0.7s cubic-bezier(0.2, 1.3, 0.4, 1) both;
-  animation-delay: var(--d, 0s);
+  animation: jg-grow 0.95s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+  animation-delay: calc(var(--d, 0s) * 1.7);
 }
 @keyframes jg-grow {
   from { transform: scale(0) rotate(-10deg); opacity: 0; }

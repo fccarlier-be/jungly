@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
-import { Search, Sprout, ExternalLink } from "lucide-react";
+import { Search, Sprout, ExternalLink } from "@/components/icons";
 
 type ExternalSource = "OPENPLANTBOOK" | "PERENUAL";
 
@@ -240,7 +240,7 @@ export default function ExternalSpeciesSearch({
               className="btn-primary flex-1 rounded-xl py-2 text-sm font-semibold disabled:opacity-60"
             >
               {imported
-                ? "Ajoutée ✓"
+                ? "Ajoutée"
                 : importing
                   ? "Import..."
                   : !isAdmin

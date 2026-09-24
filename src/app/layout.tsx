@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { Lora, Inter, Fraunces } from "next/font/google";
+import { Inter, Fraunces } from "next/font/google";
 import Script from "next/script";
 import type { CSSProperties } from "react";
-import { Leaf } from "lucide-react";
+import { Leaf } from "@/components/icons";
 import "./globals.css";
 import { auth } from "@/server/auth";
 import { db } from "@/server/db";
@@ -12,19 +12,12 @@ import BottomNav from "@/components/BottomNav";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import AuthSessionProvider from "@/components/AuthSessionProvider";
 import AnnouncementModal from "@/components/AnnouncementModal";
-import { PaperDefs, SplashArt } from "@/components/art/paper";
-
-const lora = Lora({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["500", "600", "700"],
-  display: "swap",
-});
+import { BackgroundLeaves, PaperDefs, SplashArt } from "@/components/art/paper";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
   variable: "--font-logo",
-  weight: ["700", "800"],
+  weight: ["500", "600", "700", "800"],
   display: "swap",
 });
 
@@ -67,7 +60,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#2f4a34",
+  themeColor: "#17503a",
   width: "device-width",
   initialScale: 1,
 };
@@ -110,7 +103,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang="fr" className={`${lora.variable} ${inter.variable} ${fraunces.variable}`}>
+    <html lang="fr" className={`${inter.variable} ${fraunces.variable}`}>
       <body className="min-h-screen antialiased font-sans">
         <Script id="theme-init" strategy="beforeInteractive" nonce={nonce ?? undefined}>
           {THEME_INIT_SCRIPT}
@@ -119,6 +112,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {SPLASH_INIT_SCRIPT}
         </Script>
         <PaperDefs />
+        <BackgroundLeaves />
         <div className="jg-splash" aria-hidden="true">
           <div className="jg-splash-stage">
             <SplashArt />

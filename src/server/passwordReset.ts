@@ -18,7 +18,7 @@ export function passwordResetEmail(resetUrl: string): EmailContent {
     html: emailShell(
       "Réinitialiser le mot de passe",
       `<p style="font-size:0.95rem;line-height:1.6;">Une demande de réinitialisation de mot de passe a été faite pour ce compte Jungly. Ce lien est valable une heure.</p>
-       <p style="margin:28px 0;"><a href="${resetUrl}" style="background:#22361a;color:#f5f2e6;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Choisir un nouveau mot de passe</a></p>
+       <p style="margin:28px 0;"><a href="${resetUrl}" style="background:#17503a;color:#f5f2e6;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:600;display:inline-block;">Choisir un nouveau mot de passe</a></p>
        <p style="font-size:0.82rem;color:#6f7566;">Vous n'êtes pas à l'origine de cette demande ? Ignorez simplement ce message, votre mot de passe actuel reste inchangé.</p>`,
     ),
     text: `Une demande de réinitialisation de mot de passe a été faite pour ce compte Jungly.

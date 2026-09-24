@@ -1,10 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Leaf } from "lucide-react";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 import ReputationBadge from "@/components/ReputationBadge";
 import type { Reputation } from "@/server/cuttings/service";
 import { CUTTING_LISTING_TYPE_LABEL, CUTTING_LISTING_STATUS_LABEL, type CuttingListingType, type CuttingListingStatus } from "@/server/cuttings/types";
+import { PlantPlaceholder } from "@/components/art/paper";
 
 export interface CuttingListingCardData {
   id: string;
@@ -44,9 +44,7 @@ export default function CuttingListingCard({ listing, showStatus = false }: { li
             unoptimized={bypassesImageOptimizer(image)}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center" style={{ color: "var(--secondary)" }}>
-            <Leaf size={40} strokeWidth={1.5} />
-          </div>
+          <PlantPlaceholder className="h-full w-full" />
         )}
         {(listing.unreadCount ?? 0) > 0 && (
           <span

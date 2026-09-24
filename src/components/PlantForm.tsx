@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Sprout } from "lucide-react";
+import { Sprout, TriangleAlert } from "@/components/icons";
 import { CareTypeIcon } from "@/components/careIcons";
 import ExternalSpeciesSearch from "@/components/ExternalSpeciesSearch";
 import PlantPhotoIdentify, { type IdentifiedCandidate } from "@/components/PlantPhotoIdentify";
@@ -642,7 +642,7 @@ export default function PlantForm({
               style={{ background: "color-mix(in srgb, var(--warning) 15%, var(--surface))", color: "var(--warning)" }}
             >
               {compatibilityWarnings.map((w) => (
-                <p key={w.kind}>⚠ {w.message}</p>
+                <p key={w.kind}><TriangleAlert size={14} className="mr-1 inline -translate-y-px" />{w.message}</p>
               ))}
             </div>
           )}
