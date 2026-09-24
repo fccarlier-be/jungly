@@ -21,11 +21,10 @@ RUN npm ci
 
 FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS build
 WORKDIR /app
-# NEXT_PUBLIC_* est fige au moment du `next build`, jamais relu au runtime :
-# la cle VAPID publique doit donc passer en build arg (docker-compose.yml
-# build.args), pas seulement en variable d'environnement du conteneur.
-ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
-ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=${NEXT_PUBLIC_VAPID_PUBLIC_KEY}
+# Aucune configuration d'instance figee dans l'image : la cle VAPID publique
+# est lue au runtime (PLANTES_VAPID_PUBLIC_KEY, voir getVapidPublicKey dans
+# src/server/notifications/webPush.ts) -- une meme image sert n'importe
+# quelle instance, y compris celle publiee par la CI sur GHCR.
 # Identifie la revision exacte a l'origine d'un deploiement (affiche dans
 # Parametres > A propos) : utile pour situer une instance dans l'historique
 # du projet (support, ou comparaison en cas de reutilisation commerciale non
@@ -56,7 +55,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PATH="/app/node_modules/.bin:${PATH}"
 # ENV ne traverse pas les etages d'un build multi-stage -- necessaire ici
-# (contrairement a NEXT_PUBLIC_VAPID_PUBLIC_KEY) car Parametres > A propos le
+# car Parametres > A propos le
 # lit via process.env dans un Server Component, execute par ce conteneur
 # runtime, pas au moment du `next build` de l'etage precedent.
 ARG GIT_SHA=""

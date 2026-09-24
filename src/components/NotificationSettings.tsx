@@ -34,7 +34,15 @@ function isStandaloneDisplay(): boolean {
   return window.matchMedia("(display-mode: standalone)").matches || nav.standalone === true;
 }
 
-export default function NotificationSettings({ initial }: { initial: Preference }) {
+export default function NotificationSettings({
+  initial,
+  vapidPublicKey,
+}: {
+  initial: Preference;
+  // Lue cote serveur au runtime (voir getVapidPublicKey), pas via
+  // process.env.NEXT_PUBLIC_* qui serait fige dans l'image au build.
+  vapidPublicKey: string | null;
+}) {
   const [preference, setPreference] = useState<Preference>(initial);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -106,7 +114,7 @@ export default function NotificationSettings({ initial }: { initial: Preference 
         return;
       }
 
-      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      const publicKey = vapidPublicKey;
       if (!publicKey) {
         setMessage("Configuration serveur incomplète (clé VAPID manquante).");
         return;
