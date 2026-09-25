@@ -120,6 +120,9 @@ encart « En convalescence », pour ne pas faire défiler l'accueil).
 validation) et `__tests__/healthFollowUp.integration.test.ts` (relances de
 suivi sur SQLite réel). Suite complète verte (452 tests), lint et `tsc` OK.
 
+**PR** : https://github.com/fccarlier-be/jungly/pull/26 (ouverte le 2026-09-25,
+migration `prisma migrate deploy` nécessaire au déploiement).
+
 **Reste à faire / idées non retenues**
 - Encart « En convalescence » sur l'accueil (écarté pour l'instant).
 - Pas de test e2e Playwright pour la section Santé.
