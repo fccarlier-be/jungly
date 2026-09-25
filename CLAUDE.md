@@ -213,13 +213,14 @@ correctif a un test vérifié **en échec sur l'ancien code** (`git stash`).
 `sha-f8a44d6`). Aucune migration. **Staging et prod à jour sur `16cb9ac`**
 en fin de journée.
 
-**Reste à faire côté utilisateur** (fin de session du 2026-09-25) :
-renouveler les secrets du staging exposés dans la conversation (et ceux de
-la prod s'ils sont partagés) -- pour `CUTTINGS_MESSAGE_ENCRYPTION_KEY`, les
-anciens messages de boutures deviendront « [Message illisible] » ; publier
-l'annonce des nouveautés en prod ; supprimer à terme les sauvegardes du VPS
-(`/home/franky/serveur/.env.bak-*`, `docker-compose.yml.bak-2026-09-25`,
-`jungly/data.bak-2026-09-25-fa5e052`).
+**État en fin de session (2026-09-25), décisions de l'utilisateur** :
+- Secrets du staging exposés dans la conversation : **l'utilisateur a
+  décidé de ne pas les renouveler**. Ne plus le proposer.
+- Annonce des nouveautés : **publiée** en prod.
+- Sauvegardes du VPS (`/home/franky/serveur/.env.bak-*`,
+  `docker-compose.yml.bak-2026-09-25`, `jungly/data.bak-2026-09-25-fa5e052`) :
+  **conservées jusqu'à la fin du week-end** (27-28/09), à supprimer ensuite
+  sur demande de l'utilisateur.
 
 **Non corrigé, à décider avec l'utilisateur**
 - Facturation (`server/billing.ts`) : la vérification `provisioningId` est
