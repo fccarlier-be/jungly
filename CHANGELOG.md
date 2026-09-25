@@ -3,6 +3,12 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-25 — Correctif pastille santé de l'accueil
+
+### Corrigé
+
+- **Pastille rouge de « Ma collection » tronquée en haut** : elle dépassait de la vignette, alors que la rangée défile horizontalement (`overflow-x-auto`, qui rogne aussi verticalement). Elle est désormais entièrement dans la vignette, avec une bordure au lieu d'une ombre débordante. Signalé par l'utilisateur sur le staging.
+
 ## [Post-MVP] - 2026-09-25 — État de santé des plantes
 
 Contexte : le badge « En bonne santé » de la fiche était calculé uniquement à partir des tâches en retard -- une plante couverte de parasites mais bien arrosée apparaissait « en bonne santé ».

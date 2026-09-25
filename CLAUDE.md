@@ -167,6 +167,12 @@ Sauvegarde préalable : `~/data-test.bak-2026-09-25` sur le homelab. Procédure
 établie avec l'utilisateur (voir « Déploiement » plus haut). Vérification
 visuelle sur testplantes.fcold.org laissée à l'utilisateur.
 
+**Correctif après staging** : la pastille rouge de l'accueil était tronquée en
+haut (elle débordait de la vignette dans une rangée `overflow-x-auto`, qui
+rogne aussi verticalement). Placée entièrement dans la vignette, avec une
+bordure `var(--bg)` au lieu d'une ombre. Retenir : rien ne doit déborder
+d'un élément dans une rangée qui défile.
+
 **Reste à faire / idées non retenues**
 - Encart « En convalescence » sur l'accueil (écarté pour l'instant).
 - Pas de test e2e Playwright pour la section Santé.
