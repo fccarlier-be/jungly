@@ -208,6 +208,19 @@ correctif a un test vérifié **en échec sur l'ancien code** (`git stash`).
   vérifié) ; `decryptMessageBodyOrPlaceholder()` pour l'affichage et les
   signalements.
 
+**Déployé** le 2026-09-25 (PR #33, `16cb9ac`) : staging (image CI
+`jungly-hosted:main`) et prod (`JUNGLY_IMAGE_TAG=sha-16cb9ac`, depuis
+`sha-f8a44d6`). Aucune migration. **Staging et prod à jour sur `16cb9ac`**
+en fin de journée.
+
+**Reste à faire côté utilisateur** (fin de session du 2026-09-25) :
+renouveler les secrets du staging exposés dans la conversation (et ceux de
+la prod s'ils sont partagés) -- pour `CUTTINGS_MESSAGE_ENCRYPTION_KEY`, les
+anciens messages de boutures deviendront « [Message illisible] » ; publier
+l'annonce des nouveautés en prod ; supprimer à terme les sauvegardes du VPS
+(`/home/franky/serveur/.env.bak-*`, `docker-compose.yml.bak-2026-09-25`,
+`jungly/data.bak-2026-09-25-fa5e052`).
+
 **Non corrigé, à décider avec l'utilisateur**
 - Facturation (`server/billing.ts`) : la vérification `provisioningId` est
   sautée quand le champ est absent (cas de récupération d'un achat) --
