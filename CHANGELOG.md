@@ -7,7 +7,7 @@ Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
 ### Modifié
 
-- **Signature « suivie avec Jungly »** : l'icône de l'appli (celle du manifeste PWA, `public/icons/icon-192.png`) remplace la simple feuille, à une taille qui reste lisible une fois la carte affichée sur un téléphone.
+- **Signature « suivie avec Jungly »** : l'icône de l'appli (celle du manifeste PWA, `public/icons/icon-192.png`) remplace la simple feuille, à une taille qui reste lisible une fois la carte affichée sur un téléphone, placée après le nom « Jungly » (et non entre « suivie avec » et « Jungly »).
 
 ### Corrigé
 
