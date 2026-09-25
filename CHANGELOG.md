@@ -3,6 +3,27 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-25 — État de santé des plantes
+
+Contexte : le badge « En bonne santé » de la fiche était calculé uniquement à partir des tâches en retard -- une plante couverte de parasites mais bien arrosée apparaissait « en bonne santé ».
+
+### Ajouté
+
+- **Relevé de santé sur 5 niveaux** (Excellente, Bonne, Moyenne, Mauvaise, Critique), avec symptômes à cocher et note, enregistré comme une inspection (`CareEvent.healthLevel`, migration `20260925120000_add_care_event_health_level`). L'état actuel est toujours le dernier relevé.
+- **Section « Santé » sur la fiche plante** : état, date, tendance par rapport au relevé précédent, frise des derniers relevés, prochaine inspection de suivi, bouton « Lancer un diagnostic » si la plante est malade.
+- **Inspections de suivi automatiques** : tant qu'une plante est Mauvaise (tous les 3 jours) ou Critique (tous les 2 jours), une tâche d'inspection est planifiée ; elle disparaît dès que la plante va mieux.
+- Valider une tâche d'inspection demande l'état constaté (facultatif) ; l'action rapide « Inspection » propose aussi le niveau.
+- « Mes plantes » : pastille santé sur la carte et filtre « En mauvaise santé ». Accueil : pastille rouge sur la vignette « Ma collection » des plantes malades.
+
+### Modifié
+
+- Le badge de la fiche combine tâches et santé : une plante malade passe en « Attention » même sans tâche en retard ; « En bonne santé » n'est affiché que si un relevé le dit, sinon « Soins à jour ».
+- Export / import : le niveau de santé des inspections est sauvegardé et restauré (anciennes sauvegardes compatibles).
+
+### Vérifié
+
+- Lint, `tsc --noEmit`, 452 tests (dont nouveaux tests unitaires et d'intégration SQLite pour les relances de suivi), build Next.js.
+
 ## [Post-MVP] - 2026-09-24 — Clé VAPID publique lue au runtime (image Docker générique)
 
 Contexte : migration de l'instance hébergée vers un VPS qui tire une image construite par la CI (GHCR). La clé VAPID publique était figée au build via `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, ce qui obligeait à la stocker côté GitHub -- refusé par l'utilisateur, même pour une clé publique.

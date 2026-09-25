@@ -1,5 +1,8 @@
 import { db } from "@/server/db";
 import { computePlantStatus, type PlantStatus } from "@/lib/plantStatus";
+import { HEALTH_LABEL, TREND_LABEL, computeHealthTrend, computeOverallStatus, isSick, type HealthLevel } from "@/lib/plantHealth";
+import { getHealthSummaries } from "@/server/careEngine/health";
+import { SYMPTOM_CATEGORY_LABEL, type SymptomCategory } from "@/server/diagnosis/types";
 import { formatDate, formatDistanceMm, formatRelativeDueDate } from "@/lib/units";
 import { effectiveDueDate } from "@/server/careEngine/dueTasks";
 import { getLibraryImageMap } from "@/lib/libraryImages";
@@ -45,6 +48,20 @@ export interface NoteView {
   dateLabel: string;
 }
 
+export interface HealthView {
+  level: HealthLevel;
+  label: string;
+  dateLabel: string;
+  trendLabel: string | null;
+  symptomLabels: string[];
+  note: string | null;
+  sick: boolean;
+  // Du plus ancien au plus recent (lecture de gauche a droite).
+  history: { level: HealthLevel; label: string; dateLabel: string }[];
+  // Prochaine inspection de suivi (plante malade uniquement).
+  nextFollowUpLabel: string | null;
+}
+
 export interface PlantDetailData {
   id: string;
   name: string;
@@ -55,6 +72,9 @@ export interface PlantDetailData {
   potShape: "ROUND" | "RECTANGULAR";
   photos: { id: string; url: string }[];
   status: PlantStatus;
+  statusLabel: string;
+  // null tant qu'aucun releve de sante n'a ete fait.
+  health: HealthView | null;
   careRules: CareRuleView[];
   infoRows: { label: string; value: string }[];
   sensors: SensorView[];
@@ -103,9 +123,10 @@ export async function getAllPlantDetails(userId: string): Promise<PlantDetailDat
   }
 
   const plantIds = plants.map((p) => p.id);
-  const [allRecentEvents, allNotes] = await Promise.all([
+  const [allRecentEvents, allNotes, healthSummaries] = await Promise.all([
     db.careEvent.findMany({ where: { plantId: { in: plantIds } }, orderBy: { performedAt: "desc" } }),
     db.note.findMany({ where: { plantId: { in: plantIds } }, orderBy: { createdAt: "desc" } }),
+    getHealthSummaries(plantIds),
   ]);
   const eventsByPlant = new Map<string, typeof allRecentEvents>();
   for (const ev of allRecentEvents) {
@@ -128,7 +149,30 @@ export async function getAllPlantDetails(userId: string): Promise<PlantDetailDat
     const tasks = plant.tasks
       .map((t) => ({ ...t, dueAt: effectiveDueDate(t) }))
       .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
-    const status = computePlantStatus(tasks[0]?.dueAt ?? null);
+    const summary = healthSummaries.get(plant.id);
+    const { status, label: statusLabel } = computeOverallStatus(computePlantStatus(tasks[0]?.dueAt ?? null), summary?.current.level);
+
+    let health: HealthView | null = null;
+    if (summary) {
+      const { current, previous } = summary;
+      const trend = computeHealthTrend(current.level, previous?.level);
+      const followUp = isSick(current.level)
+        ? tasks.find((t) => t.type === "INSPECTION" && (t.metadata as { healthFollowUp?: boolean } | null)?.healthFollowUp)
+        : undefined;
+      health = {
+        level: current.level,
+        label: HEALTH_LABEL[current.level],
+        dateLabel: formatDate(current.performedAt),
+        trendLabel: trend ? TREND_LABEL[trend] : null,
+        symptomLabels: current.symptoms.map((s) => SYMPTOM_CATEGORY_LABEL[s as SymptomCategory] ?? s),
+        note: current.note,
+        sick: isSick(current.level),
+        history: [...summary.history]
+          .reverse()
+          .map((h) => ({ level: h.level, label: HEALTH_LABEL[h.level], dateLabel: formatDate(h.performedAt) })),
+        nextFollowUpLabel: followUp ? formatRelativeDueDate(followUp.dueAt) : null,
+      };
+    }
 
     const careRules: CareRuleView[] = plant.careRules.map((rule) => {
       const task = tasks.find((t) => t.careRuleId === rule.id);
@@ -179,7 +223,11 @@ export async function getAllPlantDetails(userId: string): Promise<PlantDetailDat
       id: ev.id,
       type: ev.type,
       dateLabel: formatDate(ev.performedAt),
-      detailLabel: ev.quantity ? `${ev.quantity} ${ev.unit ?? ""}` : (ev.note ?? ""),
+      detailLabel: ev.healthLevel
+        ? `Santé : ${HEALTH_LABEL[ev.healthLevel]}`
+        : ev.quantity
+          ? `${ev.quantity} ${ev.unit ?? ""}`
+          : (ev.note ?? ""),
     }));
 
     const observationNotes: NoteView[] = (notesByPlant.get(plant.id) ?? []).map((note) => ({
@@ -200,6 +248,8 @@ export async function getAllPlantDetails(userId: string): Promise<PlantDetailDat
       potShape: plant.potShape,
       photos: plant.photos.map((p) => ({ id: p.id, url: p.url })),
       status,
+      statusLabel,
+      health,
       careRules,
       infoRows,
       sensors,

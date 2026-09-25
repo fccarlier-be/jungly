@@ -8,7 +8,10 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 type Params = { params: Promise<{ id: string }> };
 
-/** Enregistre une taille, une inspection, ou tout autre événement sans règle associée. */
+/**
+ * Enregistre une taille, une inspection (avec releve de sante optionnel), ou
+ * tout autre événement sans règle associée.
+ */
 export async function POST(request: NextRequest, { params }: Params) {
   try {
     const userId = await requireUserId();
@@ -29,6 +32,8 @@ export async function POST(request: NextRequest, { params }: Params) {
     const event = await recordStandaloneCareEvent(id, input.type, {
       performedAt: input.performedAt,
       note: input.note,
+      healthLevel: input.healthLevel,
+      metadata: input.symptoms?.length ? { symptoms: input.symptoms } : undefined,
     });
 
     return NextResponse.json(event, { status: 201 });

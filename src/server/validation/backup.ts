@@ -61,6 +61,8 @@ const careEventBackupSchema = z.object({
   unit: z.string().max(MAX_SHORT_STRING).nullable().optional(),
   metadata: boundedJsonRecord,
   note: z.string().max(MAX_LONG_STRING).nullable().optional(),
+  // Absent des sauvegardes anterieures au 2026-09-25 (releve de sante).
+  healthLevel: z.enum(["EXCELLENT", "GOOD", "FAIR", "POOR", "CRITICAL"]).nullable().optional(),
 });
 
 const careRuleBackupSchema = z.object({
