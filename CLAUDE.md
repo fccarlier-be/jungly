@@ -50,6 +50,44 @@ de `prisma/migrations/`, puis vérifier avec
 `npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script`
 (doit afficher « empty migration »).
 
+## Déploiement
+
+Trois instances, à ne pas confondre (vérifié le 2026-09-25) :
+
+| Instance | Machine | Conteneur / image | Déploiement |
+|---|---|---|---|
+| Staging `testplantes.fcold.org` | homelab `FServer` (utilisateur `franky`) | `plantes-app-test` / image dédiée `serveur-plantes-app-test` | build local depuis les sources |
+| Hébergée `jungly-app.fcold.org` | VPS OVH (`ubuntu@vps-b6850d01`) | image GHCR `jungly-hosted` publiée par la CI | pull de l'image |
+| `plantes-app`, `plantes-app-hosted` | homelab | arrêtés au 2026-09-25 | — |
+
+Claude n'a accès à aucune de ces machines : donner les commandes à
+l'utilisateur, ne jamais supposer un chemin non vérifié.
+
+### Staging (homelab)
+
+- Compose : `/home/franky/serveur/docker-compose.yml`, service `plantes-app-test`.
+- Sources : `/home/franky/serveur/www/plantes` (clone sur `main`, quelques
+  fichiers non suivis sans importance).
+- Données : `www/plantes/data-test` monté sur `/app/data` (+ `uploads/`,
+  `library-photos/`). Proxy : `nginx-plantes-test` (`nginx/test.conf`).
+- Les migrations Prisma s'appliquent seules au démarrage (`docker-entrypoint.sh`).
+- Build complet ≈ 12 min sur le homelab.
+
+```bash
+cd /home/franky/serveur/www/plantes
+git status && git branch --show-current   # doit être main, sans modif suivie
+git pull origin main
+cp -a data-test ~/data-test.bak-$(date +%F)   # si la mise à jour contient une migration
+cd /home/franky/serveur
+docker compose up -d --build plantes-app-test
+docker restart nginx-plantes-test
+docker logs plantes-app-test 2>&1 | grep -iE "migration|erreur|error"
+```
+
+Retour arrière : `git checkout <commit précédent>` dans `www/plantes` puis
+même `docker compose up -d --build plantes-app-test` (restaurer la sauvegarde
+de `data-test` si la migration pose problème).
+
 ---
 
 ## Journal des sessions
@@ -122,6 +160,12 @@ suivi sur SQLite réel). Suite complète verte (452 tests), lint et `tsc` OK.
 
 **PR** : https://github.com/fccarlier-be/jungly/pull/26 (ouverte le 2026-09-25,
 migration `prisma migrate deploy` nécessaire au déploiement).
+
+**Déployé sur le staging** le 2026-09-25 (homelab, commit `e55e385`) :
+migration `20260925120000_add_care_event_health_level` appliquée sans erreur.
+Sauvegarde préalable : `~/data-test.bak-2026-09-25` sur le homelab. Procédure
+établie avec l'utilisateur (voir « Déploiement » plus haut). Vérification
+visuelle sur testplantes.fcold.org laissée à l'utilisateur.
 
 **Reste à faire / idées non retenues**
 - Encart « En convalescence » sur l'accueil (écarté pour l'instant).
