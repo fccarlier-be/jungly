@@ -237,6 +237,13 @@ dessin, pas l'icône actuelle. Attention en testant sharp : dans un même
 pipeline, un second `.resize()` remplace le premier (comparaison faussée
 une première fois).
 
+**Mise en prod** le 2026-09-25 (après test sur le staging) :
+`jungly-app.fcold.org` passé de `sha-ff07bd3` à `sha-f8a44d6` (PR #30 à #32 :
+partage en carte image, cadrage centré, icône). Aucune migration, donc
+pas d'arrêt ni de sauvegarde des données ; `.env` sauvegardé en
+`.env.bak-2026-09-25-ff07bd3` sur le VPS. Logs : « No pending migrations »,
+aucune erreur.
+
 **Piège** : `public/uploads/` n'est pas ignoré par git -- ne jamais y laisser
 de fichiers de test.
 
