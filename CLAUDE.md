@@ -208,6 +208,20 @@ correctif a un test vérifié **en échec sur l'ancien code** (`git stash`).
   vérifié) ; `decryptMessageBodyOrPlaceholder()` pour l'affichage et les
   signalements.
 
+**Déployé** le 2026-09-25 (PR #33, `16cb9ac`) : staging (image CI
+`jungly-hosted:main`) et prod (`JUNGLY_IMAGE_TAG=sha-16cb9ac`, depuis
+`sha-f8a44d6`). Aucune migration. **Staging et prod à jour sur `16cb9ac`**
+en fin de journée.
+
+**État en fin de session (2026-09-25), décisions de l'utilisateur** :
+- Secrets du staging exposés dans la conversation : **l'utilisateur a
+  décidé de ne pas les renouveler**. Ne plus le proposer.
+- Annonce des nouveautés : **publiée** en prod.
+- Sauvegardes du VPS (`/home/franky/serveur/.env.bak-*`,
+  `docker-compose.yml.bak-2026-09-25`, `jungly/data.bak-2026-09-25-fa5e052`) :
+  **conservées jusqu'à la fin du week-end** (27-28/09), à supprimer ensuite
+  sur demande de l'utilisateur.
+
 **Non corrigé, à décider avec l'utilisateur**
 - Facturation (`server/billing.ts`) : la vérification `provisioningId` est
   sautée quand le champ est absent (cas de récupération d'un achat) --
