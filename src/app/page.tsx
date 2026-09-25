@@ -276,10 +276,14 @@ export default async function DashboardPage() {
                       <PlantPlaceholder className="h-full w-full" />
                     )}
                   </div>
+                  {/* Entierement dans la vignette (bordure, pas d'ombre
+                      debordante) : la rangee defile en overflow-x-auto, qui
+                      rogne aussi verticalement -- une pastille qui depassait
+                      en haut etait coupee (retour utilisateur, 2026-09-25). */}
                   {plant.sickLabel && (
                     <span
-                      className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full"
-                      style={{ background: "var(--danger)", boxShadow: "0 0 0 2px var(--bg)" }}
+                      className="absolute right-0 top-0 h-3.5 w-3.5 rounded-full"
+                      style={{ background: "var(--danger)", border: "2px solid var(--bg)" }}
                       title={plant.sickLabel}
                     />
                   )}
