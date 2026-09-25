@@ -3,7 +3,11 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
-## [Post-MVP] - 2026-09-25 — Carte de partage : photo centrée
+## [Post-MVP] - 2026-09-25 — Carte de partage : photo centrée, icône de l'appli
+
+### Modifié
+
+- **Signature « suivie avec Jungly »** : l'icône de l'appli (celle du manifeste PWA, `public/icons/icon-192.png`) remplace la simple feuille, à une taille qui reste lisible une fois la carte affichée sur un téléphone.
 
 ### Corrigé
 

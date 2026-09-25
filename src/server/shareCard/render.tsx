@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
+import sharp from "sharp";
 import { CARD_SIZE, formatElapsed, type ShareFormat } from "@/lib/shareCard";
 import { HEALTH_LABEL, type HealthLevel } from "@/lib/plantHealth";
 
@@ -52,6 +53,19 @@ function loadFonts(): Promise<CardFonts> {
     { name: "Inter", data: inter700, weight: 700 as const, style: "normal" as const },
   ]);
   return fontsPromise;
+}
+
+// Icone de l'appli (celle du manifeste PWA) pour la signature de la carte,
+// reduite une fois pour toutes : satori embarquerait sinon les 192 px a
+// chaque rendu. 2x la taille affichee, pour rester nette.
+let appIconPromise: Promise<string | null> | null = null;
+function loadAppIcon(): Promise<string | null> {
+  appIconPromise ??= readFile(path.join(process.cwd(), "public", "icons", "icon-192.png"))
+    .then((png) => sharp(png).resize(128, 128).png().toBuffer())
+    .then((png) => `data:image/png;base64,${png.toString("base64")}`)
+    // Icone absente : la signature reste en texte seul.
+    .catch(() => null);
+  return appIconPromise;
 }
 
 export function formatShortDate(date: Date): string {
@@ -190,11 +204,15 @@ function Title({ name, scientificName, big, extra }: { name: string; scientificN
   );
 }
 
-function Footer({ big }: { big: boolean }) {
+function Footer({ big, icon }: { big: boolean; icon: string | null }) {
+  const size = big ? 76 : 58;
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
       <div style={{ display: "flex", fontFamily: "Inter", fontSize: big ? 28 : 22, color: C.muted }}>suivie avec</div>
-      <Leaf size={big ? 30 : 24} color={C.secondary} />
+      {icon && (
+        // eslint-disable-next-line @next/next/no-img-element -- rendu satori, pas du DOM
+        <img src={icon} width={size} height={size} alt="" style={{ width: size, height: size, borderRadius: size * 0.22 }} />
+      )}
       <div style={{ display: "flex", fontFamily: "Fraunces", fontWeight: 700, fontSize: big ? 44 : 34, color: C.primary }}>Jungly</div>
     </div>
   );
@@ -208,7 +226,7 @@ function CornerLabel({ label, date, big }: { label: string; date: Date; big: boo
   );
 }
 
-function Card({ format, card }: { format: ShareFormat; card: CardInput }) {
+function Card({ format, card, icon }: { format: ShareFormat; card: CardInput; icon: string | null }) {
   const { width, height } = CARD_SIZE[format];
   const big = format === "story";
   const pad = PADDING[format];
@@ -274,7 +292,7 @@ function Card({ format, card }: { format: ShareFormat; card: CardInput }) {
             photos sont le sujet. En story, il reste la place. */}
         {(card.mode === "single" || big) && stats}
       </div>
-      <Footer big={big} />
+      <Footer big={big} icon={icon} />
     </div>
   );
 }
@@ -282,10 +300,11 @@ function Card({ format, card }: { format: ShareFormat; card: CardInput }) {
 /** PNG de la carte. */
 export async function renderShareCard(format: ShareFormat, card: CardInput): Promise<ImageResponse> {
   const { width, height } = CARD_SIZE[format];
-  return new ImageResponse(<Card format={format} card={card} />, {
+  const [fonts, icon] = await Promise.all([loadFonts(), loadAppIcon()]);
+  return new ImageResponse(<Card format={format} card={card} icon={icon} />, {
     width,
     height,
-    fonts: await loadFonts(),
+    fonts,
     headers: { "Cache-Control": "private, no-store" },
   });
 }

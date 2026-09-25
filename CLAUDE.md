@@ -229,7 +229,11 @@ vue (EXIF non lu).
 **Retour staging** : photo cadrée sur le haut (fenêtre, plafond) au lieu de
 la plante -- `position: "attention"` de sharp remplacé par `"centre"`, comme
 la couverture de la fiche. Test de non-régression dans
-`shareCard.integration.test.ts`. Attention en testant sharp : dans un même
+`shareCard.integration.test.ts`. Signature de la carte : icône de l'appli
+(`public/icons/icon-192.png`, réduite à 128 px une fois par process) au lieu
+de la feuille, 58 px en carré / 76 px en story (lisible à ~360 px de large,
+taille d'affichage sur un téléphone). `public/icons/icon.svg` est un ancien
+dessin, pas l'icône actuelle. Attention en testant sharp : dans un même
 pipeline, un second `.resize()` remplace le premier (comparaison faussée
 une première fois).
 
