@@ -3,6 +3,16 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-25 — Carte de partage : photo centrée, icône de l'appli
+
+### Modifié
+
+- **Signature « suivie avec Jungly »** : l'icône de l'appli (celle du manifeste PWA, `public/icons/icon-192.png`) remplace la simple feuille, à une taille qui reste lisible une fois la carte affichée sur un téléphone.
+
+### Corrigé
+
+- **Photo mal cadrée sur la carte de partage** : le recadrage utilisait la stratégie « attention » de sharp, qui vise la zone la plus contrastée de la photo -- souvent une fenêtre ou un plafond en haut, la plante coupée en bas. La photo est désormais centrée, comme la couverture de la fiche plante. Test de non-régression (image à trois bandes, échoue avec l'ancien réglage).
+
 ## [Post-MVP] - 2026-09-25 — Partager une plante en carte image
 
 ### Ajouté

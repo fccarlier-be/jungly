@@ -1,4 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { unlink, writeFile } from "node:fs/promises";
+import sharp from "sharp";
+import { resolveUploadedFilePath } from "@/server/uploads";
 import { db } from "@/server/db";
 import { NotFoundError, BadRequestError } from "@/lib/errors";
 import { loadPhotoDataUrl, loadSharePlant, pickPlantPhoto } from "@/server/shareCard/data";
@@ -58,6 +61,26 @@ describe("carte de partage (integration reelle)", () => {
   it("ne telecharge jamais une URL externe ni un fichier absent", async () => {
     expect(await loadPhotoDataUrl("https://example.com/photo.jpg", 100, 100)).toBeNull();
     expect(await loadPhotoDataUrl("/uploads/inexistant-share-test.jpg", 100, 100)).toBeNull();
+  });
+
+  it("recadre la photo sur son centre (pas sur la zone la plus contrastee)", async () => {
+    // Bande rouge vive en haut (ce que "attention" privilegiait), verte au
+    // milieu, bleue en bas : un recadrage carre centre doit donner du vert.
+    const band = (color: string, y: number) => `<rect x="0" y="${y}" width="300" height="300" fill="${color}"/>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="900">${band("#ff0000", 0)}${band("#00a000", 300)}${band("#0000ff", 600)}</svg>`;
+    const filename = `test-share-crop-${Date.now()}.png`;
+    await writeFile(resolveUploadedFilePath(filename), await sharp(Buffer.from(svg)).png().toBuffer());
+    try {
+      const dataUrl = await loadPhotoDataUrl(`/uploads/${filename}`, 100, 100);
+      const jpeg = Buffer.from(dataUrl!.split(",")[1], "base64");
+      const { data } = await sharp(jpeg).extract({ left: 50, top: 50, width: 1, height: 1 }).raw().toBuffer({ resolveWithObject: true });
+      const [r, g, b] = data;
+      expect(g).toBeGreaterThan(100);
+      expect(r).toBeLessThan(60);
+      expect(b).toBeLessThan(60);
+    } finally {
+      await unlink(resolveUploadedFilePath(filename));
+    }
   });
 
   it("produit un PNG aux dimensions du format (carre et story, simple et avant/apres)", async () => {
