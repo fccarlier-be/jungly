@@ -226,6 +226,13 @@ légende, Instagram l'ignore). Les dates d'un avant/après sont celles
 d'**ajout** des photos dans Jungly (`PlantPhoto.createdAt`), pas de prise de
 vue (EXIF non lu).
 
+**Retour staging** : photo cadrée sur le haut (fenêtre, plafond) au lieu de
+la plante -- `position: "attention"` de sharp remplacé par `"centre"`, comme
+la couverture de la fiche. Test de non-régression dans
+`shareCard.integration.test.ts`. Attention en testant sharp : dans un même
+pipeline, un second `.resize()` remplace le premier (comparaison faussée
+une première fois).
+
 **Piège** : `public/uploads/` n'est pas ignoré par git -- ne jamais y laisser
 de fichiers de test.
 

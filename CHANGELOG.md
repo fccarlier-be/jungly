@@ -3,6 +3,12 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-25 — Carte de partage : photo centrée
+
+### Corrigé
+
+- **Photo mal cadrée sur la carte de partage** : le recadrage utilisait la stratégie « attention » de sharp, qui vise la zone la plus contrastée de la photo -- souvent une fenêtre ou un plafond en haut, la plante coupée en bas. La photo est désormais centrée, comme la couverture de la fiche plante. Test de non-régression (image à trois bandes, échoue avec l'ancien réglage).
+
 ## [Post-MVP] - 2026-09-25 — Partager une plante en carte image
 
 ### Ajouté

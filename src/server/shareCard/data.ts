@@ -85,7 +85,11 @@ export async function loadPhotoDataUrl(url: string | null, width: number, height
     const input = await readFile(filePath);
     const output = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
       .rotate()
-      .resize(Math.round(width), Math.round(height), { fit: "cover", position: "attention" })
+      // Centre, comme la couverture de la fiche plante (object-cover) : la
+      // strategie "attention" de sharp cadrait sur la zone la plus
+      // contrastee -- souvent une fenetre ou un plafond en haut de la photo,
+      // la plante coupee en bas (retour utilisateur, 2026-09-25).
+      .resize(Math.round(width), Math.round(height), { fit: "cover", position: "centre" })
       .jpeg({ quality: 85 })
       .toBuffer();
     return `data:image/jpeg;base64,${output.toString("base64")}`;
