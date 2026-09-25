@@ -56,37 +56,78 @@ Trois instances, à ne pas confondre (vérifié le 2026-09-25) :
 
 | Instance | Machine | Conteneur / image | Déploiement |
 |---|---|---|---|
-| Staging `testplantes.fcold.org` | homelab `FServer` (utilisateur `franky`) | `plantes-app-test` / image dédiée `serveur-plantes-app-test` | build local depuis les sources |
-| Hébergée `jungly-app.fcold.org` | VPS OVH (`ubuntu@vps-b6850d01`) | image GHCR `jungly-hosted` publiée par la CI | pull de l'image |
+| Staging `testplantes.fcold.org` | homelab `FServer` (utilisateur `franky`) | `plantes-app-test` | image CI `ghcr.io/fccarlier-be/jungly-hosted:main` (pull), ou build local pour tester une branche |
+| Hébergée `jungly-app.fcold.org` | VPS OVH (`ubuntu@vps-b6850d01`) | image GHCR `jungly-hosted` épinglée `sha-<commit>` | pull de l'image |
 | `plantes-app`, `plantes-app-hosted` | homelab | arrêtés au 2026-09-25 | — |
 
 Claude n'a accès à aucune de ces machines : donner les commandes à
 l'utilisateur, ne jamais supposer un chemin non vérifié.
 
+**Ne jamais faire afficher `docker compose config` en entier** (ni `env`,
+ni le `.env`) : les secrets sont en clair dans le compose du homelab
+(incident du 2026-09-25, secrets du staging collés dans la conversation).
+Interroger des champs précis à la place, par exemple
+`docker inspect plantes-app-test --format '{{.Config.Image}}'` ou
+`docker compose config plantes-app-test | grep -E "image:|context:"`.
+
+L'image `jungly-hosted` est publiée par la CI (job `image`) à chaque push
+sur `main`, seulement après `test` et `e2e` verts, taguée `main` et
+`sha-<commit court>`. Elle ne contient aucune configuration d'instance.
+
 ### Staging (homelab)
 
-- Compose : `/home/franky/serveur/docker-compose.yml`, service `plantes-app-test`.
+- Compose : `/home/franky/serveur/docker-compose.yml`, service
+  `plantes-app-test` (profil `test`, `restart: 'no'`).
 - Sources : `/home/franky/serveur/www/plantes` (clone sur `main`, quelques
-  fichiers non suivis sans importance).
+  fichiers non suivis sans importance) -- utilisées seulement pour un build
+  local de branche.
 - Données : `www/plantes/data-test` monté sur `/app/data` (+ `uploads/`,
   `library-photos/`). Proxy : `nginx-plantes-test` (`nginx/test.conf`).
 - Les migrations Prisma s'appliquent seules au démarrage (`docker-entrypoint.sh`).
-- Build complet ≈ 12 min sur le homelab.
+
+Service à configurer (changement proposé le 2026-09-25, à confirmer par
+l'utilisateur) : ajouter `image: ghcr.io/fccarlier-be/jungly-hosted:main` et
+garder `build:` pour les tests de branche ; l'argument de build
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY` est obsolète depuis le 2026-09-24.
+
+**Mise à jour après une fusion sur `main`** (attendre que le job `image` de
+la CI soit vert) :
 
 ```bash
-cd /home/franky/serveur/www/plantes
-git status && git branch --show-current   # doit être main, sans modif suivie
-git pull origin main
-cp -a data-test ~/data-test.bak-$(date +%F)   # si la mise à jour contient une migration
 cd /home/franky/serveur
-docker compose up -d --build plantes-app-test
+cp -a www/plantes/data-test ~/data-test.bak-$(date +%F)   # si la mise à jour contient une migration
+docker compose pull plantes-app-test
+docker compose up -d plantes-app-test
 docker restart nginx-plantes-test
 docker logs plantes-app-test 2>&1 | grep -iE "migration|erreur|error"
 ```
 
-Retour arrière : `git checkout <commit précédent>` dans `www/plantes` puis
-même `docker compose up -d --build plantes-app-test` (restaurer la sauvegarde
-de `data-test` si la migration pose problème).
+Révision déployée visible dans Paramètres > À propos (SHA passé par la CI).
+
+**Tester une branche avant fusion** (build local, ~12 min à froid, quelques
+minutes ensuite grâce au cache depuis le 2026-09-25) :
+
+```bash
+cd /home/franky/serveur/www/plantes && git fetch && git checkout <branche>
+cd /home/franky/serveur && docker compose up -d --build plantes-app-test
+# puis revenir à l'image CI :
+cd www/plantes && git checkout main && cd .. && docker compose pull plantes-app-test && docker compose up -d plantes-app-test
+```
+
+Un build local est tagué avec le même nom d'image que l'image CI : il la
+masque jusqu'au prochain `docker compose pull`.
+
+Retour arrière : épingler `image: ghcr.io/fccarlier-be/jungly-hosted:sha-<commit>`
+(commit précédent) dans le compose, puis `docker compose up -d
+plantes-app-test` (restaurer la sauvegarde de `data-test` si la migration
+pose problème).
+
+### Build Docker
+
+`Dockerfile` en 4 étages : `deps` (`npm ci`), `prod-deps` (`npm prune
+--omit=dev`, ne dépend que de `package-lock.json`), `build` (`next build`),
+`runtime`. Garder tout ce qui change à chaque commit (`COPY . .`, `ARG
+GIT_SHA`) après les étapes lourdes, sinon le cache de `node_modules` saute.
 
 ---
 
@@ -172,6 +213,23 @@ haut (elle débordait de la vignette dans une rangée `overflow-x-auto`, qui
 rogne aussi verticalement). Placée entièrement dans la vignette, avec une
 bordure `var(--bg)` au lieu d'une ombre. Retenir : rien ne doit déborder
 d'un élément dans une rangée qui défile.
+
+**Accélération des déploiements du staging** (même jour, après remarque de
+l'utilisateur : ~11 min de build pour un changement d'une ligne) :
+- Diagnostic sur son log : le cache Docker du homelab était vide (`apk add`,
+  `npm ci` refaits) et le Dockerfile refaisait `npm prune` après `COPY . .`
+  (grosse couche `node_modules` recopiée et exportée à chaque commit).
+- Dockerfile : étage `prod-deps`, `ARG GIT_SHA` déplacé après les étapes
+  lourdes. Vérifié : `docker build --check` OK ; le `node_modules` final
+  est identique à l'ancien (comparaison `diff -r` des deux chemins hors
+  Docker, seule différence un cache jiti de 12 Ko régénéré au démarrage).
+  **Build Docker complet non testé dans le bac à sable** (dépôt Alpine
+  `dl-cdn.alpinelinux.org` bloqué par la politique réseau) : le premier
+  vrai build sera celui de la CI (job `image`) après fusion.
+- Staging : proposé de tirer l'image CI au lieu de compiler (modification du
+  compose du homelab, hors repo, à faire par l'utilisateur).
+- À vérifier : pourquoi le cache de build du homelab était vide
+  (`docker builder prune` / nettoyage automatique ?).
 
 **Reste à faire / idées non retenues**
 - Encart « En convalescence » sur l'accueil (écarté pour l'instant).
