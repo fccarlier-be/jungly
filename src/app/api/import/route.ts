@@ -19,6 +19,7 @@ import {
   type BackupData,
 } from "@/server/validation/backup";
 import { ensurePendingTaskForRule } from "@/server/careEngine/service";
+import { syncHealthFollowUp } from "@/server/careEngine/health";
 import { resolveUploadedFilePath, deleteUploadedFile } from "@/server/uploads";
 import { resolveLibraryPhotoPath, deleteLibraryPhoto } from "@/server/libraryPhotos";
 import { findLibraryEntryId } from "@/server/libraryLink";
@@ -314,6 +315,7 @@ export async function POST(request: NextRequest) {
                 unit: event.unit ?? undefined,
                 metadata: (event.metadata as Prisma.InputJsonValue | null) ?? undefined,
                 note: event.note ?? undefined,
+                healthLevel: event.type === "INSPECTION" ? (event.healthLevel ?? undefined) : undefined,
               },
             });
             const current = latestEventDateByType.get(event.type);
@@ -348,6 +350,10 @@ export async function POST(request: NextRequest) {
               await ensurePendingTaskForRule(createdRule, fromDate, tx);
             }
           }
+
+          // Plante malade au moment de la sauvegarde : ses inspections de
+          // suivi ne sont pas dans l'export (taches), on les regenere.
+          await syncHealthFollowUp(plant.id, tx);
 
           for (const note of p.plantNotes) {
             await tx.note.create({

@@ -1,7 +1,7 @@
 export type PlantStatus = "healthy" | "watch" | "today" | "attention";
 
 export const STATUS_LABEL: Record<PlantStatus, string> = {
-  healthy: "En bonne santé",
+  healthy: "Soins à jour",
   watch: "À surveiller",
   today: "À faire aujourd'hui",
   attention: "Attention",

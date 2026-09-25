@@ -1,4 +1,12 @@
 import { z } from "zod";
+import { HEALTH_LEVELS } from "@/lib/plantHealth";
+import { SYMPTOM_CATEGORIES } from "@/server/diagnosis/types";
+
+// Releve de sante optionnel, porte par une INSPECTION (voir CareEvent.healthLevel).
+export const healthCheckFields = {
+  healthLevel: z.enum(HEALTH_LEVELS).optional(),
+  symptoms: z.array(z.enum(SYMPTOM_CATEGORIES)).max(SYMPTOM_CATEGORIES.length).optional(),
+};
 
 export const waterEventSchema = z.object({
   performedAt: z.coerce.date().optional(),
@@ -34,11 +42,17 @@ export const repotEventSchema = z.object({
   careRuleId: z.string().trim().min(1).optional(),
 });
 
-export const genericEventSchema = z.object({
-  type: z.enum(["PRUNING", "INSPECTION", "OTHER"]),
-  performedAt: z.coerce.date().optional(),
-  note: z.string().trim().max(1000).optional(),
-});
+export const genericEventSchema = z
+  .object({
+    type: z.enum(["PRUNING", "INSPECTION", "OTHER"]),
+    performedAt: z.coerce.date().optional(),
+    note: z.string().trim().max(1000).optional(),
+    ...healthCheckFields,
+  })
+  .refine((input) => input.type === "INSPECTION" || (input.healthLevel === undefined && input.symptoms === undefined), {
+    message: "Un état de santé ne peut être noté que lors d'une inspection.",
+    path: ["healthLevel"],
+  });
 
 export type GenericEventInput = z.infer<typeof genericEventSchema>;
 export type WaterEventInput = z.infer<typeof waterEventSchema>;

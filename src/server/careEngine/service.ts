@@ -3,6 +3,8 @@ import { db } from "@/server/db";
 import { ConflictError } from "@/lib/apiError";
 import { buildTaskTitle, computeRuleNextDueDate, mapRuleTypeToTaskType, type RuleConfiguration } from "./taskGenerator";
 import { shouldTriggerFromMoistureReading } from "./sensorTrigger";
+import { syncHealthFollowUp } from "./health";
+import type { HealthLevel } from "@/lib/plantHealth";
 
 const COMPLETABLE_STATUSES: TaskStatus[] = ["PENDING", "SNOOZED"];
 
@@ -98,6 +100,8 @@ export interface CareEventInput {
   method?: string;
   note?: string;
   metadata?: Record<string, unknown>;
+  // Releve de sante -- ignore pour tout autre type qu'INSPECTION.
+  healthLevel?: HealthLevel;
 }
 
 /**
@@ -141,11 +145,15 @@ export async function completeTaskWithEvent(taskId: string, type: CareEventType,
         unit: input.unit,
         note: input.note,
         metadata: toJsonInput(input.method ? { method: input.method, ...input.metadata } : input.metadata),
+        healthLevel: type === "INSPECTION" ? input.healthLevel : undefined,
       },
     });
 
     if (task.careRule) {
       await ensurePendingTaskForRule(task.careRule, performedAt, tx);
+    }
+    if (type === "INSPECTION") {
+      await syncHealthFollowUp(task.plantId, tx);
     }
 
     return event;
@@ -191,6 +199,7 @@ async function recordStandaloneCareEventWithClient(
       unit: input.unit,
       note: input.note,
       metadata: toJsonInput(input.method ? { method: input.method, ...input.metadata } : input.metadata),
+      healthLevel: type === "INSPECTION" ? input.healthLevel : undefined,
     },
   });
 
@@ -211,6 +220,10 @@ async function recordStandaloneCareEventWithClient(
       }
       await ensurePendingTaskForRule(rule, performedAt, client);
     }
+  }
+
+  if (type === "INSPECTION") {
+    await syncHealthFollowUp(plantId, client);
   }
 
   return event;

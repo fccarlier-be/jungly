@@ -5,6 +5,8 @@ import { db } from "@/server/db";
 import PlantCard from "@/components/PlantCard";
 import { computePlantStatus } from "@/lib/plantStatus";
 import { effectiveDueDate } from "@/server/careEngine/dueTasks";
+import { getHealthSummaries } from "@/server/careEngine/health";
+import { computeOverallStatus, isSick } from "@/lib/plantHealth";
 
 const PRIMARY_FILTERS = [
   { value: "all", label: "Toutes" },
@@ -16,6 +18,7 @@ const SECONDARY_FILTERS = [
   { value: "watering", label: "À arroser" },
   { value: "fertilizing", label: "À fertiliser" },
   { value: "overdue", label: "En retard" },
+  { value: "sick", label: "En mauvaise santé" },
   { value: "none", label: "Aucune tâche" },
 ];
 
@@ -55,6 +58,8 @@ export default async function PlantsPage({
     libraryEntries.map((e) => [e.scientificName, (e.careProfile as { imageUrl?: string } | null)?.imageUrl ?? null]),
   );
 
+  const healthSummaries = await getHealthSummaries(plants.map((p) => p.id));
+
   const now = new Date();
   let items = plants.map((plant) => {
     // dueAt est remplace par sa date effective (voir effectiveDueDate) : une
@@ -64,20 +69,28 @@ export default async function PlantsPage({
       .map((t) => ({ ...t, dueAt: effectiveDueDate(t) }))
       .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime());
     const nextTask = tasks[0] ?? null;
+    const taskStatus = computePlantStatus(nextTask?.dueAt ?? null);
+    const healthLevel = healthSummaries.get(plant.id)?.current.level ?? null;
     return {
       ...plant,
       tasks,
       nextTask,
       overdue: tasks.some((t) => t.dueAt < now),
-      status: computePlantStatus(nextTask?.dueAt ?? null),
+      taskStatus,
+      healthLevel,
+      // Statut combine taches + sante (voir computeOverallStatus) : une
+      // plante en sante moyenne apparait dans "A surveiller".
+      status: computeOverallStatus(taskStatus, healthLevel).status,
       fallbackImageUrl: plant.scientificName ? (fallbackImageByName.get(plant.scientificName) ?? null) : null,
     };
   });
 
   items = items.filter((plant) => {
     switch (filter) {
+      // "A faire" reste base sur les seules taches : une plante malade sans
+      // tache due n'a rien "a faire" (filtre "En mauvaise sante" pour elle).
       case "due":
-        return plant.status === "today" || plant.status === "attention";
+        return plant.taskStatus === "today" || plant.taskStatus === "attention";
       case "watch":
         return plant.status === "watch";
       case "watering":
@@ -86,6 +99,8 @@ export default async function PlantsPage({
         return plant.tasks.some((t) => t.type === "FERTILIZING");
       case "overdue":
         return plant.overdue;
+      case "sick":
+        return isSick(plant.healthLevel);
       case "none":
         return plant.tasks.length === 0;
       default:

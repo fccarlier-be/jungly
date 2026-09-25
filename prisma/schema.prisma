@@ -408,6 +408,18 @@ enum CareEventType {
   OTHER
 }
 
+// Etat de sante releve a la main par l'utilisateur (option 3, 2026-09-25) --
+// distinct du statut calcule depuis les taches (src/lib/plantStatus.ts), qui
+// ne dit rien de la sante reelle. Ordre = du meilleur au pire, voir
+// HEALTH_LEVELS dans src/lib/plantHealth.ts.
+enum HealthLevel {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  CRITICAL
+}
+
 model CareEvent {
   id          String        @id @default(cuid())
   plantId     String
@@ -418,6 +430,11 @@ model CareEvent {
   unit        String?
   metadata    Json?
   note        String?
+  // Releve de sante : seulement sur un evenement INSPECTION, null sinon (ou
+  // inspection sans releve). L'etat actuel d'une plante = le releve le plus
+  // recent -- pas de copie sur Plant, pour ne jamais desynchroniser. Les
+  // symptomes coches eventuels vont dans metadata.symptoms (SymptomCategory[]).
+  healthLevel HealthLevel?
   createdAt   DateTime      @default(now())
 
   plant Plant @relation(fields: [plantId], references: [id], onDelete: Cascade)

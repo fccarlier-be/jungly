@@ -11,6 +11,8 @@ import { CareAvatar } from "@/components/careIcons";
 import SwipeableCard from "@/components/SwipeableCard";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 import { PlantPlaceholder } from "@/components/art/paper";
+import { HealthLevelPicker } from "@/components/HealthLevelPicker";
+import type { HealthLevel } from "@/lib/plantHealth";
 
 export interface TaskCardData {
   id: string;
@@ -87,6 +89,10 @@ function TaskRow({
   const [done, setDone] = useState(false);
   const [customDate, setCustomDate] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Inspection : on demande l'etat de sante constate avant de valider
+  // (facultatif, "Valider sans relevé"), c'est ce qui alimente le suivi des
+  // plantes malades (voir syncHealthFollowUp).
+  const [healthPrompt, setHealthPrompt] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -130,14 +136,22 @@ function TaskRow({
     };
   }, [menuOpen]);
 
-  async function complete() {
+  function requestComplete() {
+    if (task.type === "INSPECTION" && !healthPrompt) {
+      setHealthPrompt(true);
+      return;
+    }
+    void complete();
+  }
+
+  async function complete(healthLevel?: HealthLevel) {
     setPending(true);
     setError(null);
     try {
       const res = await fetch(`/api/tasks/${task.id}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(healthLevel ? { healthLevel } : {}),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -191,7 +205,7 @@ function TaskRow({
 
   return (
     <>
-      <SwipeableCard onSwipeLeft={complete} onSwipeRight={swipeSnooze} disabled={pending} radius={radius}>
+      <SwipeableCard onSwipeLeft={requestComplete} onSwipeRight={swipeSnooze} disabled={pending} radius={radius}>
         <div className={wrapClass} data-testid={testId} style={done ? { opacity: 0.4, transform: "scale(0.98)" } : { transition: "all 300ms" }}>
           <div className="flex items-center gap-3">
             {lead}
@@ -202,7 +216,7 @@ function TaskRow({
             </div>
             <button
               type="button"
-              onClick={complete}
+              onClick={requestComplete}
               disabled={pending}
               className="btn-primary flex h-10 w-10 shrink-0 items-center justify-center rounded-full disabled:opacity-60"
               style={{ boxShadow: "none" }}
@@ -222,6 +236,15 @@ function TaskRow({
               <MoreHorizontal size={18} />
             </button>
           </div>
+          {healthPrompt && !done && (
+            <div className="space-y-2 pt-3">
+              <p className="text-muted text-xs">État de santé constaté ?</p>
+              <HealthLevelPicker value={null} onChange={(level) => level && void complete(level)} disabled={pending} />
+              <button type="button" onClick={() => void complete()} disabled={pending} className="btn-ghost w-full rounded-lg py-1.5 text-xs font-medium">
+                Valider sans relevé
+              </button>
+            </div>
+          )}
           {error && (
             <p role="alert" className="pt-2 text-sm" style={{ color: "var(--danger)" }}>
               {error}

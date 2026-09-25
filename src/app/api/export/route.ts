@@ -128,6 +128,7 @@ export async function GET() {
             unit: e.unit,
             metadata: e.metadata as Record<string, unknown> | null,
             note: e.note,
+            healthLevel: e.healthLevel,
           })),
           plantNotes: p.plantNotes.map((n) => ({ content: n.content, category: n.category, photoUrl: n.photoUrl })),
           photos: p.photos.map((ph) => ph.url),

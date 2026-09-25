@@ -14,6 +14,8 @@ import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 import CuttingsBanner from "@/components/CuttingsBanner";
 import { groupTasksByPlant } from "@/lib/taskGroups";
+import { getHealthSummaries } from "@/server/careEngine/health";
+import { HEALTH_LABEL, isSick } from "@/lib/plantHealth";
 import { HomeBanner, PlantPlaceholder, PotSprout, RestScene, bannerVariantForHour } from "@/components/art/paper";
 
 // Seulement "Bonjour"/"Bonsoir" (retour utilisateur) : "Bon après-midi" est
@@ -66,9 +68,18 @@ export default async function DashboardPage() {
 
   const libraryImageByName = await getLibraryImageMap([...tasks.map((t) => t.plant.scientificName), ...allPlants.map((p) => p.scientificName)]);
 
+  const healthSummaries = await getHealthSummaries(allPlants.map((p) => p.id));
+
   const collection = allPlants.map((plant) => ({
     id: plant.id,
     name: plant.name,
+    // Pastille rouge sur la vignette (option retenue plutot qu'un encart
+    // "En convalescence", pour ne pas faire defiler l'accueil -- voir
+    // NoScrollDashboard).
+    sickLabel: (() => {
+      const level = healthSummaries.get(plant.id)?.current.level;
+      return isSick(level) ? `Santé ${HEALTH_LABEL[level].toLowerCase()}` : null;
+    })(),
     image:
       plant.photoUrl ||
       (plant.libraryEntry?.careProfile as { imageUrl?: string } | null)?.imageUrl ||
@@ -239,22 +250,38 @@ export default async function DashboardPage() {
           <div className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto pb-0.5">
             <div className="w-0 shrink-0 snap-start" aria-hidden />
             {collection.map((plant) => (
-              <Link key={plant.id} href={`/plantes/${plant.id}`} className="w-14 shrink-0 snap-start text-center">
-                <div
-                  className="relative mx-auto flex h-11 w-11 items-center justify-center overflow-hidden rounded-full"
-                  style={{ background: "var(--surface-alt)" }}
-                >
-                  {plant.image ? (
-                    <Image
-                      src={plant.image}
-                      alt=""
-                      fill
-                      sizes="44px"
-                      className="object-cover"
-                      unoptimized={bypassesImageOptimizer(plant.image)}
+              <Link
+                key={plant.id}
+                href={`/plantes/${plant.id}`}
+                className="w-14 shrink-0 snap-start text-center"
+                aria-label={plant.sickLabel ? `${plant.name} (${plant.sickLabel})` : undefined}
+              >
+                {/* Conteneur relatif hors du cercle : overflow-hidden
+                    rognerait la pastille. */}
+                <div className="relative mx-auto h-11 w-11">
+                  <div
+                    className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full"
+                    style={{ background: "var(--surface-alt)" }}
+                  >
+                    {plant.image ? (
+                      <Image
+                        src={plant.image}
+                        alt=""
+                        fill
+                        sizes="44px"
+                        className="object-cover"
+                        unoptimized={bypassesImageOptimizer(plant.image)}
+                      />
+                    ) : (
+                      <PlantPlaceholder className="h-full w-full" />
+                    )}
+                  </div>
+                  {plant.sickLabel && (
+                    <span
+                      className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full"
+                      style={{ background: "var(--danger)", boxShadow: "0 0 0 2px var(--bg)" }}
+                      title={plant.sickLabel}
                     />
-                  ) : (
-                    <PlantPlaceholder className="h-full w-full" />
                   )}
                 </div>
                 <p className="text-muted mt-0.5 truncate text-[11px] leading-tight">{plant.name}</p>

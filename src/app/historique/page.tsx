@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/units";
 import { CareAvatar } from "@/components/careIcons";
 import EmptyState from "@/components/EmptyState";
 import { PotSprout } from "@/components/art/paper";
+import { HEALTH_LABEL } from "@/lib/plantHealth";
 
 function parseEventType(value?: string): CareEventType | undefined {
   return value && (Object.values(CareEventType) as string[]).includes(value) ? (value as CareEventType) : undefined;
@@ -66,6 +67,7 @@ export default async function HistoryPage({
               <CareAvatar type={event.type} size={30} />
               <span className="flex-1 font-medium">{event.plant.name}</span>
               <span className="text-muted">{formatDate(event.performedAt)}</span>
+              {event.healthLevel && <span className="text-muted">Santé : {HEALTH_LABEL[event.healthLevel]}</span>}
               {(event.quantity != null || event.note) && (
                 <span className="text-muted">
                   {event.quantity != null ? `${event.quantity} ${event.unit ?? ""}` : ""}

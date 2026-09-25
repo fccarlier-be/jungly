@@ -3,6 +3,7 @@ import Image from "next/image";
 import { TriangleAlert } from "@/components/icons";
 import { formatRelativeDueDate } from "@/lib/units";
 import { computePlantStatus } from "@/lib/plantStatus";
+import { HEALTH_LABEL, isSick, type HealthLevel } from "@/lib/plantHealth";
 import { CareTypeIcon } from "@/components/careIcons";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 import { PlantPlaceholder } from "@/components/art/paper";
@@ -14,6 +15,8 @@ export interface PlantCardData {
   photoUrl?: string | null;
   fallbackImageUrl?: string | null;
   nextTask?: { type: string; dueAt: Date | string } | null;
+  // Dernier releve de sante, null/absent si aucun.
+  healthLevel?: HealthLevel | null;
 }
 
 const ACTION_LABEL: Record<string, string> = {
@@ -32,8 +35,11 @@ export default function PlantCard({ plant }: { plant: PlantCardData }) {
   // On ne signale que ce qui merite reellement l'attention : rien pour une
   // plante saine ou une echeance encore lointaine (evite le mur de badges
   // "En bonne sante" identiques constate sur l'ecran "Mes plantes").
-  const chip =
-    status === "attention"
+  // Une plante malade prime sur les taches : c'est l'information la plus
+  // importante de la carte.
+  const chip = isSick(plant.healthLevel)
+    ? { label: `Santé ${HEALTH_LABEL[plant.healthLevel].toLowerCase()}`, tone: "attention" as const }
+    : status === "attention"
       ? { label: "Attention", tone: "attention" as const }
       : status === "today" && plant.nextTask
         ? { label: ACTION_LABEL[plant.nextTask.type] ?? "À faire", tone: "action" as const }

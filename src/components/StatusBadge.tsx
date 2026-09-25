@@ -1,10 +1,11 @@
 import { STATUS_LABEL, type PlantStatus } from "@/lib/plantStatus";
 
-export default function StatusBadge({ status }: { status: PlantStatus }) {
+/** label : libelle combine taches + sante (computeOverallStatus), sinon celui du seul statut. */
+export default function StatusBadge({ status, label }: { status: PlantStatus; label?: string }) {
   return (
     <span className={`badge badge-${status}`}>
       <span className={`status-dot status-${status}`} />
-      {STATUS_LABEL[status]}
+      {label ?? STATUS_LABEL[status]}
     </span>
   );
 }

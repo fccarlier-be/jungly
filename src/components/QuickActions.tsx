@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { StickyNote, Stethoscope, type LucideIcon } from "@/components/icons";
 import { CARE_ICON, CARE_COLOR } from "@/components/careIcons";
+import { HealthLevelPicker } from "@/components/HealthLevelPicker";
+import type { HealthLevel } from "@/lib/plantHealth";
 
 interface CareRuleLite {
   id: string;
@@ -48,6 +50,7 @@ export default function QuickActions({
 
   const [pruneNote, setPruneNote] = useState("");
   const [inspectNote, setInspectNote] = useState("");
+  const [inspectHealth, setInspectHealth] = useState<HealthLevel | null>(null);
 
   const [noteContent, setNoteContent] = useState("");
   const [noteCategory, setNoteCategory] = useState("OBSERVATION");
@@ -130,12 +133,12 @@ export default function QuickActions({
       setRepotNote("");
     });
 
-  const submitGeneric = (type: "PRUNING" | "INSPECTION", note: string, reset: () => void) =>
+  const submitGeneric = (type: "PRUNING" | "INSPECTION", note: string, reset: () => void, healthLevel?: HealthLevel | null) =>
     run(async () => {
       const res = await fetch(`/api/plants/${plantId}/events`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, note: note || undefined }),
+        body: JSON.stringify({ type, note: note || undefined, healthLevel: healthLevel ?? undefined }),
       });
       await throwIfNotOk(res, "Impossible d'enregistrer cet événement.");
       reset();
@@ -298,6 +301,9 @@ export default function QuickActions({
 
       {open === "inspect" && (
         <div className="card p-3 space-y-2">
+          {/* Releve de sante facultatif : une inspection sans niveau reste possible. */}
+          <p className="text-muted text-xs">État de santé constaté (optionnel)</p>
+          <HealthLevelPicker value={inspectHealth} onChange={setInspectHealth} disabled={pending} />
           <input
             placeholder="Observation (optionnel)"
             value={inspectNote}
@@ -305,7 +311,17 @@ export default function QuickActions({
             className={inputClass}
           />
           <button
-            onClick={() => submitGeneric("INSPECTION", inspectNote, () => setInspectNote(""))}
+            onClick={() =>
+              submitGeneric(
+                "INSPECTION",
+                inspectNote,
+                () => {
+                  setInspectNote("");
+                  setInspectHealth(null);
+                },
+                inspectHealth,
+              )
+            }
             disabled={pending}
             className="btn-primary w-full rounded-lg py-2 text-sm font-medium"
           >

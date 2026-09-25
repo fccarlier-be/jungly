@@ -4,6 +4,7 @@ import QuickActions from "@/components/QuickActions";
 import PlantPhotoGallery from "@/components/PlantPhotoGallery";
 import PlantCoverPhoto from "@/components/PlantCoverPhoto";
 import StatusBadge from "@/components/StatusBadge";
+import PlantHealthSection from "@/components/PlantHealthSection";
 import { CareAvatar } from "@/components/careIcons";
 import type { PlantDetailData } from "@/lib/plantDetailData";
 import { RULE_LABEL } from "@/lib/careRuleLabels";
@@ -36,11 +37,13 @@ export default function PlantDetailView({ plant }: { plant: PlantDetailData }) {
             {plant.scientificName && <p className="text-muted truncate italic">{plant.scientificName}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={plant.status} />
+            <StatusBadge status={plant.status} label={plant.statusLabel} />
             <span className="text-muted text-sm">{plant.locationName ?? "Sans emplacement"}</span>
           </div>
         </div>
       </div>
+
+      <PlantHealthSection plantId={plant.id} health={plant.health} />
 
       <section className="animate-rise-in space-y-3">
         <h2 className="text-lg font-semibold">Entretien</h2>
