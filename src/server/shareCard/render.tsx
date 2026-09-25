@@ -209,11 +209,13 @@ function Footer({ big, icon }: { big: boolean; icon: string | null }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
       <div style={{ display: "flex", fontFamily: "Inter", fontSize: big ? 28 : 22, color: C.muted }}>suivie avec</div>
+      <div style={{ display: "flex", fontFamily: "Fraunces", fontWeight: 700, fontSize: big ? 44 : 34, color: C.primary }}>Jungly</div>
+      {/* Apres le nom, pas entre "suivie avec" et "Jungly" (retour
+          utilisateur, 2026-09-25) : la phrase se lit d'un bloc. */}
       {icon && (
         // eslint-disable-next-line @next/next/no-img-element -- rendu satori, pas du DOM
-        <img src={icon} width={size} height={size} alt="" style={{ width: size, height: size, borderRadius: size * 0.22 }} />
+        <img src={icon} width={size} height={size} alt="" style={{ width: size, height: size, borderRadius: size * 0.22, marginLeft: 4 }} />
       )}
-      <div style={{ display: "flex", fontFamily: "Fraunces", fontWeight: 700, fontSize: big ? 44 : 34, color: C.primary }}>Jungly</div>
     </div>
   );
 }
