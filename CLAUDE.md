@@ -64,10 +64,12 @@ Claude n'a accès à aucune de ces machines : donner les commandes à
 l'utilisateur, ne jamais supposer un chemin non vérifié.
 
 **Ne jamais faire afficher `docker compose config` en entier** (ni `env`,
-ni le `.env`) : les secrets sont en clair dans le compose du homelab
-(incident du 2026-09-25, secrets du staging collés dans la conversation).
-Interroger des champs précis à la place, par exemple
-`docker inspect plantes-app-test --format '{{.Config.Image}}'` ou
+ni le `.env`) : le compose du homelab référence les secrets (`${PLANTES_...}`)
+depuis un `.env` voisin, et `docker compose config` les affiche résolus, en
+clair (incident du 2026-09-25, secrets du staging collés dans la
+conversation). Utiliser `docker compose config --no-interpolate` (garde les
+`${...}`), ou interroger des champs précis :
+`docker inspect plantes-app-test --format '{{.Config.Image}}'`,
 `docker compose config plantes-app-test | grep -E "image:|context:"`.
 
 L'image `jungly-hosted` est publiée par la CI (job `image`) à chaque push
