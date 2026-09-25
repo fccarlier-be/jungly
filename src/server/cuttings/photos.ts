@@ -3,7 +3,7 @@ import { db } from "@/server/db";
 // Noms generes par processAndStoreUpload (randomUUID + ".jpg") -- ce garde-fou
 // strict evite que le motif LIKE ci-dessous soit jamais construit a partir
 // d'un nom arbitraire (caracteres % ou _ interpretes par LIKE).
-const UPLOAD_URL_PATTERN = /^\/uploads\/[0-9a-f-]{36}\.jpg$/;
+export const UPLOAD_URL_PATTERN = /^\/uploads\/[0-9a-f-]{36}\.jpg$/;
 
 /**
  * Vrai si cette photo televersee est rattachee a une annonce de boutures --

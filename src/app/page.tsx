@@ -96,7 +96,9 @@ export default async function DashboardPage() {
     ),
   );
   const fertilizers = fertilizerIds.length
-    ? await db.fertilizer.findMany({ where: { id: { in: fertilizerIds } } })
+    ? // userId en plus des ids (defense en profondeur) : ces ids viennent de
+      // la configuration des regles, jamais relue contre le proprietaire ici.
+      await db.fertilizer.findMany({ where: { id: { in: fertilizerIds }, userId } })
     : [];
 
   const cards: TaskCardData[] = tasks.map((task) => {

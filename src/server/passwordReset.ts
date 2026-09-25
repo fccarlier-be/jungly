@@ -48,7 +48,18 @@ export async function requestPasswordReset(email: string): Promise<void> {
 
   const resetUrl = `${process.env.NEXTAUTH_URL}/reinitialiser-mot-de-passe?token=${token}`;
   const { subject, html, text } = passwordResetEmail(resetUrl);
-  await sendEmail(email, subject, html, text);
+  // Envoi NON attendu : l'appel a Resend (plusieurs centaines de ms) ne se
+  // faisait que pour un compte existant, et la route repondait donc
+  // mesurablement plus lentement dans ce cas -- de quoi deviner par le temps
+  // de reponse quelles adresses ont un compte, malgre la reponse identique
+  // (audit du 2026-09-25, meme principe que DUMMY_PASSWORD_HASH dans
+  // auth.ts). Le serveur tourne en continu (pas de fonction serverless
+  // interrompue apres la reponse) : l'envoi se termine en arriere-plan.
+  void Promise.resolve()
+    .then(() => sendEmail(email, subject, html, text))
+    .catch((error) => {
+      console.error("[password-reset] envoi de l'e-mail impossible :", error);
+    });
 }
 
 /**

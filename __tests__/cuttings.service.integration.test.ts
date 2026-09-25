@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
-import { NotFoundError, ForbiddenError, ConflictError } from "@/lib/errors";
+import { NotFoundError, ForbiddenError, ConflictError, BadRequestError } from "@/lib/errors";
 import {
   createListing,
   listOpenListings,
@@ -83,6 +83,28 @@ describe("cuttings/service (integration reelle SQLite)", () => {
       await expect(
         createListing(ownerId, { title: "Bouture", type: "DON", quantity: 1, photoUrls: ["/uploads/inconnu.jpg"], noSaleAccepted: true }),
       ).rejects.toThrow();
+    });
+
+    // Audit du 2026-09-25 : assertOwnedUpload() laisse passer toute URL hors
+    // /uploads/ -- une photo d'annonce externe etait chargee par le
+    // navigateur de chaque membre (fuite d'IP), une chaine quelconque
+    // contournait la photo obligatoire.
+    it("createListing refuse une photo externe ou qui n'est pas un televersement", async () => {
+      for (const photoUrl of ["https://tracker.example/pixel.png", "x", "/library-photos/abc.jpg", "/api/user"]) {
+        await expect(
+          createListing(ownerId, { title: "Bouture", type: "DON", quantity: 1, photoUrls: [photoUrl], noSaleAccepted: true }),
+        ).rejects.toThrow(BadRequestError);
+      }
+    });
+
+    // Audit du 2026-09-25 : un seul message indechiffrable (cle renouvelee,
+    // donnee corrompue) faisait echouer toute l'annonce.
+    it("getListingDetail reste disponible si un message est indechiffrable", async () => {
+      const listing = await newListing(ownerId);
+      await sendMessage(otherId, listing.id, { recipientId: ownerId, body: "Toujours dispo ?" });
+      await db.cuttingMessage.updateMany({ where: { listingId: listing.id }, data: { bodyAuthTag: Buffer.alloc(16).toString("base64") } });
+      const detail = await getListingDetail(listing.id, ownerId);
+      expect(detail.messages.map((m) => m.body)).toEqual(["[Message illisible]"]);
     });
 
     it("createListing puis listOpenListings et listMyListings la font apparaitre, avec sa quantite", async () => {

@@ -3,6 +3,26 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-25 — Audit complet du code
+
+Audit de l'ensemble du code (authentification, contrôle d'accès des 80 routes API, fichiers et imports, boutures, annonces, admin, facturation, capteurs, logique métier). Chaque constat a été reproduit avant correction ; chaque correctif a son test de non-régression, vérifié en échec sur l'ancien code.
+
+### Sécurité
+
+- **Photos d'annonces de boutures** : n'importe quelle URL était acceptée (seules celles en `/uploads/` étaient contrôlées). Une image hébergée ailleurs était chargée par le navigateur de chaque membre consultant l'annonce -- fuite de son adresse IP vers un serveur tiers, constatée en conditions réelles -- et une chaîne quelconque contournait la photo obligatoire. Désormais : uniquement un téléversement du compte auteur.
+- **« Mot de passe oublié »** : l'e-mail n'était envoyé (et attendu) que pour un compte existant, la réponse était donc mesurablement plus lente dans ce cas -- de quoi deviner quelles adresses ont un compte malgré la réponse identique. L'envoi n'est plus attendu.
+- **Import d'une sauvegarde** : l'identifiant d'engrais contenu dans le fichier était conservé tel quel et pouvait désigner l'engrais d'un autre compte, dont le nom et le NPK s'affichaient ensuite sur l'accueil. L'engrais est désormais toujours résolu par son nom parmi ceux du compte qui importe ; l'accueil filtre en plus par compte.
+- **Messages des boutures** : le déchiffrement exige un tag d'authentification complet (16 octets) ; un tag tronqué était accepté.
+
+### Corrigé
+
+- **Règle d'entretien « date fixe » (`EXACT_DATE`)** : compléter la tâche la recréait aussitôt à l'identique (impossible à faire disparaître, en retard pour toujours une fois la date passée). Option absente de l'interface, mais possible via l'API ou un import.
+- **Annonce de boutures** : un seul message indéchiffrable (clé renouvelée, donnée corrompue) faisait échouer toute l'annonce et empêchait de signaler la conversation ; il s'affiche maintenant « [Message illisible] ».
+
+### Vérifié
+
+- Lint, `tsc --noEmit`, 478 tests (dont 11 nouveaux), build.
+
 ## [Post-MVP] - 2026-09-25 — Carte de partage : photo centrée, icône de l'appli
 
 ### Modifié

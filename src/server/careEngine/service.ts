@@ -78,6 +78,21 @@ async function ensurePendingTaskForRuleWithClient(
     return null;
   }
 
+  // EXACT_DATE est ponctuel : sa "prochaine" echeance est toujours la meme
+  // date. Sans ce controle, completer la tache la recreait aussitot a
+  // l'identique -- impossible de s'en debarrasser, et en retard pour
+  // toujours une fois la date passee (audit du 2026-09-25). Une nouvelle
+  // date (PATCH de la regle) donne un autre dueAt, donc une nouvelle tache.
+  if (rule.recurrenceType === "EXACT_DATE") {
+    const alreadyHandled = await client.task.findFirst({
+      where: { careRuleId: rule.id, dueAt, status: { in: ["COMPLETED", "SKIPPED"] } },
+      select: { id: true },
+    });
+    if (alreadyHandled) {
+      return null;
+    }
+  }
+
   const task = await client.task.create({
     data: {
       plantId: rule.plantId,

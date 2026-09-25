@@ -1,6 +1,6 @@
 import { db } from "@/server/db";
 import { NotFoundError, ConflictError } from "@/lib/errors";
-import { encryptMessageBody, decryptMessageBody } from "@/server/cuttings/crypto";
+import { encryptMessageBody, decryptMessageBody, decryptMessageBodyOrPlaceholder } from "@/server/cuttings/crypto";
 import { consequenceForRank, type CuttingWarningConsequence } from "@/server/cuttings/types";
 import type { CreateCuttingReportInput } from "@/server/validation/cutting";
 
@@ -67,7 +67,7 @@ export async function createReport(reporterId: string, input: CreateCuttingRepor
     const snapshot: EvidenceMessage[] = rawMessages.reverse().map((m) => ({
       from: m.sender.pseudo ?? "membre sans pseudo",
       at: m.createdAt.toISOString(),
-      body: decryptMessageBody({ ciphertext: m.bodyCiphertext, iv: m.bodyIv, authTag: m.bodyAuthTag }),
+      body: decryptMessageBodyOrPlaceholder({ ciphertext: m.bodyCiphertext, iv: m.bodyIv, authTag: m.bodyAuthTag }),
     }));
     evidence = encryptMessageBody(JSON.stringify(snapshot));
   }
