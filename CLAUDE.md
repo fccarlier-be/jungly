@@ -57,7 +57,7 @@ Trois instances, à ne pas confondre (vérifié le 2026-09-25) :
 | Instance | Machine | Conteneur / image | Déploiement |
 |---|---|---|---|
 | Staging `testplantes.fcold.org` | homelab `FServer` (utilisateur `franky`) | `plantes-app-test` | image CI `ghcr.io/fccarlier-be/jungly-hosted:main` (pull), ou build local pour tester une branche |
-| Hébergée `jungly-app.fcold.org` | VPS OVH (`ubuntu@vps-b6850d01`) | image GHCR `jungly-hosted` épinglée `sha-<commit>` | pull de l'image |
+| **Prod** `jungly-app.fcold.org` | VPS OVH (`ubuntu@vps-b6850d01`) | `plantes-app-hosted` | image CI épinglée `sha-<commit>` via `JUNGLY_IMAGE_TAG` (`.env`) |
 | `plantes-app`, `plantes-app-hosted` | homelab | arrêtés au 2026-09-25 | — |
 
 Claude n'a accès à aucune de ces machines : donner les commandes à
@@ -125,6 +125,46 @@ Retour arrière : épingler `image: ghcr.io/fccarlier-be/jungly-hosted:sha-<comm
 (commit précédent) dans le compose, puis `docker compose up -d
 plantes-app-test` (restaurer la sauvegarde de `data-test` si la migration
 pose problème).
+
+### Prod (VPS OVH, `jungly-app.fcold.org`)
+
+Vérifié le 2026-09-25 :
+- Connexion en `ubuntu`, qui n'a **pas** accès à `/home/franky` : tout passe
+  par `sudo`, avec des chemins absolus (`docker compose -f ...`).
+- Compose : `/home/franky/serveur/docker-compose.yml`, service
+  `plantes-app-hosted`. L'image y est
+  `ghcr.io/fccarlier-be/jungly-hosted:${JUNGLY_IMAGE_TAG}` : **le tag se
+  change dans `/home/franky/serveur/.env`** (ligne `JUNGLY_IMAGE_TAG=sha-<commit>`),
+  jamais dans le compose. Ce `.env` contient aussi les secrets : n'en
+  afficher que la ligne du tag.
+- Données : `/home/franky/serveur/jungly/data` (+ `uploads/`,
+  `library-photos/`), ~118 Mo au 2026-09-25. Proxy : `nginx-plantes-hosted`.
+- Autres conteneurs du VPS, sans rapport : `jungly-admin-app`,
+  `nginx-jungly-admin`, `cloudflared`.
+
+**Mise en prod** d'un commit de `main` (après validation sur le staging, CI
+verte job `image` compris ; `<sha>` = SHA court du commit de fusion) :
+
+```bash
+F=/home/franky/serveur/docker-compose.yml
+sudo docker pull ghcr.io/fccarlier-be/jungly-hosted:sha-<sha>          # sans coupure
+sudo cp -a /home/franky/serveur/.env /home/franky/serveur/.env.bak-$(date +%F)
+sudo grep -n "^JUNGLY_IMAGE_TAG=" /home/franky/serveur/.env           # noter l'ancien tag
+sudo sed -i 's/^JUNGLY_IMAGE_TAG=.*/JUNGLY_IMAGE_TAG=sha-<sha>/' /home/franky/serveur/.env
+sudo docker compose -f $F config plantes-app-hosted | grep "image:"   # doit afficher le nouveau tag
+# si migration : sauvegarde à froid (coupure = durée de la copie)
+sudo docker compose -f $F stop plantes-app-hosted
+sudo cp -a /home/franky/serveur/jungly/data /home/franky/serveur/jungly/data.bak-$(date +%F)-<ancien sha>
+sudo docker compose -f $F up -d plantes-app-hosted
+sudo docker restart nginx-plantes-hosted
+sudo docker inspect plantes-app-hosted --format '{{.Config.Image}}'
+sudo docker logs plantes-app-hosted 2>&1 | grep -iE "migration|erreur|error"   # attendre quelques secondes
+```
+
+Retour arrière : remettre l'ancien tag dans le `.env` (même `sed`), puis
+`up -d` et redémarrage du nginx. L'ancienne version tolère une base migrée
+(colonnes en plus ignorées) : ne restaurer la sauvegarde des données qu'en
+cas de problème de base (les saisies faites entre-temps seraient perdues).
 
 ### Build Docker
 
@@ -249,6 +289,13 @@ tuiles « Photo » (caméra) et « Galerie » séparées, même raison que
 `PlantPhotoGallery`/`PlantForm` (un seul input ne peut pas offrir les deux
 sur Android). Icône `Images` ajoutée à `components/icons.tsx`. Non traités
 (caméra seule aussi) : `PlantDiagnosisWizard.tsx`, `PlantPhotoIdentify.tsx`.
+
+**Mise en prod** le 2026-09-25 : `jungly-app.fcold.org` passé de
+`sha-fa5e052` (PR #19) à `sha-ff07bd3` (PR #29 : santé, pastille, Dockerfile,
+retours staging). Migration santé appliquée sans erreur. Sauvegardes sur le
+VPS : `jungly/data.bak-2026-09-25-fa5e052`, `.env.bak-2026-09-25`,
+`docker-compose.yml.bak-2026-09-25` (inutile, le compose n'a pas changé).
+Procédure documentée dans « Déploiement > Prod ».
 
 **Reste à faire / idées non retenues**
 - Encart « En convalescence » sur l'accueil (écarté pour l'instant).
