@@ -1,8 +1,9 @@
 import { db } from "@/server/db";
 import { assertOwnedUpload } from "@/server/uploads";
-import { NotFoundError, ForbiddenError, ConflictError, ServiceUnavailableError } from "@/lib/errors";
+import { UPLOAD_URL_PATTERN } from "@/server/cuttings/photos";
+import { NotFoundError, ForbiddenError, ConflictError, ServiceUnavailableError, BadRequestError } from "@/lib/errors";
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
-import { encryptMessageBody, decryptMessageBody } from "@/server/cuttings/crypto";
+import { encryptMessageBody, decryptMessageBodyOrPlaceholder } from "@/server/cuttings/crypto";
 import { requirePseudo } from "@/server/cuttings/pseudo";
 import type {
   CreateCuttingListingInput,
@@ -171,6 +172,16 @@ export async function listConversationListings(userId: string): Promise<CuttingL
 export async function createListing(userId: string, input: CreateCuttingListingInput): Promise<CuttingListingSummary> {
   await requirePseudo(userId);
   for (const url of input.photoUrls) {
+    // Televersement de CE compte uniquement : assertOwnedUpload() laisse
+    // passer toute URL hors /uploads/ (bibliotheque, source externe --
+    // legitime pour une plante, visible de son seul proprietaire). Ici la
+    // photo est affichee a TOUS les membres : une URL externe leur faisait
+    // charger une image d'un serveur tiers (fuite de leur IP, pistage), et
+    // n'importe quelle chaine contournait la photo obligatoire (audit du
+    // 2026-09-25).
+    if (!UPLOAD_URL_PATTERN.test(url)) {
+      throw new BadRequestError("Photo invalide : ajoute une photo depuis ton appareil.");
+    }
     await assertOwnedUpload(userId, url);
   }
   const listing = await db.cuttingListing.create({
@@ -312,7 +323,7 @@ export async function getListingDetail(listingId: string, userId: string): Promi
     senderId: m.senderId,
     senderPseudo: m.sender.pseudo,
     recipientId: m.recipientId,
-    body: decryptMessageBody({ ciphertext: m.bodyCiphertext, iv: m.bodyIv, authTag: m.bodyAuthTag }),
+    body: decryptMessageBodyOrPlaceholder({ ciphertext: m.bodyCiphertext, iv: m.bodyIv, authTag: m.bodyAuthTag }),
     createdAt: m.createdAt.toISOString(),
   }));
 

@@ -180,6 +180,58 @@ GIT_SHA`) après les étapes lourdes, sinon le cache de `node_modules` saute.
 Le plus récent en haut. Pour chaque session : date, branche, ce qui a été fait
 et pourquoi, fichiers principaux, décisions, et ce qui reste à faire.
 
+### 2026-09-25 — Audit complet du code
+
+**Demande** : auditer tout le code (failles et bugs). ~25 000 lignes, 80
+routes API. Une dizaine d'audits antérieurs (jusqu'au 16/09, voir
+CHANGELOG) : attention portée surtout au code postérieur (boutures,
+annonces, diagnostic, feedback, admin, facturation, code du jour).
+
+**Méthode** : chaque constat reproduit (script ou test sur SQLite réel,
+parfois l'appli construite + Playwright) avant correction ; chaque
+correctif a un test vérifié **en échec sur l'ancien code** (`git stash`).
+
+**Corrigé** (fichiers principaux)
+- Photos d'annonces de boutures : `UPLOAD_URL_PATTERN` exigé dans
+  `createListing` (`cuttings/service.ts`) -- `assertOwnedUpload()` laisse
+  passer toute URL hors `/uploads/`. Constaté : image externe chargée par
+  le navigateur des autres membres (fuite d'IP). Hypothèse d'un plantage de
+  la page pour tous les membres (src invalide pour next/image) **réfutée**.
+- « Mot de passe oublié » : envoi de l'e-mail non attendu
+  (`passwordReset.ts`), sinon oracle de temps sur l'existence du compte.
+- Import : `restoredRuleConfiguration()` (`src/server/backupRestore.ts`) ne
+  reprend jamais `configuration.fertilizerId` du fichier ; l'accueil
+  (`app/page.tsx`) filtre les engrais par `userId`.
+- `EXACT_DATE` : `ensurePendingTaskForRuleWithClient` ne recrée pas une
+  tâche déjà COMPLETED/SKIPPED pour la même date.
+- Messages de boutures : `authTagLength: 16` (tag tronqué accepté avant,
+  vérifié) ; `decryptMessageBodyOrPlaceholder()` pour l'affichage et les
+  signalements.
+
+**Non corrigé, à décider avec l'utilisateur**
+- Facturation (`server/billing.ts`) : la vérification `provisioningId` est
+  sautée quand le champ est absent (cas de récupération d'un achat) --
+  quelqu'un en possession d'un jeton d'achat peut l'omettre pour revendiquer
+  le compte. Compromis documenté dans le code ; durcir casserait la
+  récupération. Risque faible (jeton difficile à obtenir).
+- Connexion : limite de tentatives par IP seulement (10 / 5 min), pas par
+  compte -- force brute distribuée possible en théorie.
+- Notifications : un seul fuseau horaire pour toute l'instance
+  (`TZ=Europe/Brussels`) -- heure du digest décalée pour un membre ailleurs.
+- `resolvePhotoUrl` accepte une chaîne quelconque pour la photo d'une
+  plante (visible de son seul propriétaire, sans impact sur les autres).
+- Signaler une conversation / noter un échange : pas de limite de débit
+  sur la notation et la contestation (actions bornées par transaction).
+
+**Vérifié sain** : sessions (JWT + `sessionVersion`, comptes désactivés),
+connexion à temps constant, routes internes (secret comparé en temps
+constant), ownership systématique (plantes, tâches, règles, engrais,
+capteurs, photos, jardinières), `/uploads` (propriété + ré-encodage JPEG),
+import ZIP (zip bomb, ré-encodage, URLs inconnues → null), SSRF (DNS réel,
+pas de redirection, taille/timeout), push (liste blanche d'hôtes), aucun
+`dangerouslySetInnerHTML`, e-mails échappés, chiffrement AES-GCM à IV
+aléatoire, CSP.
+
 ### 2026-09-25 — Partager une plante en carte image
 
 **Demande** : partager une plante sous forme de carte image (WhatsApp,

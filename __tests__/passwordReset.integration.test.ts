@@ -43,6 +43,19 @@ describe("requestPasswordReset (integration reelle SQLite)", () => {
     expect(tokens[0].expiresAt.getTime()).toBeGreaterThan(Date.now());
   });
 
+  // Audit du 2026-09-25 : attendre l'envoi (Resend, plusieurs centaines de
+  // ms) rendait la reponse plus lente pour un compte existant -- de quoi
+  // deviner quelles adresses ont un compte.
+  it("n'attend pas l'envoi du mail (meme temps de reponse qu'une adresse inconnue)", async () => {
+    vi.mocked(sendEmail).mockImplementationOnce(() => new Promise<void>(() => {}));
+    const outcome = await Promise.race([
+      requestPasswordReset(email).then(() => "repondu"),
+      new Promise((resolve) => setTimeout(() => resolve("bloque sur l'envoi"), 2000)),
+    ]);
+    expect(outcome).toBe("repondu");
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
   it("ne fait rien et n'envoie aucun mail pour une adresse inconnue (pas de fuite d'information)", async () => {
     await requestPasswordReset(`inconnu-${Date.now()}@example.com`);
     expect(sendEmail).not.toHaveBeenCalled();

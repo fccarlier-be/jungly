@@ -20,6 +20,7 @@ import {
 } from "@/server/validation/backup";
 import { ensurePendingTaskForRule } from "@/server/careEngine/service";
 import { syncHealthFollowUp } from "@/server/careEngine/health";
+import { restoredRuleConfiguration } from "@/server/backupRestore";
 import { resolveUploadedFilePath, deleteUploadedFile } from "@/server/uploads";
 import { resolveLibraryPhotoPath, deleteLibraryPhoto } from "@/server/libraryPhotos";
 import { findLibraryEntryId } from "@/server/libraryLink";
@@ -325,11 +326,7 @@ export async function POST(request: NextRequest) {
           }
 
           for (const rule of p.careRules) {
-            const configuration: Record<string, unknown> = { ...(rule.configuration ?? {}) };
-            if (rule.fertilizerName) {
-              const fertilizerId = fertilizerIdByName.get(rule.fertilizerName);
-              if (fertilizerId) configuration.fertilizerId = fertilizerId;
-            }
+            const configuration = restoredRuleConfiguration(rule.configuration, rule.fertilizerName, fertilizerIdByName);
 
             const createdRule = await tx.plantCareRule.create({
               data: {
