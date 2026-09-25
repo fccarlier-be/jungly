@@ -19,19 +19,18 @@ COPY package.json package-lock.json* ./
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm ci
 
+# node_modules de production prepare a part, a partir des SEULS fichiers de
+# dependances (etage deps) : tant que package-lock.json ne change pas, cet
+# etage, sa copie dans l'image finale et l'export de cette couche (la plus
+# grosse de l'image) sont servis par le cache. Avant (2026-09-25), le
+# `npm prune` suivait `COPY . .` dans l'etage build : la moindre ligne de
+# code produisait un nouveau node_modules a recopier et exporter (~3 min
+# sur le homelab pour un changement d'une ligne).
+FROM deps AS prod-deps
+RUN npm prune --omit=dev
+
 FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS build
 WORKDIR /app
-# Aucune configuration d'instance figee dans l'image : la cle VAPID publique
-# est lue au runtime (PLANTES_VAPID_PUBLIC_KEY, voir getVapidPublicKey dans
-# src/server/notifications/webPush.ts) -- une meme image sert n'importe
-# quelle instance, y compris celle publiee par la CI sur GHCR.
-# Identifie la revision exacte a l'origine d'un deploiement (affiche dans
-# Parametres > A propos) : utile pour situer une instance dans l'historique
-# du projet (support, ou comparaison en cas de reutilisation commerciale non
-# autorisee du code -- voir LICENSE.md). Sans valeur passee, reste vide plutot
-# que d'echouer le build.
-ARG GIT_SHA=""
-ENV NEXT_PUBLIC_GIT_SHA=${GIT_SHA}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # `prisma generate` n'a besoin d'aucune connexion reelle (il ne fait
@@ -40,26 +39,29 @@ COPY . .
 # ecrasee au runtime par docker-compose.yml (DATABASE_URL=/app/data/...).
 ENV DATABASE_URL="file:./build-placeholder.db"
 RUN npx prisma generate
+# Aucune configuration d'instance figee dans l'image : la cle VAPID publique
+# est lue au runtime (PLANTES_VAPID_PUBLIC_KEY, voir getVapidPublicKey dans
+# src/server/notifications/webPush.ts) -- une meme image sert n'importe
+# quelle instance, y compris celle publiee par la CI sur GHCR.
+# Identifie la revision exacte a l'origine d'un deploiement (affiche dans
+# Parametres > A propos) : utile pour situer une instance dans l'historique
+# du projet (support, ou comparaison en cas de reutilisation commerciale non
+# autorisee du code -- voir LICENSE.md). Sans valeur passee, reste vide plutot
+# que d'echouer le build. Declare ici, juste avant `next build` qui l'inline,
+# et non en tete d'etage : la CI passe un SHA different a chaque commit, qui
+# invaliderait sinon le cache de la copie de node_modules ci-dessus.
+ARG GIT_SHA=""
+ENV NEXT_PUBLIC_GIT_SHA=${GIT_SHA}
 # Cache de build Next.js (compilation incrementale SWC) persiste entre les
 # `docker compose build` successifs sur cette machine -- sans lui, chaque
 # build repart de zero meme pour un changement d'une ligne, ce qui est lent
 # sur un serveur qui partage ses ressources avec beaucoup d'autres services.
 RUN --mount=type=cache,target=/app/.next/cache npm run build
-# Retire les devDependencies (typescript, tailwind, vitest...) : prisma et
-# tsx restent (deplaces en dependencies, voir package.json) car necessaires
-# a l'entrypoint en production (migrations + seed).
-RUN npm prune --omit=dev
 
 FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PATH="/app/node_modules/.bin:${PATH}"
-# ENV ne traverse pas les etages d'un build multi-stage -- necessaire ici
-# car Parametres > A propos le
-# lit via process.env dans un Server Component, execute par ce conteneur
-# runtime, pas au moment du `next build` de l'etage precedent.
-ARG GIT_SHA=""
-ENV NEXT_PUBLIC_GIT_SHA=${GIT_SHA}
 # Le scheduler (src/server/notifications/scheduler.ts) calcule les
 # echeances/le digest quotidien avec des methodes Date locales
 # (getHours/setHours/...) -- sans fuseau explicite, un conteneur tournerait
@@ -87,7 +89,11 @@ ENV TZ=Europe/Brussels
 # docker-compose.yml) doivent etre prealablement chownes cote hote au meme
 # uid : un COPY --chown ne les couvre pas, un bind mount remplace le
 # contenu de l'image a cet endroit au demarrage.
-COPY --from=build --chown=node:node /app/node_modules ./node_modules
+# Depuis prod-deps (devDependencies retirees : typescript, tailwind,
+# vitest... ; prisma et tsx restent, deplaces en dependencies dans
+# package.json car necessaires a l'entrypoint -- migrations + seed), pas
+# depuis build : couche identique tant que package-lock.json ne change pas.
+COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/public ./public
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static
@@ -106,6 +112,14 @@ COPY --from=build --chown=node:node /app/generated ./generated
 COPY --from=build --chown=node:node /app/src ./src
 COPY --chown=node:node docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
+
+# ENV ne traverse pas les etages d'un build multi-stage -- necessaire ici
+# car Parametres > A propos le lit via process.env dans un Server Component,
+# execute par ce conteneur runtime, pas au moment du `next build` de l'etage
+# precedent. En fin d'etage : une valeur differente a chaque commit (CI)
+# n'invalide ainsi aucune des copies ci-dessus.
+ARG GIT_SHA=""
+ENV NEXT_PUBLIC_GIT_SHA=${GIT_SHA}
 
 USER node
 

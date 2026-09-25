@@ -3,6 +3,19 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-25 — Builds Docker plus rapides, staging sur l'image CI
+
+Contexte : ~11 min de build sur le homelab pour un changement d'une ligne.
+
+### Modifié
+
+- **Dockerfile** : le `node_modules` de production est préparé dans un étage dédié (`prod-deps`) qui ne dépend que de `package-lock.json`. Avant, `npm prune` suivait `COPY . .` : chaque changement de code recréait, recopiait et réexportait la plus grosse couche de l'image. `ARG GIT_SHA` est déclaré après les étapes lourdes, pour qu'un SHA différent à chaque commit (CI) n'invalide plus le cache. Contenu de l'image inchangé.
+- **Staging** : documenté pour tirer l'image publiée par la CI (`jungly-hosted:main`) au lieu de compiler sur le homelab ; build local conservé pour tester une branche avant fusion (`CLAUDE.md`, section Déploiement).
+
+### Vérifié
+
+- `docker build --check` sans avertissement ; `node_modules` final identique à l'ancien chemin (comparaison hors Docker). Build Docker complet non exécuté hors CI (dépôt Alpine inaccessible depuis l'environnement de développement).
+
 ## [Post-MVP] - 2026-09-25 — Correctif pastille santé de l'accueil
 
 ### Corrigé
