@@ -242,6 +242,14 @@ l'utilisateur : ~11 min de build pour un changement d'une ligne) :
 - À vérifier : pourquoi le cache de build du homelab était vide
   (`docker builder prune` / nettoyage automatique ?).
 
+**Retours staging (même jour)** : le bouton « Noter son état » n'avait pas
+l'air d'un bouton -- même style que « + Photo » (`btn-primary`, `text-xs`,
+icône `Plus`). Formulaire d'annonce de boutures (`CuttingListingForm.tsx`) :
+tuiles « Photo » (caméra) et « Galerie » séparées, même raison que
+`PlantPhotoGallery`/`PlantForm` (un seul input ne peut pas offrir les deux
+sur Android). Icône `Images` ajoutée à `components/icons.tsx`. Non traités
+(caméra seule aussi) : `PlantDiagnosisWizard.tsx`, `PlantPhotoIdentify.tsx`.
+
 **Reste à faire / idées non retenues**
 - Encart « En convalescence » sur l'accueil (écarté pour l'instant).
 - Pas de test e2e Playwright pour la section Santé.

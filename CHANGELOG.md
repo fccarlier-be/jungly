@@ -3,6 +3,13 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-25 — Retours staging : bouton santé, photo des boutures
+
+### Corrigé
+
+- **Bouton « Noter son état » / « Nouveau relevé »** (fiche plante, section Santé) : simple texte coloré, il ne se lisait pas comme un bouton. Même style que « + Photo » de la section Photos.
+- **Photo obligatoire d'une annonce de boutures** : seul l'appareil photo était proposé (`capture="environment"`). Deux tuiles « Photo » et « Galerie », comme sur la fiche plante. Nouvelle icône `Images` dans le jeu d'icônes maison.
+
 ## [Post-MVP] - 2026-09-25 — Builds Docker plus rapides, staging sur l'image CI
 
 Contexte : ~11 min de build sur le homelab pour un changement d'une ligne.

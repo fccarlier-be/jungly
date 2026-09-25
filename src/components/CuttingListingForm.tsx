@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Ban, Camera, Loader2, X } from "@/components/icons";
+import { Ban, Camera, Images, Loader2, X } from "@/components/icons";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 import {
   CUTTING_LISTING_TYPES,
@@ -183,14 +183,28 @@ export default function CuttingListingForm() {
               </button>
             </div>
           ))}
+          {/* Deux tuiles plutot qu'un input unique : capture="environment"
+              force l'appareil photo, sans lui Android ouvre la galerie seule
+              -- un seul input ne peut pas offrir les deux de facon fiable
+              (meme choix que PlantPhotoGallery/PlantForm ; retour
+              utilisateur, 2026-09-25 : seule la camera etait proposee ici). */}
           {photoUrls.length < MAX_CUTTING_PHOTOS && (
-            <label>
-              <span className="chip flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg text-xs">
-                {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-                Ajouter
-              </span>
-              <input type="file" accept="image/*" capture="environment" className="hidden" disabled={uploading} onChange={handlePhotoFile} />
-            </label>
+            <>
+              <label>
+                <span className="chip flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg text-xs">
+                  {uploading ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+                  Photo
+                </span>
+                <input type="file" accept="image/*" capture="environment" className="hidden" disabled={uploading} onChange={handlePhotoFile} />
+              </label>
+              <label>
+                <span className="chip flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg text-xs">
+                  {uploading ? <Loader2 size={16} className="animate-spin" /> : <Images size={16} />}
+                  Galerie
+                </span>
+                <input type="file" accept="image/*" className="hidden" disabled={uploading} onChange={handlePhotoFile} />
+              </label>
+            </>
           )}
         </div>
       </div>

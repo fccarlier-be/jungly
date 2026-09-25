@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Stethoscope } from "@/components/icons";
+import { Plus, Stethoscope } from "@/components/icons";
 import { HealthDot, HealthLevelPicker, SymptomPicker } from "@/components/HealthLevelPicker";
 import { HEALTH_COLOR, type HealthLevel } from "@/lib/plantHealth";
 import type { HealthView } from "@/lib/plantDetailData";
@@ -53,7 +53,15 @@ export default function PlantHealthSection({ plantId, health }: { plantId: strin
     <section className="animate-rise-in space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Santé</h2>
-        <button type="button" onClick={() => setOpen((o) => !o)} className="text-sm font-medium" style={{ color: "var(--primary-strong)" }}>
+        {/* Meme style que le bouton "+ Photo" de la galerie (PlantPhotoGallery) :
+            un simple texte colore ne se lisait pas comme un bouton (retour
+            utilisateur, 2026-09-25). */}
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className={`${open ? "btn-ghost" : "btn-primary"} inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold whitespace-nowrap`}
+        >
+          {!open && <Plus size={12} />}
           {open ? "Annuler" : health ? "Nouveau relevé" : "Noter son état"}
         </button>
       </div>
