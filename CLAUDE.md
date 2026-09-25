@@ -57,7 +57,7 @@ Trois instances, à ne pas confondre (vérifié le 2026-09-25) :
 | Instance | Machine | Conteneur / image | Déploiement |
 |---|---|---|---|
 | Staging `testplantes.fcold.org` | homelab `FServer` (utilisateur `franky`) | `plantes-app-test` | image CI `ghcr.io/fccarlier-be/jungly-hosted:main` (pull), ou build local pour tester une branche |
-| Hébergée `jungly-app.fcold.org` | VPS OVH (`ubuntu@vps-b6850d01`) | image GHCR `jungly-hosted` épinglée `sha-<commit>` | pull de l'image |
+| **Prod** `jungly-app.fcold.org` | VPS OVH (`ubuntu@vps-b6850d01`) | `plantes-app-hosted` | image CI épinglée `sha-<commit>` via `JUNGLY_IMAGE_TAG` (`.env`) |
 | `plantes-app`, `plantes-app-hosted` | homelab | arrêtés au 2026-09-25 | — |
 
 Claude n'a accès à aucune de ces machines : donner les commandes à
@@ -126,6 +126,46 @@ Retour arrière : épingler `image: ghcr.io/fccarlier-be/jungly-hosted:sha-<comm
 plantes-app-test` (restaurer la sauvegarde de `data-test` si la migration
 pose problème).
 
+### Prod (VPS OVH, `jungly-app.fcold.org`)
+
+Vérifié le 2026-09-25 :
+- Connexion en `ubuntu`, qui n'a **pas** accès à `/home/franky` : tout passe
+  par `sudo`, avec des chemins absolus (`docker compose -f ...`).
+- Compose : `/home/franky/serveur/docker-compose.yml`, service
+  `plantes-app-hosted`. L'image y est
+  `ghcr.io/fccarlier-be/jungly-hosted:${JUNGLY_IMAGE_TAG}` : **le tag se
+  change dans `/home/franky/serveur/.env`** (ligne `JUNGLY_IMAGE_TAG=sha-<commit>`),
+  jamais dans le compose. Ce `.env` contient aussi les secrets : n'en
+  afficher que la ligne du tag.
+- Données : `/home/franky/serveur/jungly/data` (+ `uploads/`,
+  `library-photos/`), ~118 Mo au 2026-09-25. Proxy : `nginx-plantes-hosted`.
+- Autres conteneurs du VPS, sans rapport : `jungly-admin-app`,
+  `nginx-jungly-admin`, `cloudflared`.
+
+**Mise en prod** d'un commit de `main` (après validation sur le staging, CI
+verte job `image` compris ; `<sha>` = SHA court du commit de fusion) :
+
+```bash
+F=/home/franky/serveur/docker-compose.yml
+sudo docker pull ghcr.io/fccarlier-be/jungly-hosted:sha-<sha>          # sans coupure
+sudo cp -a /home/franky/serveur/.env /home/franky/serveur/.env.bak-$(date +%F)
+sudo grep -n "^JUNGLY_IMAGE_TAG=" /home/franky/serveur/.env           # noter l'ancien tag
+sudo sed -i 's/^JUNGLY_IMAGE_TAG=.*/JUNGLY_IMAGE_TAG=sha-<sha>/' /home/franky/serveur/.env
+sudo docker compose -f $F config plantes-app-hosted | grep "image:"   # doit afficher le nouveau tag
+# si migration : sauvegarde à froid (coupure = durée de la copie)
+sudo docker compose -f $F stop plantes-app-hosted
+sudo cp -a /home/franky/serveur/jungly/data /home/franky/serveur/jungly/data.bak-$(date +%F)-<ancien sha>
+sudo docker compose -f $F up -d plantes-app-hosted
+sudo docker restart nginx-plantes-hosted
+sudo docker inspect plantes-app-hosted --format '{{.Config.Image}}'
+sudo docker logs plantes-app-hosted 2>&1 | grep -iE "migration|erreur|error"   # attendre quelques secondes
+```
+
+Retour arrière : remettre l'ancien tag dans le `.env` (même `sed`), puis
+`up -d` et redémarrage du nginx. L'ancienne version tolère une base migrée
+(colonnes en plus ignorées) : ne restaurer la sauvegarde des données qu'en
+cas de problème de base (les saisies faites entre-temps seraient perdues).
+
 ### Build Docker
 
 `Dockerfile` en 4 étages : `deps` (`npm ci`), `prod-deps` (`npm prune
@@ -139,6 +179,55 @@ GIT_SHA`) après les étapes lourdes, sinon le cache de `node_modules` saute.
 
 Le plus récent en haut. Pour chaque session : date, branche, ce qui a été fait
 et pourquoi, fichiers principaux, décisions, et ce qui reste à faire.
+
+### 2026-09-25 — Partager une plante en carte image
+
+**Demande** : partager une plante sous forme de carte image (WhatsApp,
+Messenger, Facebook, Instagram). Trois options proposées (carte générée
+côté serveur partagée comme fichier / lien public avec aperçu / carte
+dessinée dans le navigateur) ; retenue : **carte côté serveur + menu de
+partage natif**, formats **carré et/ou story** au choix, **texte
+d'accompagnement modifiable**, **état de santé et statistiques** sur la
+carte, et un mode **avant / après**. Le lien public (option 2) reste une
+piste pour plus tard (réutiliserait la même carte comme aperçu).
+
+**Fichiers**
+- `src/lib/shareCard.ts` (pur) : formats et tailles, `formatElapsed`
+  (« 8 mois », « 1 an et 3 mois », mois calendaires), texte par défaut.
+- `src/server/shareCard/data.ts` : plante + stats (propriétaire uniquement),
+  `pickPlantPhoto` (refuse une photo d'une autre plante), `loadPhotoDataUrl`
+  (lit `/uploads` ou `/library-photos` sur disque, recadre avec sharp ; URL
+  externe ou fichier absent → null, carte sans photo).
+- `src/server/shareCard/render.tsx` : dessin satori (`next/og`). Contraintes :
+  flex uniquement, `display: flex` sur tout élément à plusieurs enfants,
+  couleurs en dur (reprises du thème clair), polices `.woff` chargées depuis
+  `public/fonts/share-card` (`process.cwd()`, dossier copié dans l'image
+  Docker). `photoBox()` donne les dimensions des photos par format/mode,
+  ajustées à l'œil sur un rendu réel.
+- `src/app/api/plants/[id]/share-card/route.ts` : PNG à la demande,
+  `Cache-Control: private, no-store`, 120 rendus / 10 min.
+- `src/app/plantes/[id]/partager/page.tsx` + `src/components/PlantShareFlow.tsx` :
+  choix, aperçu, texte, partage. Les PNG sont chargés dès l'aperçu et gardés
+  en mémoire, car `navigator.share()` doit être appelé pendant le geste de
+  l'utilisateur (un fetch au moment du clic le ferait refuser).
+- Bouton « Partager » dans `QuickActions`, icône `Share`.
+
+**Au passage** : `.chip-active:hover` ajouté (texte foncé sur fond foncé au
+survol d'une puce active, bug existant).
+
+**Tests** : `__tests__/shareCard.test.ts`, `__tests__/shareCard.integration.test.ts`
+(propriété, photo d'une autre plante, URL externe, PNG réel aux bonnes
+dimensions). 466 tests verts. Parcours vérifié avec Playwright en simulant
+`navigator.share` (le menu natif n'existe pas en headless).
+
+**Non vérifié** : le vrai menu de partage sur un téléphone (Android/iOS) ni
+le comportement de chaque appli (WhatsApp garde en principe le texte comme
+légende, Instagram l'ignore). Les dates d'un avant/après sont celles
+d'**ajout** des photos dans Jungly (`PlantPhoto.createdAt`), pas de prise de
+vue (EXIF non lu).
+
+**Piège** : `public/uploads/` n'est pas ignoré par git -- ne jamais y laisser
+de fichiers de test.
 
 ### 2026-09-25 — État de santé des plantes (branche `claude/upbeat-mayer-1bnecz`)
 
@@ -249,6 +338,13 @@ tuiles « Photo » (caméra) et « Galerie » séparées, même raison que
 `PlantPhotoGallery`/`PlantForm` (un seul input ne peut pas offrir les deux
 sur Android). Icône `Images` ajoutée à `components/icons.tsx`. Non traités
 (caméra seule aussi) : `PlantDiagnosisWizard.tsx`, `PlantPhotoIdentify.tsx`.
+
+**Mise en prod** le 2026-09-25 : `jungly-app.fcold.org` passé de
+`sha-fa5e052` (PR #19) à `sha-ff07bd3` (PR #29 : santé, pastille, Dockerfile,
+retours staging). Migration santé appliquée sans erreur. Sauvegardes sur le
+VPS : `jungly/data.bak-2026-09-25-fa5e052`, `.env.bak-2026-09-25`,
+`docker-compose.yml.bak-2026-09-25` (inutile, le compose n'a pas changé).
+Procédure documentée dans « Déploiement > Prod ».
 
 **Reste à faire / idées non retenues**
 - Encart « En convalescence » sur l'accueil (écarté pour l'instant).

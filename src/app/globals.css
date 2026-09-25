@@ -287,6 +287,13 @@ button.card:hover {
   color: var(--primary-ink);
   box-shadow: 0 2px 0 color-mix(in srgb, var(--primary) 55%, #000);
 }
+/* .chip:hover (2 classes) l'emportait sur .chip-active : texte fonce sur
+   fond fonce au survol d'une puce active -- et sur mobile juste apres le
+   tap, le survol y restant "colle" (constate le 2026-09-25). */
+.chip-active:hover {
+  border-color: transparent;
+  color: var(--primary-ink);
+}
 
 .input {
   background: var(--surface);

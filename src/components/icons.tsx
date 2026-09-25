@@ -259,6 +259,18 @@ export const Camera = make(() => (
   </>
 ));
 
+/** Partage (trois noeuds relies). */
+export const Share = make(() => (
+  <>
+    <Lines w={2.4}>
+      <path d="M8.6 10.6 15.4 6.9M8.6 13.4l6.8 3.7" />
+    </Lines>
+    <circle cx={6} cy={12} r={3.2} />
+    <circle cx={18} cy={5.5} r={3.2} />
+    <circle cx={18} cy={18.5} r={3.2} />
+  </>
+));
+
 /** Galerie (choisir une photo existante), pendant de Camera. */
 export const Images = make(() => (
   <>

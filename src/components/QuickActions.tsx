@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { StickyNote, Stethoscope, type LucideIcon } from "@/components/icons";
+import { Share, StickyNote, Stethoscope, type LucideIcon } from "@/components/icons";
 import { CARE_ICON, CARE_COLOR } from "@/components/careIcons";
 import { HealthLevelPicker } from "@/components/HealthLevelPicker";
 import type { HealthLevel } from "@/lib/plantHealth";
@@ -168,6 +168,9 @@ export default function QuickActions({
             inline : le diagnostic est un flux a plusieurs etapes (QCM puis
             photos), pas une action rapide comme les boutons ci-dessus. */}
         <ActionButton icon={Stethoscope} label="Diagnostiquer" active={false} onClick={() => router.push(`/plantes/${plantId}/diagnostic`)} />
+        {/* Page dediee aussi : choix du format, des photos et du texte,
+            apercu de la carte avant envoi. */}
+        <ActionButton icon={Share} label="Partager" active={false} onClick={() => router.push(`/plantes/${plantId}/partager`)} />
       </div>
 
       {error && (
