@@ -259,6 +259,15 @@ export const Camera = make(() => (
   </>
 ));
 
+/** Galerie (choisir une photo existante), pendant de Camera. */
+export const Images = make(() => (
+  <>
+    <Tinted d="M5 4.5h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2Z" />
+    <circle cx={8.6} cy={9.2} r={1.9} />
+    <path d="M3.6 18.4 9.3 12.7l3.4 3.4 2.4-2.4 5.3 5.3v.3H3.6Z" />
+  </>
+));
+
 export const Clock = make(() => (
   <>
     <Tinted d="M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19Z" />

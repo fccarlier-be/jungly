@@ -64,10 +64,12 @@ Claude n'a accès à aucune de ces machines : donner les commandes à
 l'utilisateur, ne jamais supposer un chemin non vérifié.
 
 **Ne jamais faire afficher `docker compose config` en entier** (ni `env`,
-ni le `.env`) : les secrets sont en clair dans le compose du homelab
-(incident du 2026-09-25, secrets du staging collés dans la conversation).
-Interroger des champs précis à la place, par exemple
-`docker inspect plantes-app-test --format '{{.Config.Image}}'` ou
+ni le `.env`) : le compose du homelab référence les secrets (`${PLANTES_...}`)
+depuis un `.env` voisin, et `docker compose config` les affiche résolus, en
+clair (incident du 2026-09-25, secrets du staging collés dans la
+conversation). Utiliser `docker compose config --no-interpolate` (garde les
+`${...}`), ou interroger des champs précis :
+`docker inspect plantes-app-test --format '{{.Config.Image}}'`,
 `docker compose config plantes-app-test | grep -E "image:|context:"`.
 
 L'image `jungly-hosted` est publiée par la CI (job `image`) à chaque push
@@ -85,10 +87,12 @@ sur `main`, seulement après `test` et `e2e` verts, taguée `main` et
   `library-photos/`). Proxy : `nginx-plantes-test` (`nginx/test.conf`).
 - Les migrations Prisma s'appliquent seules au démarrage (`docker-entrypoint.sh`).
 
-Service à configurer (changement proposé le 2026-09-25, à confirmer par
-l'utilisateur) : ajouter `image: ghcr.io/fccarlier-be/jungly-hosted:main` et
-garder `build:` pour les tests de branche ; l'argument de build
-`NEXT_PUBLIC_VAPID_PUBLIC_KEY` est obsolète depuis le 2026-09-24.
+Service configuré le 2026-09-25 : `image: ghcr.io/fccarlier-be/jungly-hosted:main`
+ajouté, `build:` gardé pour les tests de branche. Le homelab tire l'image
+GHCR sans problème. Secrets dans `/home/franky/serveur/.env` (référencés
+`${PLANTES_...}` par le compose). L'argument de build
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY` est obsolète depuis le 2026-09-24
+(suppression facultative).
 
 **Mise à jour après une fusion sur `main`** (attendre que le job `image` de
 la CI soit vert) :
@@ -228,8 +232,23 @@ l'utilisateur : ~11 min de build pour un changement d'une ligne) :
   vrai build sera celui de la CI (job `image`) après fusion.
 - Staging : proposé de tirer l'image CI au lieu de compiler (modification du
   compose du homelab, hors repo, à faire par l'utilisateur).
+- PR #28 fusionnée (`a295a0d`) : le job `image` de la CI a construit le
+  nouveau Dockerfile sans erreur (validation du build complet non faite dans
+  le bac à sable). Staging basculé sur l'image CI, Paramètres > À propos
+  affiche `a295a0d`. Mises à jour du staging : `pull` + `up -d`, quelques
+  secondes.
+- À faire par l'utilisateur : renouveler les secrets du staging exposés dans
+  la conversation (`.env` du homelab), surtout ceux partagés avec la prod.
 - À vérifier : pourquoi le cache de build du homelab était vide
   (`docker builder prune` / nettoyage automatique ?).
+
+**Retours staging (même jour)** : le bouton « Noter son état » n'avait pas
+l'air d'un bouton -- même style que « + Photo » (`btn-primary`, `text-xs`,
+icône `Plus`). Formulaire d'annonce de boutures (`CuttingListingForm.tsx`) :
+tuiles « Photo » (caméra) et « Galerie » séparées, même raison que
+`PlantPhotoGallery`/`PlantForm` (un seul input ne peut pas offrir les deux
+sur Android). Icône `Images` ajoutée à `components/icons.tsx`. Non traités
+(caméra seule aussi) : `PlantDiagnosisWizard.tsx`, `PlantPhotoIdentify.tsx`.
 
 **Reste à faire / idées non retenues**
 - Encart « En convalescence » sur l'accueil (écarté pour l'instant).
