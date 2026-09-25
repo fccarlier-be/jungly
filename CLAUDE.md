@@ -180,6 +180,55 @@ GIT_SHA`) après les étapes lourdes, sinon le cache de `node_modules` saute.
 Le plus récent en haut. Pour chaque session : date, branche, ce qui a été fait
 et pourquoi, fichiers principaux, décisions, et ce qui reste à faire.
 
+### 2026-09-25 — Partager une plante en carte image
+
+**Demande** : partager une plante sous forme de carte image (WhatsApp,
+Messenger, Facebook, Instagram). Trois options proposées (carte générée
+côté serveur partagée comme fichier / lien public avec aperçu / carte
+dessinée dans le navigateur) ; retenue : **carte côté serveur + menu de
+partage natif**, formats **carré et/ou story** au choix, **texte
+d'accompagnement modifiable**, **état de santé et statistiques** sur la
+carte, et un mode **avant / après**. Le lien public (option 2) reste une
+piste pour plus tard (réutiliserait la même carte comme aperçu).
+
+**Fichiers**
+- `src/lib/shareCard.ts` (pur) : formats et tailles, `formatElapsed`
+  (« 8 mois », « 1 an et 3 mois », mois calendaires), texte par défaut.
+- `src/server/shareCard/data.ts` : plante + stats (propriétaire uniquement),
+  `pickPlantPhoto` (refuse une photo d'une autre plante), `loadPhotoDataUrl`
+  (lit `/uploads` ou `/library-photos` sur disque, recadre avec sharp ; URL
+  externe ou fichier absent → null, carte sans photo).
+- `src/server/shareCard/render.tsx` : dessin satori (`next/og`). Contraintes :
+  flex uniquement, `display: flex` sur tout élément à plusieurs enfants,
+  couleurs en dur (reprises du thème clair), polices `.woff` chargées depuis
+  `public/fonts/share-card` (`process.cwd()`, dossier copié dans l'image
+  Docker). `photoBox()` donne les dimensions des photos par format/mode,
+  ajustées à l'œil sur un rendu réel.
+- `src/app/api/plants/[id]/share-card/route.ts` : PNG à la demande,
+  `Cache-Control: private, no-store`, 120 rendus / 10 min.
+- `src/app/plantes/[id]/partager/page.tsx` + `src/components/PlantShareFlow.tsx` :
+  choix, aperçu, texte, partage. Les PNG sont chargés dès l'aperçu et gardés
+  en mémoire, car `navigator.share()` doit être appelé pendant le geste de
+  l'utilisateur (un fetch au moment du clic le ferait refuser).
+- Bouton « Partager » dans `QuickActions`, icône `Share`.
+
+**Au passage** : `.chip-active:hover` ajouté (texte foncé sur fond foncé au
+survol d'une puce active, bug existant).
+
+**Tests** : `__tests__/shareCard.test.ts`, `__tests__/shareCard.integration.test.ts`
+(propriété, photo d'une autre plante, URL externe, PNG réel aux bonnes
+dimensions). 466 tests verts. Parcours vérifié avec Playwright en simulant
+`navigator.share` (le menu natif n'existe pas en headless).
+
+**Non vérifié** : le vrai menu de partage sur un téléphone (Android/iOS) ni
+le comportement de chaque appli (WhatsApp garde en principe le texte comme
+légende, Instagram l'ignore). Les dates d'un avant/après sont celles
+d'**ajout** des photos dans Jungly (`PlantPhoto.createdAt`), pas de prise de
+vue (EXIF non lu).
+
+**Piège** : `public/uploads/` n'est pas ignoré par git -- ne jamais y laisser
+de fichiers de test.
+
 ### 2026-09-25 — État de santé des plantes (branche `claude/upbeat-mayer-1bnecz`)
 
 **Demande** : pouvoir indiquer l'état de santé d'une plante depuis sa fiche.

@@ -3,6 +3,26 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-09-25 — Partager une plante en carte image
+
+### Ajouté
+
+- **Page « Partager »** (fiche plante → Actions rapides → Partager, `/plantes/[id]/partager`) : carte image d'une plante à envoyer sur WhatsApp, Messenger, Facebook ou Instagram via le menu de partage natif (Web Share API avec fichiers). Sur un navigateur sans partage de fichiers (bureau surtout) : téléchargement de l'image et copie du texte.
+  - **Carte** : photo au choix dans la galerie (couverture par défaut), nom, nom botanique, état de santé, temps passé dans la collection, nombre d'arrosages et de fertilisations, signature Jungly.
+  - **Avant / après** : deux photos de la galerie avec leurs dates et l'écart entre elles (disponible dès deux photos).
+  - **Formats** : carré 1080×1080 et/ou story 1080×1920, au choix (les deux partent ensemble si les deux sont cochés).
+  - **Texte d'accompagnement** généré à partir des mêmes informations, modifiable ; « Copier le texte » pour Instagram, qui ignore le texte partagé.
+- **`GET /api/plants/:id/share-card`** : PNG généré à la demande (`next/og`), jamais stocké, réservé au propriétaire de la plante ; photos locales lues sur disque et recadrées (`sharp`), aucune URL externe téléchargée. Limité à 120 rendus / 10 min par compte.
+- Polices Fraunces et Inter embarquées pour le rendu (`public/fonts/share-card`, licence OFL). Icône `Share`.
+
+### Corrigé
+
+- **Puce active illisible au survol** (texte foncé sur fond foncé) : `.chip:hover` l'emportait sur `.chip-active`. Visible aussi sur mobile juste après un tap, et sur les filtres de « Mes plantes ».
+
+### Vérifié
+
+- Lint, `tsc --noEmit`, 466 tests (dont 14 nouveaux, rendu réel du PNG compris), build ; parcours complet dans l'appli construite (menu de partage simulé : fichiers et texte reçus conformes).
+
 ## [Post-MVP] - 2026-09-25 — Retours staging : bouton santé, photo des boutures
 
 ### Corrigé
