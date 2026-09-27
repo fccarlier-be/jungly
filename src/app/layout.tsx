@@ -7,10 +7,14 @@ import { Leaf } from "@/components/icons";
 import "./globals.css";
 import { auth } from "@/server/auth";
 import { getUnseenAnnouncements } from "@/server/announcements";
+import { needsOnboarding } from "@/server/onboarding";
+import { isCuttingsMarketplaceEnabled } from "@/lib/features";
+import { db } from "@/server/db";
 import BottomNav from "@/components/BottomNav";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import AuthSessionProvider from "@/components/AuthSessionProvider";
 import AnnouncementModal from "@/components/AnnouncementModal";
+import OnboardingTour from "@/components/OnboardingTour";
 import { BackgroundLeaves, PaperDefs, SplashArt } from "@/components/art/paper";
 
 const fraunces = Fraunces({
@@ -90,6 +94,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // que ce compte n'a pas encore acquittees (la derniere, suivie des deux
   // precedentes qu'il aurait pu rater) -- voir getUnseenAnnouncements.
   const pendingAnnouncements = session?.user?.id ? await getUnseenAnnouncements(session.user.id) : [];
+  // La presentation de premier lancement passe avant les annonces (jamais les
+  // deux modales empilees) : un compte tout juste cree n'a de toute facon rien
+  // a acquitter avant de l'avoir vue.
+  const showOnboarding = session?.user?.id ? await needsOnboarding(session.user.id) : false;
+  const plantCount = showOnboarding && session?.user?.id ? await db.plant.count({ where: { userId: session.user.id } }) : 0;
 
   return (
     <html lang="fr" className={`${inter.variable} ${fraunces.variable}`}>
@@ -118,7 +127,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <ServiceWorkerRegistration />
         {session?.user ? (
           <AuthSessionProvider>
-            {pendingAnnouncements.length > 0 && <AnnouncementModal announcements={pendingAnnouncements} />}
+            {showOnboarding ? (
+              <OnboardingTour
+                firstName={session?.user?.name?.split(" ")[0] || session?.user?.email?.split("@")[0] || ""}
+                cuttingsEnabled={isCuttingsMarketplaceEnabled()}
+                hasPlants={plantCount > 0}
+              />
+            ) : (
+              pendingAnnouncements.length > 0 && <AnnouncementModal announcements={pendingAnnouncements} />
+            )}
             {/* Bascule shell mobile/desktop a lg (1024px), pas md (768px) :
                 une tablette est plus large que 768px mais reste un appareil
                 tactile -- elle doit garder la nav du bas, pas la barre

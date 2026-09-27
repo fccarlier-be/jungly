@@ -486,3 +486,133 @@ export function BackgroundLeaves() {
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Presentation de premier lancement (OnboardingTour)                  */
+/* ------------------------------------------------------------------ */
+
+/** Fond commun aux vignettes de la presentation : ciel doux + une ondulation. */
+function TourGround({ children }: { children: ReactNode }) {
+  return (
+    <svg viewBox="0 0 220 160" aria-hidden="true" focusable="false" style={{ width: "100%", height: "auto" }}>
+      <rect width={220} height={160} rx={24} fill="#eef0e6" />
+      <Wave y={132} amp={5} ph={0.8} fill="#dbe8d0" w={220} h={160} />
+      {children}
+    </svg>
+  );
+}
+
+/** Etape 1 : bienvenue -- pot et jeune pousse, deja utilise pour l'ecran vide. */
+export function TourWelcomeScene({ className }: { className?: string }) {
+  return <PotSprout className={className} />;
+}
+
+/** Etape 2 : l'accueil et ses taches -- une carte avec deux pastilles de soin. */
+export function TourTasksScene({ className }: { className?: string }) {
+  return (
+    <div className={className}>
+      <TourGround>
+        <g filter={CUT}>
+          <rect x={20} y={30} width={180} height={44} rx={14} fill="#fffdf6" />
+          <rect x={20} y={84} width={180} height={44} rx={14} fill="#fffdf6" />
+        </g>
+        <Place x={44} y={52} s={0.62}>
+          <circle r={20} fill={C.sous} />
+          <path d="M0 -9C0 -9 -7 3 -7 9a7 7 0 0 0 14 0C7 3 0 -9 0 -9Z" fill={C.papier} />
+        </Place>
+        <rect x={62} y={44} width={110} height={7} rx={3.5} fill="#dbe8d0" />
+        <rect x={62} y={57} width={70} height={6} rx={3} fill="#e9e4d1" />
+        <Place x={44} y={106} s={0.62}>
+          <circle r={20} fill={C.emer} />
+          <path d={leaflet(11, 5)} transform="rotate(-35)" fill={C.papier} />
+          <path d={leaflet(11, 5)} transform="rotate(-145)" fill={C.papier} />
+        </Place>
+        <rect x={62} y={98} width={95} height={7} rx={3.5} fill="#dbe8d0" />
+        <rect x={62} y={111} width={60} height={6} rx={3} fill="#e9e4d1" />
+      </TourGround>
+    </div>
+  );
+}
+
+/** Etape 3 : mes plantes et la bibliotheque -- une pile de fiches sous une feuille. */
+export function TourLibraryScene({ className }: { className?: string }) {
+  return (
+    <div className={className}>
+      <TourGround>
+        <g filter={CUT}>
+          <rect x={72} y={90} width={76} height={54} rx={8} fill="#e3ddc4" transform="rotate(-6 110 117)" />
+          <rect x={72} y={84} width={76} height={54} rx={8} fill="#fffdf6" transform="rotate(4 110 111)" />
+          <rect x={72} y={80} width={76} height={54} rx={8} fill="#f6f2e4" />
+        </g>
+        <rect x={84} y={94} width={40} height={6} rx={3} fill="#dbe8d0" />
+        <rect x={84} y={106} width={52} height={5} rx={2.5} fill="#e9e4d1" />
+        <rect x={84} y={116} width={30} height={5} rx={2.5} fill="#e9e4d1" />
+        <Place x={110} y={62} s={0.9}>
+          <Blade />
+        </Place>
+      </TourGround>
+    </div>
+  );
+}
+
+/** Etape 4 : diagnostic et sante -- une feuille sous une loupe. */
+export function TourDiagnosisScene({ className }: { className?: string }) {
+  return (
+    <div className={className}>
+      <TourGround>
+        <Place x={100} y={132} s={1.05}>
+          <Monstera id="tour-diag" />
+        </Place>
+        <g filter={CUT}>
+          <circle cx={146} cy={70} r={26} fill="none" stroke={C.sous} strokeWidth={7} />
+          <path d="M164 88L182 106" stroke={C.sous} strokeWidth={9} strokeLinecap="round" />
+        </g>
+        <circle cx={146} cy={70} r={26} fill="#f6f2e4" opacity={0.5} />
+      </TourGround>
+    </div>
+  );
+}
+
+/** Etape 5 (auto-hebergee) : les outils -- jardiniere et flacon d'engrais. */
+export function TourToolsScene({ className }: { className?: string }) {
+  return (
+    <div className={className}>
+      <TourGround>
+        <Place x={72} y={128} s={1.1}>
+          <Pot w={78} h={58} />
+        </Place>
+        <Place x={72} y={98} s={0.85}>
+          <Frond len={110} bend={-40} n={9} L={28} W={7} />
+        </Place>
+        <Place x={150} y={132} s={0.95} rot={4}>
+          <g filter={CUT}>
+            <path d="M-10 -46h20v10l6 8v54a6 6 0 0 1-6 6h-20a6 6 0 0 1-6-6v-54l6-8Z" fill={C.corail} />
+          </g>
+          <rect x={-6} y={-52} width={12} height={8} rx={2} fill={C.corailD} />
+        </Place>
+      </TourGround>
+    </div>
+  );
+}
+
+/** Etape 5 (hebergee) : les boutures -- une feuille passant d'un pot a l'autre. */
+export function TourCuttingsScene({ className }: { className?: string }) {
+  return (
+    <div className={className}>
+      <TourGround>
+        <Place x={56} y={128} s={0.8}>
+          <Pot w={70} h={52} />
+        </Place>
+        <Place x={164} y={128} s={0.8}>
+          <Pot w={70} h={52} />
+        </Place>
+        <g filter={CUT}>
+          <path d="M70 90C95 66 125 66 150 90" stroke={C.sous} strokeWidth={3} strokeDasharray="2 7" strokeLinecap="round" fill="none" />
+        </g>
+        <Place x={110} y={78} rot={-10} s={0.85}>
+          <path d={leaflet(28, 10)} fill={C.fou} />
+        </Place>
+      </TourGround>
+    </div>
+  );
+}

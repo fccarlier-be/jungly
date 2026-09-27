@@ -12,15 +12,17 @@ import UnitSettings from "@/components/UnitSettings";
 import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 import { countOpenReports } from "@/server/cuttings/reports";
 import { getVapidPublicKey } from "@/server/notifications/webPush";
+import ReplayOnboardingButton from "@/components/ReplayOnboardingButton";
 
 export default async function SettingsPage() {
   const userId = await requireSessionUserId();
   const session = await auth();
 
-  const [preference, weatherProfile, user] = await Promise.all([
+  const [preference, weatherProfile, user, plantCount] = await Promise.all([
     db.notificationPreference.upsert({ where: { userId }, update: {}, create: { userId } }),
     db.weatherProfile.findUnique({ where: { userId }, select: { city: true, wateringIntervalMultiplier: true } }),
     db.user.findUniqueOrThrow({ where: { id: userId }, select: { unitSystem: true, isAdmin: true } }),
+    db.plant.count({ where: { userId } }),
   ]);
 
   const cuttingsEnabled = isCuttingsMarketplaceEnabled();
@@ -33,6 +35,7 @@ export default async function SettingsPage() {
       <section className="card p-4 space-y-2 text-sm">
         <h2 className="font-semibold">Compte</h2>
         <AccountSettings email={session?.user?.email} initialName={session?.user?.name} />
+        <ReplayOnboardingButton cuttingsEnabled={cuttingsEnabled} hasPlants={plantCount > 0} />
       </section>
 
       <section className="card p-4 space-y-2 text-sm">

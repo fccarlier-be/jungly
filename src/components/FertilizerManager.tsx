@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FlaskConical } from "@/components/icons";
+import EmptyState from "@/components/EmptyState";
 
 export interface FertilizerRecord {
   id: string;
@@ -147,7 +149,9 @@ export default function FertilizerManager({ fertilizers }: { fertilizers: Fertil
           {error}
         </p>
       )}
-      {fertilizers.length === 0 && !adding && <p className="text-muted text-sm">Aucun engrais enregistré pour l&apos;instant.</p>}
+      {fertilizers.length === 0 && !adding && (
+        <EmptyState icon={<FlaskConical size={32} strokeWidth={1.5} />} title="Aucun engrais" description="Ta bibliothèque personnelle d'engrais, réutilisable dans une règle de fertilisation." />
+      )}
 
       {fertilizers.map((fert) => (
         <div key={fert.id} className="card p-3 text-sm">

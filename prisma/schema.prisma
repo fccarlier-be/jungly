@@ -50,6 +50,11 @@ model User {
   // passe) : les JWT embarquent la valeur a la connexion et sont refuses des
   // qu'elle ne correspond plus (voir sessionIsCurrent).
   sessionVersion Int      @default(0)
+  // Null tant que le compte n'a pas termine (ou passe) la presentation
+  // guidee de premier lancement -- voir onboarding.ts. Distinct de
+  // lastSeenAnnouncementId (annonces ponctuelles) : ceci ne se joue qu'une
+  // fois dans la vie du compte.
+  onboardingCompletedAt DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   // Seul l'utilisateur seed (SEED_USER_EMAIL) l'est, voir prisma/seed.ts --

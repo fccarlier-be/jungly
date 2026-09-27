@@ -53,11 +53,18 @@ describe("announcements (integration reelle SQLite)", () => {
   });
 
   describe("getUnseenAnnouncements : la derniere, suivie des precedentes ratees", () => {
+    // createdAt explicite (pas une pause entre chaque creation) : sous charge,
+    // deux insertions successives peuvent tomber dans la meme milliseconde et
+    // rendre l'ordre attendu par le test non deterministe (constate en CI).
     async function publish(...titles: string[]) {
+      const base = Date.now();
       const created = [];
-      for (const title of titles) {
-        created.push(await createAnnouncement({ title: `TEST-${title}`, body: `corps ${title}` }));
-        await new Promise((r) => setTimeout(r, 5));
+      for (const [i, title] of titles.entries()) {
+        created.push(
+          await db.announcement.create({
+            data: { title: `TEST-${title}`, body: `corps ${title}`, createdAt: new Date(base + i * 1000) },
+          }),
+        );
       }
       return created;
     }

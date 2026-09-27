@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Ban, Plus } from "@/components/icons";
+import { Ban, Plus, MessageCircle, Star } from "@/components/icons";
+import EmptyState from "@/components/EmptyState";
 import { requireSessionUserId } from "@/lib/session";
 import { getCuttingsBanUntil } from "@/server/cuttings/access";
 import { listUnacknowledgedWarnings } from "@/server/cuttings/moderation";
@@ -29,11 +31,29 @@ const TABS = [
   { value: "echanges", label: "Échanges" },
 ] as const;
 
-const EMPTY_MESSAGE: Record<string, string> = {
-  toutes: "Aucune annonce ouverte pour l'instant.",
-  mine: "Tu n'as publié aucune annonce pour l'instant.",
-  messages: "Aucune conversation pour l'instant.",
-  echanges: "Aucun échange réalisé pour l'instant.",
+const EMPTY_STATE: Record<string, { icon: ReactNode; title: string; description: string; action?: boolean }> = {
+  toutes: {
+    icon: <Plus size={32} strokeWidth={1.5} />,
+    title: "Rien à donner pour l'instant",
+    description: "Reviens plus tard, ou publie ta propre annonce.",
+    action: true,
+  },
+  mine: {
+    icon: <Plus size={32} strokeWidth={1.5} />,
+    title: "Aucune annonce publiée",
+    description: "Propose une bouture en trop à donner ou échanger.",
+    action: true,
+  },
+  messages: {
+    icon: <MessageCircle size={32} strokeWidth={1.5} />,
+    title: "Aucune conversation",
+    description: "Les échanges de messages avec d'autres membres apparaîtront ici.",
+  },
+  echanges: {
+    icon: <Star size={32} strokeWidth={1.5} />,
+    title: "Aucun échange réalisé",
+    description: "Une fois un échange confirmé, il apparaît ici avec les notes échangées.",
+  },
 };
 
 export default async function BouturesPage({
@@ -112,12 +132,12 @@ export default async function BouturesPage({
 
       {tab === "echanges" ? (
         transactions.length === 0 ? (
-          <p className="text-muted py-8 text-center">{EMPTY_MESSAGE[tab]}</p>
+          <EmptyState {...EMPTY_STATE[tab]} actionHref={EMPTY_STATE[tab].action ? "/boutures/nouvelle" : undefined} actionLabel={EMPTY_STATE[tab].action ? "Publier une annonce" : undefined} />
         ) : (
           <CuttingTransactionList transactions={transactions} />
         )
       ) : listings.length === 0 ? (
-        <p className="text-muted py-8 text-center">{EMPTY_MESSAGE[tab]}</p>
+        <EmptyState {...EMPTY_STATE[tab]} actionHref={EMPTY_STATE[tab].action ? "/boutures/nouvelle" : undefined} actionLabel={EMPTY_STATE[tab].action ? "Publier une annonce" : undefined} />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {listings.map((listing) => (

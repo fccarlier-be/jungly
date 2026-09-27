@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Container } from "@/components/icons";
+import EmptyState from "@/components/EmptyState";
 
 export interface ContainerRecord {
   id: string;
@@ -157,7 +159,7 @@ export default function ContainerManager({ containers }: { containers: Container
         </p>
       )}
       {containers.length === 0 && !adding && (
-        <p className="text-muted text-sm">Aucune jardinière enregistrée pour l&apos;instant.</p>
+        <EmptyState icon={<Container size={32} strokeWidth={1.5} />} title="Aucune jardinière" description="Un contenant partagé par plusieurs plantes, comme une jardinière ou une tourbière." />
       )}
 
       {containers.map((c) => (
