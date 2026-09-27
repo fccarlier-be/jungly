@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   TourWelcomeScene,
   TourTasksScene,
+  TourSettingsScene,
   TourLibraryScene,
   TourDiagnosisScene,
   TourToolsScene,
@@ -28,6 +29,11 @@ function buildSteps(cuttingsEnabled: boolean): Step[] {
       Scene: TourTasksScene,
       title: "L'accueil, au jour le jour",
       body: "Les soins du jour et ceux en retard, avec un geste pour valider ou reporter.",
+    },
+    {
+      Scene: TourSettingsScene,
+      title: "Personnalise Jungly",
+      body: "Dans Paramètres : active les notifications pour ne rien manquer, et renseigne ta ville pour ajuster l'arrosage à la météo.",
     },
     {
       Scene: TourLibraryScene,
