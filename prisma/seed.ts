@@ -250,7 +250,10 @@ async function main() {
   const user = await db.user.upsert({
     where: { email },
     update: { isAdmin: true, passwordHash },
-    create: { email, passwordHash, name: "Demo", isAdmin: true },
+    // onboardingCompletedAt : compte d'amorcage deja configure (admin), pas
+    // un nouvel arrivant -- ne doit pas voir la presentation de premier
+    // lancement (utilise notamment par e2e/plant-journey.spec.ts).
+    create: { email, passwordHash, name: "Demo", isAdmin: true, onboardingCompletedAt: new Date() },
   });
 
   const existingPlantCount = await db.plant.count({ where: { userId: user.id } });
