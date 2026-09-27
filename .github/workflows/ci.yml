@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # claude/** : permet de publier une image sha-<commit> pour une branche
+    # avant fusion (teste sur le staging, puis PR) -- voir CLAUDE.md.
+    branches: [main, "claude/**"]
   pull_request:
 
 # Le job `test` ne touche jamais a la prod (aucun secret reel fourni ici).
@@ -166,7 +168,7 @@ jobs:
   image:
     runs-on: ubuntu-latest
     needs: [test, e2e]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push'
     permissions:
       contents: read
       packages: write
@@ -187,15 +189,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # :main est le tag mouvant que le staging suit (docker compose pull) --
+      # il ne doit etre republie QUE par un vrai push sur main, jamais par une
+      # branche de travail (qui n'a que son propre sha-<commit>, immuable).
+      - name: Tags de l'image
+        id: tags
+        run: |
+          TAGS="${{ env.IMAGE }}:sha-${{ steps.sha.outputs.short }}"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            TAGS="$(printf '%s\n%s' "$TAGS" "${{ env.IMAGE }}:main")"
+          fi
+          {
+            echo "list<<TAGS_EOF"
+            echo "$TAGS"
+            echo "TAGS_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: true
           build-args: |
             GIT_SHA=${{ steps.sha.outputs.short }}
-          tags: |
-            ${{ env.IMAGE }}:sha-${{ steps.sha.outputs.short }}
-            ${{ env.IMAGE }}:main
+          tags: ${{ steps.tags.outputs.list }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
