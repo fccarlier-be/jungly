@@ -625,11 +625,17 @@ export function TourCuttingsScene({ className }: { className?: string }) {
         <Place x={56} y={128} s={0.8}>
           <Pot w={70} h={52} />
         </Place>
+        {/* Plante source, dans le pot de gauche : sans elle la scene se lit
+            comme un echange de deux plantes identiques plutot que le don
+            d'une bouture prise sur une plante existante (retour utilisateur). */}
+        <Place x={56} y={132} s={0.52}>
+          <Monstera id="tour-cuttings-src" />
+        </Place>
         <Place x={164} y={128} s={0.8}>
           <Pot w={70} h={52} />
         </Place>
         <g filter={CUT}>
-          <path d="M70 92C95 68 125 68 150 92" stroke={C.sous} strokeWidth={3} strokeDasharray="2 7" strokeLinecap="round" fill="none" />
+          <path d="M78 92C100 68 128 68 150 92" stroke={C.sous} strokeWidth={3} strokeDasharray="2 7" strokeLinecap="round" fill="none" />
         </g>
         {/* La bouture elle-meme : une petite tige et deux feuilles, assez
             grande pour se lire comme une plante (retour utilisateur : la
