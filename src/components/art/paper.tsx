@@ -534,6 +534,28 @@ export function TourTasksScene({ className }: { className?: string }) {
   );
 }
 
+/** Etape : parametres -- une cloche de notification et un soleil (meteo/ville). */
+export function TourSettingsScene({ className }: { className?: string }) {
+  return (
+    <div className={className}>
+      <TourGround>
+        <circle cx={154} cy={54} r={30} fill="#fbeab0" />
+        <circle cx={154} cy={54} r={22} fill="#f8dc86" />
+        <g filter={CUT}>
+          <circle cx={154} cy={54} r={14} fill="#f6cf5c" />
+        </g>
+        <Place x={72} y={112} s={1.05}>
+          <g filter={CUT}>
+            <path d="M0 -32C-15 -32 -20 -16 -20 -2L-26 14H26L20 -2C20 -16 15 -32 0 -32Z" fill={C.sous} />
+            <circle cx={0} cy={22} r={6} fill={C.sous} />
+          </g>
+          <circle cx={13} cy={-26} r={6} fill={C.corail} />
+        </Place>
+      </TourGround>
+    </div>
+  );
+}
+
 /** Etape 3 : mes plantes et la bibliotheque -- une pile de fiches sous une feuille. */
 export function TourLibraryScene({ className }: { className?: string }) {
   return (
@@ -581,7 +603,7 @@ export function TourToolsScene({ className }: { className?: string }) {
         <Place x={72} y={128} s={1.1}>
           <Pot w={78} h={58} />
         </Place>
-        <Place x={72} y={98} s={0.85}>
+        <Place x={72} y={126} s={0.95}>
           <Frond len={110} bend={-40} n={9} L={28} W={7} />
         </Place>
         <Place x={150} y={132} s={0.95} rot={4}>
@@ -603,14 +625,27 @@ export function TourCuttingsScene({ className }: { className?: string }) {
         <Place x={56} y={128} s={0.8}>
           <Pot w={70} h={52} />
         </Place>
+        {/* Plante source, dans le pot de gauche : sans elle la scene se lit
+            comme un echange de deux plantes identiques plutot que le don
+            d'une bouture prise sur une plante existante (retour utilisateur). */}
+        <Place x={56} y={132} s={0.52}>
+          <Monstera id="tour-cuttings-src" />
+        </Place>
         <Place x={164} y={128} s={0.8}>
           <Pot w={70} h={52} />
         </Place>
         <g filter={CUT}>
-          <path d="M70 90C95 66 125 66 150 90" stroke={C.sous} strokeWidth={3} strokeDasharray="2 7" strokeLinecap="round" fill="none" />
+          <path d="M78 92C100 68 128 68 150 92" stroke={C.sous} strokeWidth={3} strokeDasharray="2 7" strokeLinecap="round" fill="none" />
         </g>
-        <Place x={110} y={78} rot={-10} s={0.85}>
-          <path d={leaflet(28, 10)} fill={C.fou} />
+        {/* La bouture elle-meme : une petite tige et deux feuilles, assez
+            grande pour se lire comme une plante (retour utilisateur : la
+            version precedente, une seule feuille minuscule, etait invisible). */}
+        <Place x={110} y={86} s={1.35}>
+          <path d="M0 8V-10" stroke={C.sous} strokeWidth={3} strokeLinecap="round" />
+          <g filter={CUT}>
+            <path d={leaflet(24, 9)} transform="translate(0 -10) rotate(-32)" fill={C.fou} />
+            <path d={leaflet(24, 9)} transform="translate(0 -10) rotate(-148)" fill={C.pousse} />
+          </g>
         </Place>
       </TourGround>
     </div>

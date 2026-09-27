@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Search, Check } from "@/components/icons";
 import { PlantPlaceholder } from "@/components/art/paper";
+import { bypassesImageOptimizer } from "@/lib/imageOptimization";
 
 type Watering = { recurrenceType: string; interval: number };
 
@@ -11,7 +13,7 @@ interface LibraryEntry {
   id: string;
   commonName: string;
   scientificName: string | null;
-  careProfile: { watering?: Watering } | null;
+  careProfile: { watering?: Watering; imageUrl?: string } | null;
 }
 
 const FREQUENCIES = [
@@ -153,21 +155,13 @@ export default function GuidedFirstPlantForm() {
           <p className="text-muted text-xs">
             En trouver une préremplit automatiquement l&apos;arrosage à l&apos;étape suivante.
           </p>
-          <div className="relative">
-            <Search size={16} className="text-muted absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              id="guided-plant-species"
-              value={query}
-              onChange={(e) => {
-                setSelected(null);
-                setQuery(e.target.value);
-              }}
-              placeholder="Monstera deliciosa, pothos..."
-              className="input w-full py-2.5 pl-9 pr-3"
-            />
-          </div>
-          {selected && (
-            <div className="chip-active flex items-center justify-between rounded-xl px-3 py-2 text-sm">
+          {selected ? (
+            // Une fois choisie, l'espece s'affiche en puce en lecture seule
+            // (jamais dans le champ de recherche) : sur certains claviers
+            // mobiles, remplacer programmatiquement le texte d'un champ
+            // encore focus pouvait laisser un residu de saisie/correction
+            // automatique devant le nom repris (retour utilisateur).
+            <div className="chip-active flex items-center justify-between rounded-xl px-3 py-2.5 text-sm">
               <span>
                 {selected.commonName}
                 {selected.scientificName && <span className="italic opacity-80"> · {selected.scientificName}</span>}
@@ -175,6 +169,21 @@ export default function GuidedFirstPlantForm() {
               <button type="button" onClick={clearSelection} className="font-semibold underline">
                 Changer
               </button>
+            </div>
+          ) : (
+            <div className="relative">
+              <Search size={16} className="text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                id="guided-plant-species"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Monstera deliciosa, pothos..."
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                className="input w-full py-2.5 pl-9 pr-3"
+              />
             </div>
           )}
           {!selected && effectiveResults.length > 0 && (
@@ -209,7 +218,20 @@ export default function GuidedFirstPlantForm() {
   return (
     <div className="space-y-5">
       <div className="card flex items-center gap-3 p-3">
-        <PlantPlaceholder className="h-14 w-14 shrink-0 overflow-hidden rounded-xl" />
+        <span className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-xl">
+          {selected?.careProfile?.imageUrl ? (
+            <Image
+              src={selected.careProfile.imageUrl}
+              alt=""
+              fill
+              sizes="56px"
+              className="object-cover"
+              unoptimized={bypassesImageOptimizer(selected.careProfile.imageUrl)}
+            />
+          ) : (
+            <PlantPlaceholder className="h-full w-full" />
+          )}
+        </span>
         <div className="min-w-0">
           <p className="truncate font-semibold">{name}</p>
           {selected?.scientificName && <p className="text-muted truncate text-xs italic">{selected.scientificName}</p>}
