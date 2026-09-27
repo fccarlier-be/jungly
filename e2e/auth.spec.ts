@@ -32,6 +32,11 @@ test("inscription, deconnexion/reconnexion, puis suppression du compte", async (
 
   // L'inscription connecte automatiquement -> redirection vers l'accueil.
   await expect(page).toHaveURL("/");
+  // Acquitte la presentation de premier lancement (OnboardingTour) : ce
+  // compte reel (passe par /api/register, pas createTestUser) la verrait
+  // sinon en plein ecran, bloquant les clics qui suivent.
+  await page.request.post("/api/onboarding/complete");
+  await page.reload();
   await expect(page.getByRole("link", { name: "Mes plantes" }).first()).toBeVisible();
 
   await page.goto("/parametres");

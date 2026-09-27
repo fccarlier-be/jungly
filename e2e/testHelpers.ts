@@ -14,7 +14,12 @@ export async function createTestUser(labelSuffix: string) {
   const email = `e2e-test-${labelSuffix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
   const password = "TestPassword123!";
   const passwordHash = await bcrypt.hash(password, 10);
-  const user = await cleanupDb.user.create({ data: { email, passwordHash, name: labelSuffix } });
+  // onboardingCompletedAt pose a la creation : ces comptes synthetiques n'ont pas
+  // a voir la presentation de premier lancement, qui bloquerait (plein ecran)
+  // les clics attendus par les tests juste apres la connexion.
+  const user = await cleanupDb.user.create({
+    data: { email, passwordHash, name: labelSuffix, onboardingCompletedAt: new Date() },
+  });
   return { userId: user.id, email, password };
 }
 
