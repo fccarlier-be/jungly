@@ -180,6 +180,58 @@ GIT_SHA`) après les étapes lourdes, sinon le cache de `node_modules` saute.
 Le plus récent en haut. Pour chaque session : date, branche, ce qui a été fait
 et pourquoi, fichiers principaux, décisions, et ce qui reste à faire.
 
+### 2026-10-03 — Présentation de premier lancement, ticket #6, afficher le mot de passe
+
+**Contexte** : session Claude Code CLI (homelab), avec accès direct aux deux
+machines via `ssh vps` (compte `franky`, dans le groupe `docker`, propriétaire
+de `.env`/`docker-compose.yml` -- pas besoin de `sudo`) et au homelab en
+local. Nouveau mode de travail adopté à la demande de l'utilisateur :
+**branche dédiée par changement, jamais de push direct sur `main`** ; la CI
+publie une image `sha-<commit>` pour toute branche `claude/**` (pas
+seulement `main`), utilisée pour tester sur le staging avant d'ouvrir la PR
+que l'utilisateur fusionne lui-même.
+
+**Présentation de premier lancement** (`OnboardingTour.tsx`) : 5-6 écrans
+illustrés (papier découpé, primitives réutilisées de `art/paper.tsx`), une
+seule fois par compte (`User.onboardingCompletedAt`, migration
+`20260927120000` avec rétro-remplissage des comptes existants -- sans lui,
+tous les comptes réels auraient revu "Bienvenue" à leur prochaine connexion,
+repéré avant tout déploiement). Ajout guidé de la première plante
+(`/plantes/nouvelle/guidee`) en sortie de présentation. Écrans vides
+illustrés ajoutés sur Jardinières, Engrais et les 4 onglets de Boutures.
+Corrections après retours utilisateur sur staging (plante flottant au-dessus
+du pot, bouture invisible, nom dupliqué dans la recherche bibliothèque,
+photo manquante sur l'écran de confirmation).
+
+**Ticket #6** (Gauthier, jungly-admin, 01/10) : une règle à recurrence
+longue (mensuelle/annuelle) part désormais de `Plant.acquiredAt` plutôt que
+d'aujourd'hui, quand elle est connue et déjà passée -- "rempoter tous les
+24 mois" sur une plante acquise il y a un an tombe dans 12 mois, pas 24
+(`firstDueDateBasis()`, `recurrence.ts`). Portée (décidée avec
+l'utilisateur) : toutes les récurrences longues, nouvelles règles
+seulement -- aucune règle déjà en place n'est recalculée. Vérifié en direct
+sur le staging via l'API (plante acquise le 2025-10-03 + règle 24 mois ->
+échéance au 2027-10-03).
+
+**Afficher/masquer le mot de passe** (`PasswordField.tsx`, icône `EyeOff`) :
+connexion, inscription, réinitialisation.
+
+**Déployé en prod** le 2026-10-03 (`jungly-app.fcold.org` : `sha-16cb9ac` ->
+`sha-3fb29c9` -> `sha-c334f78`, en deux temps). Migration de l'onboarding
+appliquée avec coupure (sauvegarde à froid des données, `.env` sauvegardé) ;
+les deux mises à jour suivantes (ticket #6, mot de passe, + 4 dépendances)
+sans migration, donc sans coupure. Staging et prod resynchronisés sur
+`:main`/`sha-c334f78` en fin de session. Branches nettoyées après fusion
+(l'utilisateur supprime la branche à la fusion de la PR) : ne restent que
+`main`, `claude/upbeat-mayer-1bnecz` (branche de dev persistante) et
+`worktree-iot-sensor-battery` (travail en cours, en attente d'un capteur --
+**ne jamais la supprimer**).
+
+**Reste à faire** : répondre à Gauthier sur le ticket #6 (jungly-admin,
+instance "hosted", id `cmupu2os2002r01lv14vfs3ug`) ; deux tickets "personal"
+plus anciens dans `ticket_meta` (`cmua9dg0l...`, `cmua9ew2w...`) semblent
+orphelins depuis l'arrêt de l'instance perso, pas creusé.
+
 ### 2026-09-25 — Audit complet du code
 
 **Demande** : auditer tout le code (failles et bugs). ~25 000 lignes, 80
