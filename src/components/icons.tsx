@@ -248,6 +248,16 @@ export const Eye = make(() => (
   </>
 ));
 
+export const EyeOff = make(() => (
+  <>
+    <Tinted d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" tint={0.14} />
+    <circle cx={12} cy={12} r={3.2} fillOpacity={0.5} />
+    <Lines w={2.6}>
+      <path d="M4 4l16 16" />
+    </Lines>
+  </>
+));
+
 export const Camera = make(() => (
   <>
     <path d="M8 7.5 9.2 5a1 1 0 0 1 .9-.6h3.8a1 1 0 0 1 .9.6L16 7.5Z" />
