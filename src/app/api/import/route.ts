@@ -20,6 +20,7 @@ import {
 } from "@/server/validation/backup";
 import { ensurePendingTaskForRule } from "@/server/careEngine/service";
 import { syncHealthFollowUp } from "@/server/careEngine/health";
+import { firstDueDateBasis } from "@/server/careEngine/recurrence";
 import { restoredRuleConfiguration } from "@/server/backupRestore";
 import { resolveUploadedFilePath, deleteUploadedFile } from "@/server/uploads";
 import { resolveLibraryPhotoPath, deleteLibraryPhoto } from "@/server/libraryPhotos";
@@ -341,9 +342,11 @@ export async function POST(request: NextRequest) {
 
             if (createdRule.enabled) {
               // Le dernier evenement du meme type de soin que la regle sert
-              // de point de depart -- repli sur la date d'import si aucun
-              // evenement de ce type n'a ete restaure (regle jamais honoree).
-              const fromDate = latestEventDateByType.get(rule.type) ?? new Date();
+              // de point de depart ; a defaut (regle jamais honoree), une
+              // recurrence longue repart de la date d'acquisition de la
+              // plante plutot que de la date d'import, quand elle est connue
+              // (meme raisonnement qu'a la creation manuelle d'une regle).
+              const fromDate = latestEventDateByType.get(rule.type) ?? firstDueDateBasis(rule.recurrenceType, plant.acquiredAt);
               await ensurePendingTaskForRule(createdRule, fromDate, tx);
             }
           }

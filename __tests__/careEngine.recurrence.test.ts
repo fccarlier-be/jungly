@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeNextDueDate, addMonths } from "@/server/careEngine/recurrence";
+import { computeNextDueDate, addMonths, firstDueDateBasis } from "@/server/careEngine/recurrence";
 
 describe("computeNextDueDate", () => {
   it("arrosage tous les 7 jours", () => {
@@ -113,5 +113,44 @@ describe("addMonths", () => {
     expect(result.getFullYear()).toBe(2026);
     expect(result.getMonth()).toBe(11); // decembre
     expect(result.getDate()).toBe(15);
+  });
+});
+
+describe("firstDueDateBasis", () => {
+  const today = new Date("2026-10-03T00:00:00Z");
+
+  it("recurrence longue (mois) + date d'acquisition connue et passee -> part de l'acquisition (ticket #6)", () => {
+    const acquiredAt = new Date("2025-10-03T00:00:00Z"); // il y a un an
+    const basis = firstDueDateBasis("INTERVAL_MONTHS", acquiredAt, today);
+    expect(basis).toEqual(acquiredAt);
+  });
+
+  it("recurrence longue (annuelle) + acquisition connue -> part de l'acquisition", () => {
+    const acquiredAt = new Date("2026-01-01T00:00:00Z");
+    expect(firstDueDateBasis("YEARLY", acquiredAt, today)).toEqual(acquiredAt);
+  });
+
+  it("recurrence courte (jours) -> ignore l'acquisition, part d'aujourd'hui", () => {
+    const acquiredAt = new Date("2025-10-03T00:00:00Z");
+    expect(firstDueDateBasis("FIXED_INTERVAL_DAYS", acquiredAt, today)).toEqual(today);
+  });
+
+  it("recurrence courte (semaines) -> ignore l'acquisition", () => {
+    const acquiredAt = new Date("2025-10-03T00:00:00Z");
+    expect(firstDueDateBasis("INTERVAL_WEEKS", acquiredAt, today)).toEqual(today);
+  });
+
+  it("aucune date d'acquisition -> part d'aujourd'hui", () => {
+    expect(firstDueDateBasis("INTERVAL_MONTHS", null, today)).toEqual(today);
+    expect(firstDueDateBasis("INTERVAL_MONTHS", undefined, today)).toEqual(today);
+  });
+
+  it("date d'acquisition dans le futur (saisie en avance) -> ignoree, part d'aujourd'hui", () => {
+    const acquiredAt = new Date("2026-12-01T00:00:00Z");
+    expect(firstDueDateBasis("INTERVAL_MONTHS", acquiredAt, today)).toEqual(today);
+  });
+
+  it("date d'acquisition = aujourd'hui -> acceptee (limite incluse)", () => {
+    expect(firstDueDateBasis("INTERVAL_MONTHS", today, today)).toEqual(today);
   });
 });
