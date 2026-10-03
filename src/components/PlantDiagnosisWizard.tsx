@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, Loader2 } from "@/components/icons";
+import { Camera, Images, Loader2 } from "@/components/icons";
 import {
   SYMPTOM_CATEGORIES,
   SYMPTOM_CATEGORY_LABEL,
@@ -226,16 +226,33 @@ export default function PlantDiagnosisWizard({
                 {photoRequest.label}
                 {!photoRequest.required && <span className="text-muted font-normal"> (optionnel)</span>}
               </p>
+              {/* Deux tuiles plutot qu'un input unique : capture="environment"
+                  force l'appareil photo, sans lui Android ouvre la galerie
+                  seule -- meme choix que PlantForm/CuttingListingForm (retour
+                  utilisateur, 2026-10-03). */}
               <div className="flex items-center gap-2">
                 <label>
                   <span className="chip inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-2 text-sm">
                     <Camera size={14} />
-                    {files[photoRequest.id] ? "Reprendre la photo" : "Prendre une photo"}
+                    {files[photoRequest.id] ? "Reprendre" : "Photo"}
                   </span>
                   <input
                     type="file"
                     accept="image/*"
                     capture="environment"
+                    className="hidden"
+                    disabled={submitting}
+                    onChange={(e) => handlePhotoFile(photoRequest.id, e)}
+                  />
+                </label>
+                <label>
+                  <span className="chip inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-2 text-sm">
+                    <Images size={14} />
+                    Galerie
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
                     className="hidden"
                     disabled={submitting}
                     onChange={(e) => handlePhotoFile(photoRequest.id, e)}
