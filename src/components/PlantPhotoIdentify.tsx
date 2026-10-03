@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera } from "@/components/icons";
+import { Camera, Images } from "@/components/icons";
 
 const ORGAN_OPTIONS: { value: string; label: string }[] = [
   { value: "auto", label: "Automatique" },
@@ -106,10 +106,14 @@ export default function PlantPhotoIdentify({
             </option>
           ))}
         </select>
+        {/* Deux tuiles plutot qu'un input unique : capture="environment" force
+            l'appareil photo, sans lui Android ouvre la galerie seule -- un
+            seul input ne peut pas offrir les deux de facon fiable (meme choix
+            que PlantForm/CuttingListingForm ; retour utilisateur, 2026-10-03). */}
         <label className="text-sm">
           <span className="chip inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-2">
             <Camera size={14} />
-            {status === "loading" ? "Identification..." : "Identifier via une photo"}
+            {status === "loading" ? "Identification..." : "Photo"}
           </span>
           <input
             type="file"
@@ -119,6 +123,13 @@ export default function PlantPhotoIdentify({
             onChange={handleFile}
             disabled={status === "loading"}
           />
+        </label>
+        <label className="text-sm">
+          <span className="chip inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-2">
+            <Images size={14} />
+            {status === "loading" ? "Identification..." : "Galerie"}
+          </span>
+          <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={status === "loading"} />
         </label>
       </div>
 
