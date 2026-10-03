@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
+import PasswordField from "@/components/PasswordField";
 
 export default function RegisterForm() {
   const [name, setName] = useState("");
@@ -81,16 +82,7 @@ export default function RegisterForm() {
         <label htmlFor="password" className="text-sm font-medium">
           Mot de passe
         </label>
-        <input
-          id="password"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="input w-full px-3 py-2"
-        />
+        <PasswordField id="password" required minLength={8} autoComplete="new-password" value={password} onChange={setPassword} />
         <p className="text-muted text-xs">8 caractères minimum.</p>
       </div>
 
@@ -98,15 +90,7 @@ export default function RegisterForm() {
         <label htmlFor="confirmPassword" className="text-sm font-medium">
           Confirmer le mot de passe
         </label>
-        <input
-          id="confirmPassword"
-          type="password"
-          required
-          autoComplete="new-password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          className="input w-full px-3 py-2"
-        />
+        <PasswordField id="confirmPassword" required autoComplete="new-password" value={confirmPassword} onChange={setConfirmPassword} />
       </div>
 
       {error && (

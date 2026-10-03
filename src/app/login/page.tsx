@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { LoginArt } from "@/components/art/paper";
+import PasswordField from "@/components/PasswordField";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -67,15 +68,7 @@ export default function LoginPage() {
               Mot de passe oublié ?
             </Link>
           </div>
-          <input
-            id="password"
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="input w-full px-3 py-2"
-          />
+          <PasswordField id="password" required autoComplete="current-password" value={password} onChange={setPassword} />
         </div>
 
         {error && (
