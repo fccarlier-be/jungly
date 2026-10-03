@@ -7,6 +7,32 @@ export interface RecurrenceRule {
   exactDate?: string | null;
 }
 
+// Recurrences a l'echelle de la vie de la plante (mois/annees) : pour elles,
+// l'age de la plante est une meilleure base que "aujourd'hui". Les
+// recurrences courtes (jours/semaines) suivent un rythme de routine
+// (arrosage...), sans rapport avec la date d'acquisition.
+const LONG_RECURRENCES: ReadonlySet<RecurrenceType> = new Set(["INTERVAL_MONTHS", "YEARLY"]);
+
+/**
+ * Date de reference pour la toute premiere echeance d'une regle qui vient
+ * d'etre creee, sans aucun historique de soin a lui substituer (ni creation
+ * manuelle, ni import de sauvegarde) -- voir ensurePendingTaskForRule().
+ *
+ * Retour utilisateur (ticket #6, 2026-10-01) : une regle "rempoter tous les
+ * 24 mois" ajoutee a une plante acquise il y a un an doit tomber dans 12
+ * mois, pas dans 24 -- sans ca, chaque nouvelle plante repart comme si elle
+ * venait d'arriver, meme avec une date d'acquisition renseignee.
+ *
+ * N'importe jamais un acquiredAt dans le futur (saisie en avance) : la
+ * reference reste alors la date du jour, comme avant ce correctif.
+ */
+export function firstDueDateBasis(recurrenceType: RecurrenceType, acquiredAt: Date | null | undefined, today: Date = new Date()): Date {
+  if (acquiredAt && LONG_RECURRENCES.has(recurrenceType) && acquiredAt.getTime() <= today.getTime()) {
+    return acquiredAt;
+  }
+  return today;
+}
+
 /**
  * Calcule la prochaine échéance à partir d'une date de référence (en général
  * la date du dernier événement de soin) et de la règle de récurrence.

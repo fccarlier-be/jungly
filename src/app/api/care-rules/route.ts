@@ -5,6 +5,7 @@ import { handleApiError } from "@/lib/apiError";
 import { getOwnedPlant, getOwnedFertilizer } from "@/server/ownership";
 import { createCareRuleSchema } from "@/server/validation/careRule";
 import { ensurePendingTaskForRule } from "@/server/careEngine/service";
+import { firstDueDateBasis } from "@/server/careEngine/recurrence";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const input = createCareRuleSchema.parse(body);
 
-    await getOwnedPlant(userId, input.plantId);
+    const plant = await getOwnedPlant(userId, input.plantId);
     // configuration.fertilizerId est un id fourni par le client (regle
     // FERTILIZING) : sans cette verification, un utilisateur pouvait faire
     // pointer sa regle vers l'engrais d'un AUTRE compte, dont le nom et la
@@ -46,7 +47,12 @@ export async function POST(request: NextRequest) {
       });
 
       if (created.enabled) {
-        await ensurePendingTaskForRule(created, new Date(), tx);
+        // Pour une recurrence longue (mensuelle/annuelle), part de la date
+        // d'acquisition de la plante plutot que d'aujourd'hui quand elle est
+        // connue (ticket #6, 2026-10-01) : "rempoter tous les 24 mois" sur
+        // une plante acquise il y a un an tombe alors dans 12 mois, pas 24.
+        const fromDate = firstDueDateBasis(created.recurrenceType, plant.acquiredAt);
+        await ensurePendingTaskForRule(created, fromDate, tx);
       }
 
       return created;
