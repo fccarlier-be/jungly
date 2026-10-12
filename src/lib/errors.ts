@@ -47,3 +47,17 @@ export class ServiceUnavailableError extends Error {
     super(message);
   }
 }
+
+/**
+ * Palier gratuit atteint (voir server/planLimit.ts) -- distincte des autres
+ * erreurs : le client doit reconnaitre ce cas precis pour afficher l'ecran
+ * de deblocage plutot qu'un message d'erreur generique (voir apiError.ts,
+ * code "PLANT_LIMIT_REACHED").
+ */
+export class PlanLimitError extends Error {
+  readonly limit: number;
+  constructor(limit: number) {
+    super(`Palier gratuit atteint (${limit} plantes).`);
+    this.limit = limit;
+  }
+}

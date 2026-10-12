@@ -10,7 +10,7 @@ vi.mock("@/server/googlePlayBilling", () => ({
 
 // Import après le mock (ordre requis par vi.mock, hoiste automatiquement).
 import { verifyAndAcknowledgePurchase, isPurchaseStillValid } from "@/server/googlePlayBilling";
-import { provisionHostedAccount, revokeExpiredPurchases } from "@/server/billing";
+import { provisionHostedAccount, revokeExpiredPurchases, upgradeHostedAccount } from "@/server/billing";
 
 const PROVISIONING_ID = "provisioning-id-de-test";
 
@@ -57,6 +57,7 @@ describe("provisionHostedAccount (integration reelle SQLite)", () => {
     const user = await db.user.findUnique({ where: { email } });
     expect(user).not.toBeNull();
     expect(user?.disabledAt).toBeNull();
+    expect(user?.hasUnlimitedAccess).toBe(true);
     const consumed = await db.consumedPurchase.findUnique({ where: { purchaseToken } });
     expect(consumed?.email).toBe(email);
     expect(consumed?.revokedAt).toBeNull();
@@ -168,11 +169,11 @@ describe("revokeExpiredPurchases (integration reelle SQLite)", () => {
     await db.$disconnect();
   });
 
-  it("desactive le compte dont l'achat n'est plus valide chez Google", async () => {
+  it("retire l'acces illimite du compte dont l'achat n'est plus valide chez Google (jamais disabledAt, reserve a la moderation)", async () => {
     const email = `revoke-${Date.now()}@example.com`;
     const purchaseToken = `tok-revoke-${Date.now()}`;
     createdEmails.push(email);
-    await db.user.create({ data: { email, passwordHash: "x" } });
+    await db.user.create({ data: { email, passwordHash: "x", hasUnlimitedAccess: true } });
     await db.consumedPurchase.create({ data: { purchaseToken, productId: HOSTED_ACCESS_PRODUCT_ID, email } });
     vi.mocked(isPurchaseStillValid).mockResolvedValue(false);
 
@@ -180,7 +181,8 @@ describe("revokeExpiredPurchases (integration reelle SQLite)", () => {
 
     expect(result.revoked).toBe(1);
     const user = await db.user.findUnique({ where: { email } });
-    expect(user?.disabledAt).not.toBeNull();
+    expect(user?.hasUnlimitedAccess).toBe(false);
+    expect(user?.disabledAt).toBeNull();
     const consumed = await db.consumedPurchase.findUnique({ where: { purchaseToken } });
     expect(consumed?.revokedAt).not.toBeNull();
   });
@@ -189,21 +191,21 @@ describe("revokeExpiredPurchases (integration reelle SQLite)", () => {
     const email = `revoke-valid-${Date.now()}@example.com`;
     const purchaseToken = `tok-revoke-valid-${Date.now()}`;
     createdEmails.push(email);
-    await db.user.create({ data: { email, passwordHash: "x" } });
+    await db.user.create({ data: { email, passwordHash: "x", hasUnlimitedAccess: true } });
     await db.consumedPurchase.create({ data: { purchaseToken, productId: HOSTED_ACCESS_PRODUCT_ID, email } });
     vi.mocked(isPurchaseStillValid).mockResolvedValue(true);
 
     await revokeExpiredPurchases();
 
     const user = await db.user.findUnique({ where: { email } });
-    expect(user?.disabledAt).toBeNull();
+    expect(user?.hasUnlimitedAccess).toBe(true);
   });
 
-  it("ne desactive rien sur une verification incertaine (cle absente/API injoignable)", async () => {
+  it("ne retire rien sur une verification incertaine (cle absente/API injoignable)", async () => {
     const email = `revoke-unknown-${Date.now()}@example.com`;
     const purchaseToken = `tok-revoke-unknown-${Date.now()}`;
     createdEmails.push(email);
-    await db.user.create({ data: { email, passwordHash: "x" } });
+    await db.user.create({ data: { email, passwordHash: "x", hasUnlimitedAccess: true } });
     await db.consumedPurchase.create({ data: { purchaseToken, productId: HOSTED_ACCESS_PRODUCT_ID, email } });
     vi.mocked(isPurchaseStillValid).mockResolvedValue(null);
 
@@ -211,7 +213,7 @@ describe("revokeExpiredPurchases (integration reelle SQLite)", () => {
 
     expect(result.revoked).toBe(0);
     const user = await db.user.findUnique({ where: { email } });
-    expect(user?.disabledAt).toBeNull();
+    expect(user?.hasUnlimitedAccess).toBe(true);
   });
 
   it("ignore un achat deja revoque (ne rappelle pas Google)", async () => {
@@ -224,5 +226,83 @@ describe("revokeExpiredPurchases (integration reelle SQLite)", () => {
 
     expect(result.checked).toBe(0);
     expect(isPurchaseStillValid).not.toHaveBeenCalled();
+  });
+});
+
+describe("upgradeHostedAccount (integration reelle SQLite)", () => {
+  const createdEmails: string[] = [];
+
+  afterEach(async () => {
+    vi.clearAllMocks();
+    if (createdEmails.length) {
+      await db.consumedPurchase.deleteMany({ where: { email: { in: createdEmails } } });
+      await db.user.deleteMany({ where: { email: { in: createdEmails } } });
+      createdEmails.length = 0;
+    }
+  });
+
+  afterAll(async () => {
+    await db.$disconnect();
+  });
+
+  async function createAccount(hasUnlimitedAccess = false) {
+    const email = `upgrade-${Date.now()}-${Math.random()}@example.com`;
+    createdEmails.push(email);
+    return db.user.create({ data: { email, passwordHash: "x", hasUnlimitedAccess } });
+  }
+
+  it("debloque le compte deja authentifie quand l'achat est valide", async () => {
+    vi.mocked(verifyAndAcknowledgePurchase).mockResolvedValue({ ok: true, obfuscatedExternalAccountId: PROVISIONING_ID });
+    const user = await createAccount(false);
+    const purchaseToken = `tok-upgrade-${Date.now()}`;
+
+    await upgradeHostedAccount(user.id, { purchaseToken, productId: HOSTED_ACCESS_PRODUCT_ID });
+
+    const updated = await db.user.findUnique({ where: { id: user.id } });
+    expect(updated?.hasUnlimitedAccess).toBe(true);
+    const consumed = await db.consumedPurchase.findUnique({ where: { purchaseToken } });
+    expect(consumed?.email).toBe(user.email);
+  });
+
+  it("refuse un productId inconnu sans appeler Google", async () => {
+    const user = await createAccount(false);
+
+    await expect(
+      upgradeHostedAccount(user.id, { purchaseToken: `tok-${Date.now()}`, productId: "un_autre_produit" }),
+    ).rejects.toThrow(BadRequestError);
+
+    expect(verifyAndAcknowledgePurchase).not.toHaveBeenCalled();
+  });
+
+  it("refuse de rejouer un jeton deja consomme, sans appeler Google", async () => {
+    const user = await createAccount(false);
+    const purchaseToken = `tok-upgrade-replay-${Date.now()}`;
+    await db.consumedPurchase.create({ data: { purchaseToken, productId: HOSTED_ACCESS_PRODUCT_ID, email: `autre-${user.email}` } });
+
+    await expect(upgradeHostedAccount(user.id, { purchaseToken, productId: HOSTED_ACCESS_PRODUCT_ID })).rejects.toThrow(ConflictError);
+
+    expect(verifyAndAcknowledgePurchase).not.toHaveBeenCalled();
+  });
+
+  it("refuse si le compte a deja l'acces illimite, sans appeler Google", async () => {
+    const user = await createAccount(true);
+
+    await expect(
+      upgradeHostedAccount(user.id, { purchaseToken: `tok-${Date.now()}`, productId: HOSTED_ACCESS_PRODUCT_ID }),
+    ).rejects.toThrow(ConflictError);
+
+    expect(verifyAndAcknowledgePurchase).not.toHaveBeenCalled();
+  });
+
+  it("ne debloque rien si Google refuse l'achat", async () => {
+    vi.mocked(verifyAndAcknowledgePurchase).mockResolvedValue({ ok: false, reason: "not_purchased" });
+    const user = await createAccount(false);
+    const purchaseToken = `tok-upgrade-refused-${Date.now()}`;
+
+    await expect(upgradeHostedAccount(user.id, { purchaseToken, productId: HOSTED_ACCESS_PRODUCT_ID })).rejects.toThrow(ConflictError);
+
+    const updated = await db.user.findUnique({ where: { id: user.id } });
+    expect(updated?.hasUnlimitedAccess).toBe(false);
+    expect(await db.consumedPurchase.findUnique({ where: { purchaseToken } })).toBeNull();
   });
 });

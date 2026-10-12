@@ -3,6 +3,19 @@
 Toutes les modifications notables de ce projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [Post-MVP] - 2026-10-12 — Palier gratuit (offre hébergée)
+
+### Ajouté
+
+- **Palier gratuit de l'offre hébergée** (`jungly-app.fcold.org` uniquement, jamais sur une instance auto-hébergée) : 5 plantes maximum sans achat (toutes les fonctionnalités restent accessibles), puis déblocage par un **achat unique de 9,99 €** ("Jungly illimité", pas d'abonnement). Les comptes déjà créés avant cette fonctionnalité sont automatiquement débloqués (migration de rétro-remplissage), jamais rétrogradés.
+- **Déblocage depuis l'app Android** sans pont natif : achat Google Play déclenché via l'API web `PaymentRequest` (méthode `https://play.google.com/billing`), vérifié côté serveur (`POST /api/billing/upgrade`). Composant `UnlockUnlimitedPlants` affiché en plein écran quand la création d'une plante est bloquée, et en encart dans Paramètres sinon.
+- Nouvelle colonne `User.hasUnlimitedAccess`.
+
+### Modifié
+
+- Un achat qui crée directement un compte (`provisionHostedAccount`, ancien parcours toujours en place) débloque désormais ce compte d'emblée.
+- `revokeExpiredPurchases` (achat devenu invalide chez Google) retire l'accès illimité au lieu de désactiver le compte -- `disabledAt` reste réservé à la modération.
+
 ## [Post-MVP] - 2026-09-25 — Audit complet du code
 
 Audit de l'ensemble du code (authentification, contrôle d'accès des 80 routes API, fichiers et imports, boutures, annonces, admin, facturation, capteurs, logique métier). Chaque constat a été reproduit avant correction ; chaque correctif a son test de non-régression, vérifié en échec sur l'ancien code.

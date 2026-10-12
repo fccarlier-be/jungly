@@ -13,6 +13,9 @@ import { isCuttingsMarketplaceEnabled } from "@/lib/features";
 import { countOpenReports } from "@/server/cuttings/reports";
 import { getVapidPublicKey } from "@/server/notifications/webPush";
 import ReplayOnboardingButton from "@/components/ReplayOnboardingButton";
+import UnlockUnlimitedPlants, { UnlimitedUnlocked } from "@/components/UnlockUnlimitedPlants";
+import { HOSTED_ACCESS_PRODUCT_ID } from "@/server/billingProducts";
+import { freePlantLimit } from "@/lib/features";
 
 export default async function SettingsPage() {
   const userId = await requireSessionUserId();
@@ -21,11 +24,12 @@ export default async function SettingsPage() {
   const [preference, weatherProfile, user, plantCount] = await Promise.all([
     db.notificationPreference.upsert({ where: { userId }, update: {}, create: { userId } }),
     db.weatherProfile.findUnique({ where: { userId }, select: { city: true, wateringIntervalMultiplier: true } }),
-    db.user.findUniqueOrThrow({ where: { id: userId }, select: { unitSystem: true, isAdmin: true } }),
+    db.user.findUniqueOrThrow({ where: { id: userId }, select: { unitSystem: true, isAdmin: true, hasUnlimitedAccess: true } }),
     db.plant.count({ where: { userId } }),
   ]);
 
   const cuttingsEnabled = isCuttingsMarketplaceEnabled();
+  const plantLimit = freePlantLimit();
   const openReports = user.isAdmin && cuttingsEnabled ? await countOpenReports() : 0;
 
   return (
@@ -37,6 +41,17 @@ export default async function SettingsPage() {
         <AccountSettings email={session?.user?.email} initialName={session?.user?.name} />
         <ReplayOnboardingButton cuttingsEnabled={cuttingsEnabled} hasPlants={plantCount > 0} />
       </section>
+
+      {plantLimit != null && (
+        <section className="card p-4 space-y-2 text-sm">
+          <h2 className="font-semibold">Jungly illimité</h2>
+          {user.hasUnlimitedAccess ? (
+            <UnlimitedUnlocked />
+          ) : (
+            <UnlockUnlimitedPlants productId={HOSTED_ACCESS_PRODUCT_ID} limit={plantLimit} variant="inline" />
+          )}
+        </section>
+      )}
 
       <section className="card p-4 space-y-2 text-sm">
         <h2 className="font-semibold">Notifications</h2>

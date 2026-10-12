@@ -76,7 +76,9 @@ export async function provisionHostedAccount(input: ProvisionHostedAccountInput)
   const passwordHash = await bcrypt.hash(password, 10);
   try {
     return await db.$transaction(async (tx) => {
-      const user = await tx.user.create({ data: { email, passwordHash } });
+      // hasUnlimitedAccess: true -- ce chemin EST un achat, le compte cree
+      // ne doit pas se retrouver bride par le palier gratuit.
+      const user = await tx.user.create({ data: { email, passwordHash, hasUnlimitedAccess: true } });
       await tx.consumedPurchase.create({ data: { purchaseToken, productId, email } });
       return { id: user.id, email: user.email };
     });
@@ -90,6 +92,61 @@ export async function provisionHostedAccount(input: ProvisionHostedAccountInput)
   }
 }
 
+export interface UpgradeHostedAccountInput {
+  purchaseToken: string;
+  productId: string;
+}
+
+/**
+ * Debloque l'offre illimitee (palier gratuit, voir server/planLimit.ts) sur
+ * un compte DEJA authentifie -- a la difference de provisionHostedAccount
+ * (qui cree le compte), ce chemin ne verifie pas de provisioningId : la
+ * session authentifie deja l'appelant, un jeton d'achat valide mais
+ * appartenant a quelqu'un d'autre ne "vole" rien (il debloquerait un compte
+ * qui n'est pas le sien, sans aucun gain pour l'attaquant), contrairement a
+ * provisionHostedAccount ou un jeton seul suffisait a revendiquer N'IMPORTE
+ * QUEL email choisi par l'appelant.
+ */
+export async function upgradeHostedAccount(userId: string, input: UpgradeHostedAccountInput): Promise<void> {
+  const { purchaseToken, productId } = input;
+
+  if (productId !== HOSTED_ACCESS_PRODUCT_ID) {
+    throw new BadRequestError("Produit inconnu.");
+  }
+
+  const existingToken = await db.consumedPurchase.findUnique({ where: { purchaseToken } });
+  if (existingToken) {
+    throw new ConflictError("Cet achat a déjà été utilisé.");
+  }
+
+  const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true, hasUnlimitedAccess: true } });
+  if (user.hasUnlimitedAccess) {
+    throw new ConflictError("Ce compte a déjà débloqué l'offre illimitée.");
+  }
+
+  const verification = await verifyAndAcknowledgePurchase(productId, purchaseToken);
+  if (!verification.ok) {
+    if (verification.reason === "not_purchased") {
+      throw new ConflictError("Achat introuvable ou non valide.");
+    }
+    throw new ServiceUnavailableError("Vérification de l'achat momentanément indisponible, réessayez plus tard.");
+  }
+
+  try {
+    await db.$transaction([
+      db.consumedPurchase.create({ data: { purchaseToken, productId, email: user.email } }),
+      db.user.update({ where: { id: userId }, data: { hasUnlimitedAccess: true } }),
+    ]);
+  } catch (error) {
+    // Course avec une autre requete simultanee sur le meme jeton -- deja
+    // verifie ci-dessus, mais pas atomique avec la transaction.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new ConflictError("Cet achat a déjà été utilisé.");
+    }
+    throw error;
+  }
+}
+
 export interface RevocationCheckResult {
   checked: number;
   revoked: number;
@@ -97,14 +154,17 @@ export interface RevocationCheckResult {
 
 /**
  * Version allegee d'une revocation en temps reel (RTDN/Pub-Sub) : re-verifie
- * chaque achat encore actif aupres de Google, desactive le compte associe si
- * l'achat n'est plus dans l'etat "achete" (rembourse/annule). Suffisant tant
- * que le volume d'achats reste faible (voir androidsecu.md #2 et CHANGELOG) --
- * a remplacer par de vraies notifications temps reel si ca grossit.
+ * chaque achat encore actif aupres de Google, retire l'offre illimitee du
+ * compte associe si l'achat n'est plus dans l'etat "achete" (rembourse/
+ * annule). Suffisant tant que le volume d'achats reste faible (voir
+ * androidsecu.md #2 et CHANGELOG) -- a remplacer par de vraies notifications
+ * temps reel si ca grossit.
  *
- * Jamais de suppression automatique du compte : seulement un blocage de
- * connexion (User.disabledAt), reversible a la main si un remboursement est
- * lui-meme conteste/annule.
+ * Depuis l'introduction du palier gratuit, un achat revoque ne desactive
+ * plus le compte (User.disabledAt, qui sert desormais uniquement a la
+ * moderation -- voir cuttings/moderation.ts) : il redevient simplement un
+ * compte gratuit normal (hasUnlimitedAccess: false), toujours utilisable
+ * jusqu'au palier. Jamais de suppression de donnees.
  */
 export async function revokeExpiredPurchases(): Promise<RevocationCheckResult> {
   const activePurchases = await db.consumedPurchase.findMany({ where: { revokedAt: null } });
@@ -120,7 +180,7 @@ export async function revokeExpiredPurchases(): Promise<RevocationCheckResult> {
 
     await db.$transaction([
       db.consumedPurchase.update({ where: { id: purchase.id }, data: { revokedAt: new Date() } }),
-      db.user.updateMany({ where: { email: purchase.email }, data: { disabledAt: new Date() } }),
+      db.user.updateMany({ where: { email: purchase.email }, data: { hasUnlimitedAccess: false } }),
     ]);
     revoked++;
   }

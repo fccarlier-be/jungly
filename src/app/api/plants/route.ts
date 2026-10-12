@@ -8,6 +8,7 @@ import { resolveContainerFields } from "@/server/containerAssignment";
 import { effectiveDueDate } from "@/server/careEngine/dueTasks";
 import { resolvePhotoUrl } from "@/server/uploads";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
+import { assertCanCreatePlant } from "@/server/planLimit";
 
 export async function GET(request: NextRequest) {
   try {
@@ -88,6 +89,8 @@ export async function POST(request: NextRequest) {
     if (!allowed) {
       return rateLimitResponse(retryAfterSeconds);
     }
+
+    await assertCanCreatePlant(userId);
 
     const body = await request.json();
     const input = createPlantSchema.parse(body);

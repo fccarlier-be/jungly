@@ -6,6 +6,8 @@ import Image from "next/image";
 import { Search, Check } from "@/components/icons";
 import { PlantPlaceholder } from "@/components/art/paper";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
+import UnlockUnlimitedPlants from "@/components/UnlockUnlimitedPlants";
+import { HOSTED_ACCESS_PRODUCT_ID } from "@/server/billingProducts";
 
 type Watering = { recurrenceType: string; interval: number };
 
@@ -49,6 +51,10 @@ export default function GuidedFirstPlantForm() {
   const [intervalDays, setIntervalDays] = useState<number | null>(7);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Normalement jamais atteint ici (premiere plante, palier a 5) --
+  // garde defensive si ce formulaire est rouvert avec des plantes deja
+  // existantes (voir PlantForm.tsx, meme logique).
+  const [planLimit, setPlanLimit] = useState<number | null>(null);
 
   // Pas de setResults([]) quand la recherche est inactive : la liste
   // "effective" ci-dessous s'en charge au rendu plutot que par un setState
@@ -99,6 +105,11 @@ export default function GuidedFirstPlantForm() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
+        if (body.code === "PLANT_LIMIT_REACHED") {
+          setPlanLimit(body.limit);
+          setSaving(false);
+          return;
+        }
         setError(body.error ?? "Impossible de créer cette plante.");
         setSaving(false);
         return;
@@ -129,6 +140,10 @@ export default function GuidedFirstPlantForm() {
       setError("Erreur inattendue.");
       setSaving(false);
     }
+  }
+
+  if (planLimit != null) {
+    return <UnlockUnlimitedPlants productId={HOSTED_ACCESS_PRODUCT_ID} limit={planLimit} variant="blocking" />;
   }
 
   if (step === 1) {
