@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { Prisma } from "@generated/prisma/client";
-import { UnauthorizedError, NotFoundError, ConflictError, ForbiddenError, BadRequestError, ServiceUnavailableError } from "@/lib/errors";
+import { UnauthorizedError, NotFoundError, ConflictError, ForbiddenError, BadRequestError, ServiceUnavailableError, PlanLimitError } from "@/lib/errors";
 import { PerenualError } from "@/server/perenual/client";
 import { PlantnetError } from "@/server/plantnet/client";
 
 // Re-exportees pour compatibilite -- la definition vit desormais dans
 // errors.ts (sans dependance next/server, importable depuis un module
 // teste directement sous Vitest). Ne pas dupliquer les classes ici.
-export { NotFoundError, ConflictError, ForbiddenError, BadRequestError, ServiceUnavailableError };
+export { NotFoundError, ConflictError, ForbiddenError, BadRequestError, ServiceUnavailableError, PlanLimitError };
 
 /**
  * Traduit une erreur en réponse HTTP compréhensible, sans jamais exposer de
@@ -22,6 +22,13 @@ export function handleApiError(error: unknown): NextResponse {
 
   if (error instanceof ServiceUnavailableError) {
     return NextResponse.json({ error: error.message }, { status: 503 });
+  }
+
+  // 402 (Payment Required) : statut peu courant mais semantiquement exact,
+  // et distinct de 403 (Forbidden) pour que le client puisse reconnaitre ce
+  // cas precis sans inspecter le texte du message.
+  if (error instanceof PlanLimitError) {
+    return NextResponse.json({ error: error.message, code: "PLANT_LIMIT_REACHED", limit: error.limit }, { status: 402 });
   }
 
   if (error instanceof ZodError) {

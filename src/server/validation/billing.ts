@@ -14,3 +14,13 @@ export const verifyPurchaseSchema = registerSchema.pick({ email: true, password:
   // a coup sur une recuperation pourtant legitime.
   provisioningId: z.string().trim().min(1).max(64).optional(),
 });
+
+/**
+ * Deblocage de l'offre illimitee sur un compte deja authentifie (voir
+ * upgradeHostedAccount) -- contrairement a verifyPurchaseSchema, ni email
+ * ni mot de passe : le compte existe deja, identifie par la session.
+ */
+export const upgradeHostedAccountSchema = z.object({
+  purchaseToken: z.string().trim().min(10, "Jeton d'achat invalide.").max(4096),
+  productId: z.string().trim().min(1).max(200),
+});

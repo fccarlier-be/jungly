@@ -11,3 +11,16 @@
 export function isCuttingsMarketplaceEnabled(): boolean {
   return process.env.ENABLE_CUTTINGS_MARKETPLACE === "true";
 }
+
+/**
+ * Nombre de plantes au-dela duquel un compte sans achat (hasUnlimitedAccess)
+ * doit debloquer l'offre illimitee -- voir server/planLimit.ts. Absente
+ * (null) : aucun palier, comme sur une instance auto-hebergee ou tant que
+ * la variable n'est pas posee.
+ */
+export function freePlantLimit(): number | null {
+  const raw = process.env.HOSTED_FREE_PLANT_LIMIT;
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}

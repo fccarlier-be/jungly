@@ -55,6 +55,14 @@ model User {
   // lastSeenAnnouncementId (annonces ponctuelles) : ceci ne se joue qu'une
   // fois dans la vie du compte.
   onboardingCompletedAt DateTime?
+  // Palier gratuit (voir lib/features.ts, freePlantLimit()) : au-dela du
+  // nombre de plantes autorise gratuitement sur l'offre hebergee, false
+  // bloque la creation d'une nouvelle plante (voir server/planLimit.ts).
+  // Toujours true sur une instance auto-hebergee (aucun palier applicable),
+  // et toujours true pour tout compte deja existant avant l'introduction du
+  // palier (retro-rempli par la migration -- jamais de regression pour un
+  // compte deja en place).
+  hasUnlimitedAccess Boolean @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   // Seul l'utilisateur seed (SEED_USER_EMAIL) l'est, voir prisma/seed.ts --

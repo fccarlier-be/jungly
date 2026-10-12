@@ -10,6 +10,8 @@ import ExternalSpeciesSearch from "@/components/ExternalSpeciesSearch";
 import PlantPhotoIdentify, { type IdentifiedCandidate } from "@/components/PlantPhotoIdentify";
 import { mmToInputUnit, inputUnitToMm, type UnitSystem } from "@/lib/units";
 import { bypassesImageOptimizer } from "@/lib/imageOptimization";
+import UnlockUnlimitedPlants from "@/components/UnlockUnlimitedPlants";
+import { HOSTED_ACCESS_PRODUCT_ID } from "@/server/billingProducts";
 import {
   SUBSTRATE_TYPE_OPTIONS,
   normalizeWateringIntervalDays,
@@ -160,6 +162,10 @@ export default function PlantForm({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Non-null uniquement si la creation a ete refusee pour palier gratuit
+  // atteint (voir server/planLimit.ts) -- remplace le formulaire par le
+  // deblocage, plutot qu'un message d'erreur generique.
+  const [planLimit, setPlanLimit] = useState<number | null>(null);
 
   const librarySearchActive = mode === "create" && libraryQuery.trim().length >= 2 && libraryQuery !== selectedLibraryName;
   // Pas de setLibraryResults([]) quand la recherche est inactive : la liste
@@ -349,6 +355,11 @@ export default function PlantForm({
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
+          if (body.code === "PLANT_LIMIT_REACHED") {
+            setPlanLimit(body.limit);
+            setSubmitting(false);
+            return;
+          }
           throw new Error(body.error ?? "Impossible de créer la plante.");
         }
         const plant = await res.json();
@@ -441,6 +452,10 @@ export default function PlantForm({
         } satisfies CompatibilityPlant,
       ])
     : [];
+
+  if (planLimit != null) {
+    return <UnlockUnlimitedPlants productId={HOSTED_ACCESS_PRODUCT_ID} limit={planLimit} variant="blocking" />;
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-10">
