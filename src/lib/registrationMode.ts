@@ -1,9 +1,11 @@
 /**
- * "open" (defaut) : inscription libre-service, comme sur une instance
- * auto-hebergee classique. "invite_only" : reserve a une instance hebergee
- * par nous (ex. app.jungly.fcold.org) ou la creation de compte ne doit
- * passer que par un achat verifie (voir POST /api/billing/verify-purchase,
- * a venir) -- jamais par ce formulaire public.
+ * "open" (defaut) : inscription libre-service -- y compris sur l'offre
+ * hebergee depuis l'introduction du palier gratuit (voir
+ * lib/features.ts, freePlantLimit()) : un compte libre reste utilisable
+ * jusqu'a 5 plantes, l'achat (POST /api/billing/upgrade) ne fait que
+ * debloquer un compte deja cree, il ne le cree plus. "invite_only" :
+ * coupe ce formulaire public, reserve a une periode ou l'inscription
+ * libre ne doit pas etre proposee (ex. avant le lancement public).
  */
 export function isRegistrationOpen(): boolean {
   return process.env.REGISTRATION_MODE !== "invite_only";
