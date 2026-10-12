@@ -180,6 +180,83 @@ GIT_SHA`) après les étapes lourdes, sinon le cache de `node_modules` saute.
 Le plus récent en haut. Pour chaque session : date, branche, ce qui a été fait
 et pourquoi, fichiers principaux, décisions, et ce qui reste à faire.
 
+### 2026-10-12 — Palier gratuit (5 plantes) + achat unique illimité
+
+**Demande** : avant la soumission en production sur le Play Store, mettre en
+place un modèle freemium sur l'offre hébergée (plusieurs apps concurrentes de
+suivi de plantes proposent gratuit/payant par abonnement). Décision de
+l'utilisateur après discussion : **gratuit jusqu'à 5 plantes** (toutes
+fonctionnalités, aucun feature-gating), puis **achat unique de 9,99 €**
+("Jungly illimité", explicitement pas un abonnement). L'auto-hébergée reste
+gratuite et illimitée, inchangée. Comptes hébergés déjà existants : jamais
+rétrogradés (rétro-remplissage par migration).
+
+**Architecture retenue** : l'achat ne crée plus de compte, il **débloque un
+compte déjà créé** (`upgradeHostedAccount`, `src/server/billing.ts`) --
+l'ancien parcours achat-crée-un-compte (`provisionHostedAccount`,
+`POST /api/billing/verify-purchase`) reste en place tel quel, débloque
+désormais le compte créé d'emblée. `REGISTRATION_MODE=invite_only` retiré de
+l'offre hébergée (inscription libre nécessaire). `revokeExpiredPurchases`
+(achat invalidé chez Google) retire l'accès illimité au lieu de désactiver le
+compte -- `disabledAt` reste réservé à la modération (bannissement boutures).
+
+**Déblocage depuis l'app Android sans pont natif** : achat Google Play
+déclenché depuis la page web via l'API `PaymentRequest` (méthode
+`https://play.google.com/billing`, `src/lib/playBilling.ts`) -- fonctionne
+dans la TWA installée sans toucher au code Java (`BillingHelper.java` reste
+inchangé, utilisé seulement par l'ancien assistant `SetupActivity`). Jeton
+vérifié côté serveur (`POST /api/billing/upgrade`). **Non testable
+réellement sans appareil Android** (pas de `/dev/kvm` sur le homelab, donc
+pas d'émulateur accéléré viable) -- seule la logique serveur a été vérifiée
+en réel ; `AppConfig.java` pointe en dur sur `jungly-app.fcold.org`, donc un
+test d'achat réel ne peut se faire qu'après déploiement prod, via un service
+cloud (BrowserStack App Live) avec un compte testeur de licence Play
+Console -- écarté cette fois (pas de second compte Gmail disponible).
+
+**Modèle de données** : `User.hasUnlimitedAccess` (migration
+`20261012170401`, rétro-remplissage à `true` pour tous les comptes déjà
+existants -- vérifié avant déploiement : 18 comptes hébergés réels, aucun
+sans `ConsumedPurchase` associé n'aurait dû être bridé). Enforcement dans
+`src/server/planLimit.ts` (`assertCanCreatePlant`, appelé dans
+`POST /api/plants`), palier lu depuis `HOSTED_FREE_PLANT_LIMIT` (absente :
+aucun palier, comme sur l'auto-hébergée -- `src/lib/features.ts`).
+
+**Interface** : `UnlockUnlimitedPlants.tsx`, plein écran quand la création
+d'une plante est bloquée (`PlantForm.tsx`, `GuidedFirstPlantForm.tsx`), en
+encart dans Paramètres sinon.
+
+**Vérifié en réel sur testplantes.fcold.org puis jungly-app.fcold.org** (dans
+cet ordre) : inscription libre (201), 5 plantes créées puis la 6ème refusée
+(402 `PLANT_LIMIT_REACHED`), `POST /api/billing/upgrade` avec un jeton bidon
+échoue proprement (503, pas de clé Google Play configurée sur le staging) --
+jamais testé en prod (clé réelle présente, aurait appelé la vraie API Play
+Developer). Rétro-remplissage confirmé sur un compte réel pré-existant
+(staging : compte seed, 6 plantes, jamais bloqué) et sur les 18 comptes
+hébergés réels en prod. 503 tests verts, lint et `tsc` OK.
+
+**Déployé en prod** le 2026-10-12 (PR #50, `sha-3819de3`, depuis
+`sha-51488fb`) : migration appliquée sans erreur, sauvegarde à froid
+préalable (`jungly/data/plantes.db.bak-2026-10-12-sha-51488fb`, intégrité
+vérifiée). `docker-compose.yml` du VPS mis à jour (`HOSTED_FREE_PLANT_LIMIT=5`
+à la place de `REGISTRATION_MODE=invite_only`), sauvegarde
+`docker-compose.yml.bak-2026-10-12-pre-palier-gratuit`. Staging et prod
+resynchronisés en fin de session.
+
+**Incident en cours de route** : le token GitHub fine-grained enregistré
+(`~/.config/jungly/github-token`) s'est révélé expiré/révoqué (401 Bad
+credentials) au moment d'ouvrir la PR -- régénéré par l'utilisateur (mêmes
+permissions : Contents/Actions/Pull requests R&W sur `fccarlier-be/jungly`),
+fusion de la PR via l'API fonctionnelle avec le nouveau token (pas bloquée
+cette fois par le classificateur de sécurité, contrairement à une session
+précédente).
+
+**Reste à faire** : valider le vrai flux d'achat Play Billing sur un
+appareil ou un service cloud (BrowserStack App Live + compte testeur de
+licence Play Console) dès qu'un second compte Google est disponible --
+seule partie de cette fonctionnalité non vérifiée en conditions réelles.
+Le fallback déjà envisagé si `PaymentRequest` se révèle peu fiable en usage
+réel : pont natif JS↔Java dans `BillingHelper.java`/`SetupActivity.java`.
+
 ### 2026-10-03 — Présentation de premier lancement, ticket #6, afficher le mot de passe
 
 **Contexte** : session Claude Code CLI (homelab), avec accès direct aux deux
